@@ -3,10 +3,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 try:
     import tkinterdnd2
-    from tkinterdnd2 import DND_FILES
+    from tkinterdnd2 import DND_FILES, TkinterDnD
     # Define DnDWrapper for mixin
-    DnDWrapper = tkinterdnd2.DnDWrapper
-except ImportError:
+    if hasattr(tkinterdnd2, 'DnDWrapper'):
+        DnDWrapper = tkinterdnd2.DnDWrapper
+    else:
+        DnDWrapper = TkinterDnD.DnDWrapper
+except (ImportError, AttributeError):
     # Fallback
     class DnDWrapper:
         def drop_target_register(self, *args): pass

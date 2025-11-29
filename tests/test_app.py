@@ -165,8 +165,8 @@ class TestOrganizerApp(unittest.TestCase):
              with patch("app.json.dump"):
                  self.app.add_recent(Path("/tmp/new"))
 
-                 self.assertIn("/tmp/new", self.app.recent_folders)
-                 self.assertEqual(self.app.recent_folders[0], "/tmp/new")
+                 self.assertIn(str(Path("/tmp/new")), self.app.recent_folders)
+                 self.assertEqual(self.app.recent_folders[0], str(Path("/tmp/new")))
 
                  self.app.option_recent.configure.assert_called()
 
@@ -180,11 +180,13 @@ class TestOrganizerApp(unittest.TestCase):
                 self.assertNotIn("9", self.app.recent_folders)
 
     def test_on_recent_select(self):
-        self.app.on_recent_select("/tmp/recent_path")
+        with patch.object(self.app, 'add_recent') as mock_add_recent:
+            self.app.on_recent_select("/tmp/recent_path")
 
-        self.assertEqual(self.app.selected_path, Path("/tmp/recent_path"))
-        self.app.lbl_path.configure.assert_called_with(text="/tmp/recent_path")
-        self.app.btn_run.configure.assert_called_with(state="normal")
+            self.assertEqual(self.app.selected_path, Path("/tmp/recent_path"))
+            self.app.lbl_path.configure.assert_called_with(text=str(Path("/tmp/recent_path")))
+            self.app.btn_run.configure.assert_called_with(state="normal")
+            mock_add_recent.assert_called_with(Path("/tmp/recent_path"))
 
     def test_on_recent_select_placeholder(self):
         self.app.on_recent_select("Recent...")
