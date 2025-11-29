@@ -7,13 +7,14 @@ from pathlib import Path
 from organizer import FileOrganizer
 from themes import THEMES
 from settings_dialog import SettingsDialog
+from batch_dialog import BatchDialog
 from ui_utils import ToolTip
 
 class OrganizerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Pro File Organizer")
-        self.root.geometry("600x700") # Increased height slightly
+        self.root.geometry("600x700")
 
         self.organizer = FileOrganizer()
         # Try loading config
@@ -27,6 +28,7 @@ class OrganizerApp:
         self.colors = THEMES[self.current_theme]
         self.style = ttk.Style()
         self.selected_path = None
+        self.is_running = False
 
         # Bind Shortcuts
         self.root.bind('<Return>', self.start_thread)
@@ -90,6 +92,11 @@ class OrganizerApp:
         self.btn_settings.pack(side="right", padx=5)
         ToolTip(self.btn_settings, "Configure file categories and extensions")
 
+        # Batch Button
+        self.btn_batch = tk.Button(frame_options, text="Batch", command=self.open_batch)
+        self.btn_batch.pack(side="right", padx=5)
+        ToolTip(self.btn_batch, "Organize multiple folders")
+
         # 2. Action Buttons
         frame_actions = tk.Frame(root)
         frame_actions.pack(fill="x", padx=10, pady=5)
@@ -138,15 +145,13 @@ class OrganizerApp:
         # Re-apply specific states if needed
         if self.selected_path:
              self.btn_run.config(bg=c["success_bg"], fg=c["success_fg"])
-             self.btn_preview.config(bg=c["btn_bg"], fg=c["btn_fg"]) # Standard button color
+             self.btn_preview.config(bg=c["btn_bg"], fg=c["btn_fg"])
         else:
              self.btn_run.config(bg=c["disabled_bg"], fg=c["disabled_fg"])
              self.btn_preview.config(bg=c["disabled_bg"], fg=c["disabled_fg"])
 
-        if self.btn_undo["state"] == "normal":
-             self.btn_undo.config(bg=c["undo_bg"], fg=c["undo_fg"])
-        else:
-             self.btn_undo.config(bg=c["disabled_bg"], fg=c["disabled_fg"])
+        self.update_undo_button()
+
 
     def update_widget_colors(self, widget, c):
         try:
@@ -157,7 +162,7 @@ class OrganizerApp:
                     widget.config(selectcolor=c["select_bg"], activebackground=c["bg"], activeforeground=c["fg"])
             elif w_type == 'Button':
                 widget.config(bg=c["btn_bg"], fg=c["btn_fg"], activebackground=c["select_bg"], activeforeground=c["select_fg"])
-            elif w_type == 'Text': # ScrolledText contains a Text widget
+            elif w_type == 'Text':
                 widget.config(bg=c["text_bg"], fg=c["text_fg"], insertbackground=c["fg"])
         except tk.TclError:
             pass
@@ -179,9 +184,8 @@ class OrganizerApp:
         if str_path in self.recent_folders:
             self.recent_folders.remove(str_path)
         self.recent_folders.insert(0, str_path)
-        self.recent_folders = self.recent_folders[:10] # Keep last 10
+        self.recent_folders = self.recent_folders[:10]
 
-        # Update UI
         self.opt_recent['values'] = self.recent_folders
 
         with open("recent.json", "w") as f:
@@ -194,9 +198,8 @@ class OrganizerApp:
             self.lbl_path.config(text=str(self.selected_path))
             self.enable_buttons()
             self.log("Selected (Recent): " + str(self.selected_path))
-            # Move to top of recent list
             self.add_recent(self.selected_path)
-            self.opt_recent.set("...") # Reset text to dot dot dot
+            self.opt_recent.set("...")
 
     def enable_buttons(self):
         self.btn_run.config(state="normal", bg=self.colors["success_bg"], fg=self.colors["success_fg"])
@@ -211,12 +214,12 @@ class OrganizerApp:
             self.log("Selected: " + str(self.selected_path))
 
     def open_settings(self):
-        """Opens a window to configure file extensions and categories."""
         SettingsDialog(self.root, self.organizer, self.colors)
 
+    def open_batch(self):
+        BatchDialog(self.root, self.organizer, self.colors, on_complete_callback=self.update_undo_button)
 
     def log(self, message):
-        """Thread-safe logging to the text box."""
         def _update():
             self.log_area.config(state='normal')
             self.log_area.insert(tk.END, message + "\n")
@@ -225,7 +228,6 @@ class OrganizerApp:
         self.root.after(0, _update)
 
     def update_progress(self, current, total):
-        """Thread-safe progress bar update."""
         def _update():
             if total > 0:
                 self.progress["maximum"] = total
@@ -233,7 +235,6 @@ class OrganizerApp:
         self.root.after(0, _update)
 
     def start_thread(self, event=None):
-        """Run logic in a separate thread so the GUI doesn't freeze."""
         if not self.selected_path:
              messagebox.showwarning("Warning", "Please select a folder first.")
              return
@@ -245,7 +246,6 @@ class OrganizerApp:
         self.run_organization(dry_run_override=None)
 
     def run_preview(self):
-        """Runs a dry run (preview)."""
         self.run_organization(dry_run_override=True)
 
     def run_organization(self, dry_run_override=None):
@@ -258,7 +258,6 @@ class OrganizerApp:
         threading.Thread(target=self.organize_files, args=(dry_run_override,), daemon=True).start()
 
     def stop_process(self):
-        """Signals the running thread to stop."""
         if hasattr(self, 'is_running') and self.is_running:
             self.is_running = False
             self.btn_run.config(state="disabled", text="Stopping...")
@@ -282,27 +281,30 @@ class OrganizerApp:
 
         msg = f"Organization {'stopped' if not self.is_running else 'complete'}!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files."
 
-        # Show message box in main thread
         self.root.after(0, lambda: messagebox.showinfo("Result", msg))
-
-        # Enable Undo if we moved anything and it wasn't a dry run
-        if stats['moved'] > 0 and not dry_run:
-            self.root.after(0, lambda: self.btn_undo.config(state="normal"))
         
-        # Reset run button
         def reset_ui():
             self.btn_run.config(state="normal", text="Start Organizing", command=self.start_thread, bg=self.colors["success_bg"], fg=self.colors["success_fg"])
             self.btn_preview.config(state="normal", bg=self.colors["btn_bg"], fg=self.colors["btn_fg"])
+            self.update_undo_button()
 
         self.root.after(0, reset_ui)
 
+    def update_undo_button(self):
+        stack_size = len(self.organizer.undo_stack)
+        c = self.colors
+        if stack_size > 0:
+            self.btn_undo.config(state="normal", text=f"Undo Last Run ({stack_size})", bg=c["undo_bg"], fg=c["undo_fg"])
+        else:
+            self.btn_undo.config(state="disabled", text="Undo Last Run", bg=c["disabled_bg"], fg=c["disabled_fg"])
+
     def undo_changes(self):
-        """Reverses the last organization run."""
         self.btn_undo.config(state="disabled")
 
         def _undo_thread():
             count = self.organizer.undo_changes(log_callback=self.log)
             messagebox.showinfo("Undo", f"Restored {count} files to their original locations.")
+            self.root.after(0, self.update_undo_button)
 
         threading.Thread(target=_undo_thread, daemon=True).start()
 

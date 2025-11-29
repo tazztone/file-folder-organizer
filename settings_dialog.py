@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, ttk, filedialog
 from ui_utils import ToolTip
 
 class SettingsDialog:
@@ -7,22 +7,45 @@ class SettingsDialog:
         self.parent = parent
         self.organizer = organizer
         self.colors = colors
-        self.last_selected_cat = None # Track by NAME instead of index for robustness
+        self.last_selected_cat = None
 
         self.window = tk.Toplevel(parent)
         self.window.title("Configuration")
-        self.window.geometry("500x400")
+        self.window.geometry("600x500")
         self.window.config(bg=colors["bg"])
 
-        self._setup_ui()
-        self._populate_list()
+        self.notebook = ttk.Notebook(self.window)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
-    def _setup_ui(self):
+        # Tab 1: Categories
+        self.tab_categories = tk.Frame(self.notebook, bg=colors["bg"])
+        self.notebook.add(self.tab_categories, text="Categories")
+        self._setup_categories_tab()
+
+        # Tab 2: Exclusions
+        self.tab_exclusions = tk.Frame(self.notebook, bg=colors["bg"])
+        self.notebook.add(self.tab_exclusions, text="Exclusions")
+        self._setup_exclusions_tab()
+
+        # Tab 3: Profiles
+        self.tab_profiles = tk.Frame(self.notebook, bg=colors["bg"])
+        self.notebook.add(self.tab_profiles, text="Profiles")
+        self._setup_profiles_tab()
+
+        # Bottom Buttons
+        frame_bottom = tk.Frame(self.window, bg=colors["bg"], pady=10)
+        frame_bottom.pack(fill="x", side="bottom")
+
+        btn_save = tk.Button(frame_bottom, text="Save & Close", bg=colors["success_bg"], fg=colors["success_fg"], command=self.save_config)
+        btn_save.pack(side="right", padx=10)
+        ToolTip(btn_save, "Save changes to config.json and close")
+
+    def _setup_categories_tab(self):
         c = self.colors
+        frame = self.tab_categories
 
-        # UI Layout for Settings
-        # Top: List of categories
-        frame_list = tk.Frame(self.window, bg=c["bg"])
+        # Left: List of categories
+        frame_list = tk.Frame(frame, bg=c["bg"])
         frame_list.pack(side="left", fill="y", padx=10, pady=10)
 
         lbl_cats = tk.Label(frame_list, text="Categories", bg=c["bg"], fg=c["fg"])
@@ -30,9 +53,10 @@ class SettingsDialog:
 
         self.listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"], selectbackground=c["select_bg"], selectforeground=c["select_fg"])
         self.listbox.pack(fill="y", expand=True)
+        self.listbox.bind('<<ListboxSelect>>', self.on_cat_select)
 
         # Right: Edit area
-        frame_edit = tk.Frame(self.window, bg=c["bg"])
+        frame_edit = tk.Frame(frame, bg=c["bg"])
         frame_edit.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
         lbl_exts = tk.Label(frame_edit, text="Extensions (comma separated)", bg=c["bg"], fg=c["fg"])
@@ -41,7 +65,7 @@ class SettingsDialog:
         self.txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
         self.txt_exts.pack(fill="x")
 
-        # Buttons for Add/Delete Category
+        # Buttons
         frame_btns = tk.Frame(frame_edit, bg=c["bg"], pady=10)
         frame_btns.pack(fill="x")
 
@@ -51,42 +75,61 @@ class SettingsDialog:
         btn_del = tk.Button(frame_btns, text="Delete Category", bg=c["btn_bg"], fg=c["btn_fg"], command=self.delete_category)
         btn_del.pack(side="left", padx=5)
 
-        btn_save = tk.Button(frame_edit, text="Save Configuration", bg=c["success_bg"], fg=c["success_fg"], command=self.save_config)
-        btn_save.pack(side="bottom", pady=10)
+        self._populate_cat_list()
 
-        # Add ToolTips for Settings
-        ToolTip(btn_add, "Create a new category")
-        ToolTip(btn_del, "Remove selected category")
-        ToolTip(btn_save, "Save changes to config.json")
+    def _setup_exclusions_tab(self):
+        c = self.colors
+        frame = self.tab_exclusions
 
-        self.listbox.bind('<<ListboxSelect>>', self.on_select)
+        # Excluded Extensions
+        lbl_exts = tk.Label(frame, text="Excluded Extensions (e.g., .tmp, .log) - Comma separated", bg=c["bg"], fg=c["fg"])
+        lbl_exts.pack(anchor="w", padx=10, pady=(10, 0))
 
-    def _populate_list(self):
+        self.txt_excl_exts = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        self.txt_excl_exts.pack(fill="x", padx=10, pady=5)
+        self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
+
+        # Excluded Folders
+        lbl_folders = tk.Label(frame, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated", bg=c["bg"], fg=c["fg"])
+        lbl_folders.pack(anchor="w", padx=10, pady=(10, 0))
+
+        self.txt_excl_folders = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        self.txt_excl_folders.pack(fill="x", padx=10, pady=5)
+        self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
+
+    def _setup_profiles_tab(self):
+        c = self.colors
+        frame = self.tab_profiles
+
+        lbl_info = tk.Label(frame, text="Import and Export Configuration Profiles", bg=c["bg"], fg=c["fg"])
+        lbl_info.pack(pady=20)
+
+        btn_export = tk.Button(frame, text="Export Configuration", command=self.export_profile, bg=c["btn_bg"], fg=c["btn_fg"], height=2)
+        btn_export.pack(fill="x", padx=50, pady=10)
+
+        btn_import = tk.Button(frame, text="Import Configuration", command=self.import_profile, bg=c["btn_bg"], fg=c["btn_fg"], height=2)
+        btn_import.pack(fill="x", padx=50, pady=10)
+
+    def _populate_cat_list(self):
         self.listbox.delete(0, tk.END)
         current_cats = list(self.organizer.directories.keys())
         for cat in current_cats:
             self.listbox.insert(tk.END, cat)
 
-    def save_pending_changes(self):
-        """Saves changes from text box to memory for the PREVIOUS category."""
+    def save_pending_cat_changes(self):
         if self.last_selected_cat:
             cat = self.last_selected_cat
             if cat in self.organizer.directories:
                 raw_exts = self.txt_exts.get("1.0", tk.END).strip()
-                # Split and clean
                 ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
                 self.organizer.directories[cat] = ext_list
 
-    def on_select(self, event):
-        # 1. Save changes for the category we are LEAVING
-        self.save_pending_changes()
-
-        # 2. Load the new category
+    def on_cat_select(self, event):
+        self.save_pending_cat_changes()
         selection = self.listbox.curselection()
         if selection:
             cat = self.listbox.get(selection[0])
-            self.last_selected_cat = cat # Update tracker
-
+            self.last_selected_cat = cat
             exts = self.organizer.directories.get(cat, [])
             self.txt_exts.delete("1.0", tk.END)
             self.txt_exts.insert(tk.END, ", ".join(exts))
@@ -107,12 +150,10 @@ class SettingsDialog:
 
             self.organizer.directories[new_cat] = []
             self.listbox.insert(tk.END, new_cat)
-
-            # Select the new item
             idx = self.listbox.size() - 1
             self.listbox.selection_clear(0, tk.END)
             self.listbox.selection_set(idx)
-            self.on_select(None) # Trigger load
+            self.on_cat_select(None)
 
     def delete_category(self):
         selection = self.listbox.curselection()
@@ -124,9 +165,45 @@ class SettingsDialog:
                 self.txt_exts.delete("1.0", tk.END)
                 self.last_selected_cat = None
 
+    def export_profile(self):
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+        if path:
+            # We need to save current in-memory changes before export
+            self._apply_exclusions()
+            self.save_pending_cat_changes()
+
+            if self.organizer.export_config_file(path):
+                messagebox.showinfo("Success", "Profile exported successfully.")
+            else:
+                messagebox.showerror("Error", "Failed to export profile.")
+
+    def import_profile(self):
+        path = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")])
+        if path:
+            if messagebox.askyesno("Confirm", "Importing will overwrite current settings. Continue?"):
+                if self.organizer.import_config_file(path):
+                    # Refresh UI
+                    self._populate_cat_list()
+                    self.txt_exts.delete("1.0", tk.END)
+                    self.txt_excl_exts.delete("1.0", tk.END)
+                    self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
+                    self.txt_excl_folders.delete("1.0", tk.END)
+                    self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
+                    messagebox.showinfo("Success", "Profile imported successfully.")
+                else:
+                    messagebox.showerror("Error", "Failed to import profile.")
+
+    def _apply_exclusions(self):
+        # Update organizer with values from exclusion fields
+        raw_exts = self.txt_excl_exts.get("1.0", tk.END).strip()
+        self.organizer.excluded_extensions = {e.strip() for e in raw_exts.split(',') if e.strip()}
+
+        raw_folders = self.txt_excl_folders.get("1.0", tk.END).strip()
+        self.organizer.excluded_folders = {f.strip() for f in raw_folders.split(',') if f.strip()}
+
     def save_config(self):
-        # Save pending edits first
-        self.save_pending_changes()
+        self.save_pending_cat_changes()
+        self._apply_exclusions()
 
         # Validate
         errors = self.organizer.validate_config()
