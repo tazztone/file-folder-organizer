@@ -37,6 +37,16 @@ class FileOrganizer:
                 return False
         return False
 
+    def save_config(self, config_path="config.json"):
+        """Saves current configuration to a JSON file."""
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(self.directories, f, indent=4)
+            return True
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            return False
+
     def get_unique_path(self, path: Path) -> Path:
         """Generates a unique path by appending a counter if the file exists."""
         if not path.exists():
