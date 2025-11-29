@@ -340,10 +340,16 @@ class OrganizerApp:
 
     def start_thread(self):
         """Run logic in a separate thread so the GUI doesn't freeze."""
-        self.btn_run.config(state="disabled", text="Running...")
+        self.is_running = True
+        self.btn_run.config(text="Stop", command=self.stop_process, bg=self.colors["undo_bg"], fg=self.colors["undo_fg"])
         self.btn_undo.config(state="disabled")
         self.progress["value"] = 0
         threading.Thread(target=self.organize_files, daemon=True).start()
+
+    def stop_process(self):
+        """Signals the running thread to stop."""
+        self.is_running = False
+        self.btn_run.config(state="disabled", text="Stopping...")
 
     def organize_files(self):
         if not self.selected_path:
@@ -358,17 +364,21 @@ class OrganizerApp:
             del_empty=self.var_del_empty.get(),
             dry_run=dry_run,
             progress_callback=self.update_progress,
-            log_callback=self.log
+            log_callback=self.log,
+            check_stop=lambda: not self.is_running
         )
 
-        messagebox.showinfo("Success", f"Organization complete!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files.")
+        msg = f"Organization {'stopped' if not self.is_running else 'complete'}!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files."
+
+        # Show message box in main thread
+        self.root.after(0, lambda: messagebox.showinfo("Result", msg))
 
         # Enable Undo if we moved anything and it wasn't a dry run
         if stats['moved'] > 0 and not dry_run:
             self.root.after(0, lambda: self.btn_undo.config(state="normal"))
         
         # Reset run button
-        self.root.after(0, lambda: self.btn_run.config(state="normal", text="Start Organizing"))
+        self.root.after(0, lambda: self.btn_run.config(state="normal", text="Start Organizing", command=self.start_thread, bg=self.colors["success_bg"], fg=self.colors["success_fg"]))
 
     def undo_changes(self):
         """Reverses the last organization run."""

@@ -81,7 +81,7 @@ class FileOrganizer:
             if item.is_file() and item.name not in self.excluded_names:
                 yield item
 
-    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None):
+    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None):
         """
         Organizes files from source_path.
 
@@ -93,6 +93,7 @@ class FileOrganizer:
             dry_run (bool): If True, only simulate moves.
             progress_callback (callable): Function(current, total)
             log_callback (callable): Function(message)
+            check_stop (callable): Function returning True if operation should be stopped.
 
         Returns:
             dict: Statistics {"moved": int, "errors": int}
@@ -117,6 +118,11 @@ class FileOrganizer:
         errors = 0
 
         for i, item in enumerate(files_to_move, 1):
+            if check_stop and check_stop():
+                if log_callback:
+                    log_callback("Operation stopped by user.")
+                break
+
             if progress_callback:
                 progress_callback(i, total_files)
 

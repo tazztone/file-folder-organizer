@@ -91,5 +91,28 @@ class TestFileOrganizer(unittest.TestCase):
 
         self.assertTrue((Path(self.test_dir) / "Custom" / "test.xyz").exists())
 
+    def test_stop_cancellation(self):
+        self.create_file("file1.txt")
+        self.create_file("file2.txt")
+        self.create_file("file3.txt")
+
+        # Stop after 1st file
+        processed_count = 0
+        def check_stop():
+            nonlocal processed_count
+            processed_count += 1
+            return processed_count > 1
+
+        stats = self.organizer.organize_files(Path(self.test_dir), check_stop=check_stop)
+
+        # Should have moved at most 1 file because check_stop runs at start of loop
+        # Loop 1: check_stop() -> count=1, returns False. Moves file.
+        # Loop 2: check_stop() -> count=2, returns True. Break.
+        self.assertEqual(stats["moved"], 1)
+        self.assertEqual(len(list(Path(self.test_dir).rglob("*.txt"))), 3) # All 3 files still exist (one moved, two not)
+        self.assertTrue((Path(self.test_dir) / "Documents" / "file1.txt").exists() or
+                        (Path(self.test_dir) / "Documents" / "file2.txt").exists() or
+                        (Path(self.test_dir) / "Documents" / "file3.txt").exists())
+
 if __name__ == "__main__":
     unittest.main()
