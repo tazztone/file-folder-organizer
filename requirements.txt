@@ -1,1 +1,2 @@
-# No external pip dependencies. Tkinter is required (standard library).
+customtkinter
+tkinterdnd2

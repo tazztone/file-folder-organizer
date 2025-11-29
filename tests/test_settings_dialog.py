@@ -16,7 +16,7 @@ if 'customtkinter' not in sys.modules:
 # Setup CTk mocks
 mock_ctk = sys.modules['customtkinter']
 
-import settings_dialog
+import settings_dialog_ctk as settings_dialog
 import organizer
 
 class TestSettingsDialog(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestSettingsDialog(unittest.TestCase):
         mock_ctk.CTkInputDialog.return_value = mock_input
 
         # patch where it is used
-        with patch('settings_dialog.messagebox.showerror') as mock_error:
+        with patch('settings_dialog_ctk.messagebox.showerror') as mock_error:
             dialog.add_category()
             mock_error.assert_called_with("Error", "Category name cannot be empty.")
 
@@ -78,7 +78,7 @@ class TestSettingsDialog(unittest.TestCase):
         dialog.on_cat_select("Images")
         self.assertEqual(dialog.last_selected_cat, "Images")
 
-        with patch('settings_dialog.messagebox.askyesno', return_value=True):
+        with patch('settings_dialog_ctk.messagebox.askyesno', return_value=True):
             dialog.delete_category()
 
         self.assertNotIn("Images", self.organizer.directories)
@@ -111,7 +111,7 @@ class TestSettingsDialog(unittest.TestCase):
 
         dialog.organizer.directories["Invalid"] = ["jpg"] # No dot
 
-        with patch('settings_dialog.messagebox.showerror') as mock_error:
+        with patch('settings_dialog_ctk.messagebox.showerror') as mock_error:
             dialog.save_config()
             mock_error.assert_called()
             dialog.window.destroy.assert_not_called()
@@ -123,9 +123,9 @@ class TestSettingsDialog(unittest.TestCase):
         dialog.txt_excl_exts.get.return_value = ""
         dialog.txt_excl_folders.get.return_value = ""
 
-        with patch('settings_dialog.filedialog.asksaveasfilename', return_value="test_profile.json"):
+        with patch('settings_dialog_ctk.filedialog.asksaveasfilename', return_value="test_profile.json"):
             with patch.object(self.organizer, 'export_config_file', return_value=True) as mock_export:
-                with patch('settings_dialog.messagebox.showinfo') as mock_info:
+                with patch('settings_dialog_ctk.messagebox.showinfo') as mock_info:
                     dialog.export_profile()
 
                     mock_export.assert_called_with("test_profile.json")
@@ -134,8 +134,8 @@ class TestSettingsDialog(unittest.TestCase):
     def test_import_profile(self):
         dialog = settings_dialog.SettingsDialog(self.mock_parent, self.organizer)
 
-        with patch('settings_dialog.filedialog.askopenfilename', return_value="test_profile.json"):
-            with patch('settings_dialog.messagebox.askyesno', return_value=True):
+        with patch('settings_dialog_ctk.filedialog.askopenfilename', return_value="test_profile.json"):
+            with patch('settings_dialog_ctk.messagebox.askyesno', return_value=True):
                 with patch.object(self.organizer, 'import_config_file', return_value=True) as mock_import:
                     dialog.import_profile()
 

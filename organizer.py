@@ -22,6 +22,8 @@ class FileOrganizer:
         # undo_stack is a list of history records. Each record is a tuple: (history_list, last_source_path)
         # history_list is [(new_path, old_path), ...]
         self.undo_stack = []
+        self.max_undo_stack = 5
+        self.theme_mode = "System"
 
         # Exclusions
         self.excluded_names = {"app.py", "organizer.py", "config.json", "themes.py", "recent.json", "batch_config.json"}
@@ -42,6 +44,9 @@ class FileOrganizer:
         for cat in self.directories:
             if not cat or not cat.strip():
                 errors.append("Category name cannot be empty.")
+            # Ensure category names do not contain path separators
+            if os.sep in cat or (os.altsep and os.altsep in cat):
+                 errors.append(f"Category name '{cat}' cannot contain path separators.")
 
         # Check for invalid extensions and duplicates
         all_exts = {}
@@ -70,6 +75,7 @@ class FileOrganizer:
                         self.excluded_names = set(data.get("excluded_names", self.excluded_names))
                         self.excluded_extensions = set(data.get("excluded_extensions", []))
                         self.excluded_folders = set(data.get("excluded_folders", []))
+                        self.theme_mode = data.get("theme_mode", "System")
                     else:
                         # Fallback for old format
                         self.directories = data
@@ -91,7 +97,8 @@ class FileOrganizer:
                     "directories": self.directories,
                     "excluded_names": list(self.excluded_names),
                     "excluded_extensions": list(self.excluded_extensions),
-                    "excluded_folders": list(self.excluded_folders)
+                    "excluded_folders": list(self.excluded_folders),
+                    "theme_mode": self.theme_mode
                 }, f, indent=4)
             return True
         except Exception as e:
@@ -105,6 +112,13 @@ class FileOrganizer:
     def import_config_file(self, path):
         """Imports configuration from a specified path."""
         return self.load_config(path)
+
+    def get_theme_mode(self):
+        return self.theme_mode
+
+    def save_theme_mode(self, mode):
+        self.theme_mode = mode
+        self.save_config()
 
     def get_unique_path(self, path: Path) -> Path:
         """Generates a unique path by appending a counter if the file exists."""
@@ -147,7 +161,7 @@ class FileOrganizer:
                         continue
                     yield item
 
-    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None):
+    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None, rollback_on_error=False):
         """
         Organizes files from source_path.
         """
@@ -156,26 +170,30 @@ class FileOrganizer:
         if log_callback:
             log_callback(f"--- Starting {'Dry Run ' if dry_run else ''}Organization ---")
 
-        # 1. Collect files first to know total count for progress bar
+        # 1. Count files first (to allow large dirs without full list in memory)
+        total_files = 0
         try:
-            files_to_move = list(self.scan_files(source_path, recursive))
-            total_files = len(files_to_move)
+             # Just count first
+             for _ in self.scan_files(source_path, recursive):
+                 total_files += 1
         except Exception as e:
-            if log_callback:
-                log_callback(f"Error scanning files: {e}")
-            return {"moved": 0, "errors": 1}
+             if log_callback:
+                 log_callback(f"Error scanning files: {e}")
+             return {"moved": 0, "errors": 1}
 
         moved_count = 0
+        renamed_count = 0
         errors = 0
 
-        for i, item in enumerate(files_to_move, 1):
+        # 2. Iterate again to process
+        for i, item in enumerate(self.scan_files(source_path, recursive), 1):
             if check_stop and check_stop():
                 if log_callback:
                     log_callback("Operation stopped by user.")
                 break
 
             if progress_callback:
-                progress_callback(i, total_files)
+                progress_callback(i, total_files, item.name)
 
             try:
                 category = self.extension_map.get(item.suffix.lower(), "Others")
@@ -223,6 +241,7 @@ class FileOrganizer:
                         msg = f"Moved: {item.name} -> {rel_dest}"
                         if final_dest_path_unique != final_dest_path:
                              msg = f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} (in {rel_dest})"
+                             renamed_count += 1
                         log_callback(msg)
 
                 moved_count += 1
@@ -231,6 +250,17 @@ class FileOrganizer:
                 errors += 1
                 if log_callback:
                     log_callback(f"ERROR moving {item.name}: {e}")
+
+                if rollback_on_error and not dry_run:
+                     if log_callback:
+                         log_callback("Critical error encountered. Rolling back changes...")
+                     # Add partial history to undo stack to allow undo
+                     self.undo_stack.append({
+                        "history": current_history,
+                        "source_path": source_path
+                     })
+                     self.undo_changes(log_callback)
+                     return {"moved": moved_count, "errors": errors, "renamed": renamed_count, "rolled_back": True}
 
         # Delete Empty Folders
         if del_empty and not dry_run:
@@ -253,15 +283,22 @@ class FileOrganizer:
                 log_callback(f"Removed {deleted_folders} empty folders.")
 
         if log_callback:
-            log_callback(f"--- Done. {'Would move' if dry_run else 'Moved'} {moved_count} files. ({errors} errors) ---")
+            summary = f"--- Done. {'Would move' if dry_run else 'Moved'} {moved_count} files."
+            if renamed_count > 0:
+                summary += f" ({renamed_count} renamed)"
+            summary += f". ({errors} errors) ---"
+            log_callback(summary)
 
         if not dry_run and moved_count > 0:
             self.undo_stack.append({
                 "history": current_history,
                 "source_path": source_path
             })
+            # Enforce max undo stack size
+            if len(self.undo_stack) > self.max_undo_stack:
+                self.undo_stack.pop(0)
 
-        return {"moved": moved_count, "errors": errors}
+        return {"moved": moved_count, "errors": errors, "renamed": renamed_count}
 
     def undo_changes(self, log_callback=None):
         """Reverses the last organization run."""

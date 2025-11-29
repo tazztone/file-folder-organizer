@@ -18,7 +18,7 @@ if 'customtkinter' not in sys.modules:
 # Setup CTk mocks
 mock_ctk = sys.modules['customtkinter']
 
-import batch_dialog
+import batch_dialog_ctk as batch_dialog
 import organizer
 
 class TestBatchDialog(unittest.TestCase):
@@ -36,12 +36,12 @@ class TestBatchDialog(unittest.TestCase):
         self.organizer = organizer.FileOrganizer()
 
         # Patch json load/dump to prevent reading/writing actual files
-        self.json_patch = patch('batch_dialog.json')
+        self.json_patch = patch('batch_dialog_ctk.json')
         self.mock_json = self.json_patch.start()
         self.mock_json.load.return_value = []
 
         # Patch exists
-        self.exists_patch = patch('batch_dialog.Path.exists', return_value=True)
+        self.exists_patch = patch('batch_dialog_ctk.Path.exists', return_value=True)
         self.mock_exists = self.exists_patch.start()
 
         self.dialog = batch_dialog.BatchDialog(self.mock_parent, self.organizer)
@@ -55,7 +55,7 @@ class TestBatchDialog(unittest.TestCase):
         self.assertEqual(self.dialog.batch_folders, [])
 
     def test_add_folder(self):
-        with patch('batch_dialog.filedialog.askdirectory', return_value="/tmp/new_folder"):
+        with patch('batch_dialog_ctk.filedialog.askdirectory', return_value="/tmp/new_folder"):
             self.dialog.add_folder()
 
         self.assertEqual(len(self.dialog.batch_folders), 1)
@@ -67,7 +67,7 @@ class TestBatchDialog(unittest.TestCase):
     def test_add_duplicate_folder(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('batch_dialog.filedialog.askdirectory', return_value="/tmp/folder"):
+        with patch('batch_dialog_ctk.filedialog.askdirectory', return_value="/tmp/folder"):
             self.dialog.add_folder()
 
         self.assertEqual(len(self.dialog.batch_folders), 1)
@@ -86,7 +86,7 @@ class TestBatchDialog(unittest.TestCase):
     def test_clear_all(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('batch_dialog.messagebox.askyesno', return_value=True):
+        with patch('batch_dialog_ctk.messagebox.askyesno', return_value=True):
             self.dialog.clear_all()
 
         self.assertEqual(self.dialog.batch_folders, [])
@@ -135,14 +135,14 @@ class TestBatchDialog(unittest.TestCase):
         self.assertTrue(self.dialog.batch_folders[0]["settings"]["recursive"])
 
     def test_run_batch_empty(self):
-        with patch('batch_dialog.messagebox.showwarning') as mock_warn:
+        with patch('batch_dialog_ctk.messagebox.showwarning') as mock_warn:
             self.dialog.run_batch()
             mock_warn.assert_called_with("Warning", "No folders to process.")
 
     def test_run_batch_execution(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('batch_dialog.messagebox.askyesno', return_value=True):
+        with patch('batch_dialog_ctk.messagebox.askyesno', return_value=True):
             with patch('threading.Thread') as mock_thread:
                 self.dialog.run_batch()
                 mock_thread.assert_called_once()
