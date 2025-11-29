@@ -8,21 +8,77 @@
             ".mp4"
         ]
     },
+    "ml_categories": {
+        "Images/Personal": {
+            "text": "personal photos family vacation memories selfies",
+            "visual": [
+                "a photograph of people",
+                "family photos",
+                "vacation pictures",
+                "selfie"
+            ]
+        },
+        "Images/Screenshots": {
+            "text": "screenshot application software interface UI",
+            "visual": [
+                "a screenshot of software",
+                "computer interface",
+                "app screen"
+            ]
+        },
+        "Images/Diagrams": {
+            "text": "diagram flowchart technical drawing architecture",
+            "visual": [
+                "a technical diagram",
+                "flowchart",
+                "architectural drawing"
+            ]
+        },
+        "Images/Design": {
+            "text": "logo mockup design graphic illustration artwork",
+            "visual": [
+                "graphic design",
+                "logo design",
+                "mockup"
+            ]
+        },
+        "Documents/Code": {
+            "text": "programming code python javascript html css",
+            "visual": [
+                "code snippet",
+                "programming text"
+            ]
+        },
+        "Documents/Financial": {
+            "text": "invoice receipt tax financial statement budget",
+            "visual": [
+                "invoice document",
+                "financial statement"
+            ]
+        },
+        "Documents/Reports": {
+            "text": "report analysis presentation business document",
+            "visual": [
+                "business report",
+                "presentation slide"
+            ]
+        }
+    },
     "excluded_names": [
-        "organizer.py",
         "app.py",
         "themes.py",
-        "recent.json",
         "config.json",
-        "batch_config.json"
+        "recent.json",
+        "batch_config.json",
+        "organizer.py"
     ],
     "excluded_extensions": [
-        ".bak",
-        ".log"
+        ".log",
+        ".bak"
     ],
     "excluded_folders": [
-        "build",
-        "node_modules"
+        "node_modules",
+        "build"
     ],
-    "theme_mode": "System"
-}
+    "theme_mode": "System",
+    "ml_confidence":

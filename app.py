@@ -19,6 +19,7 @@ except (ImportError, AttributeError):
 import os
 import threading
 import json
+import time
 from pathlib import Path
 from organizer import FileOrganizer
 from settings_dialog_ctk import SettingsDialog
@@ -33,15 +34,9 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
     def __init__(self):
         super().__init__()
         if hasattr(tkinterdnd2, 'TkinterDnD') and hasattr(self, 'TkdndVersion'):
-             # This might be needed if inheriting from TkinterDnD.Tk but here we mixin
-             # We might need to manually init if dnd is present
              pass
 
-        # If tkinterdnd2 is loaded, we might need to initialize it properly
-        # Usually TkinterDnD.Tk() handles it. Mixing into ctk.CTk is harder.
-        # But commonly:
         if 'tkinterdnd2' in globals():
-             # We need to call _require(self) if we are the root
              try:
                  tkinterdnd2.TkinterDnD._require(self)
              except:
@@ -49,6 +44,24 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
         self.title("Pro File Organizer")
         self.geometry("900x700")
+
+        # Icon setup
+        try:
+             # Create a simple icon
+             from PIL import Image, ImageTk, ImageDraw
+             icon_size = 32
+             icon_img = Image.new("RGBA", (icon_size, icon_size), (0, 0, 0, 0))
+             draw = ImageDraw.Draw(icon_img)
+             # Draw a folder-like shape
+             draw.rectangle([2, 6, 30, 28], fill="#3B8ED0", outline="#1F6AA5")
+             draw.rectangle([2, 2, 14, 6], fill="#3B8ED0", outline="#1F6AA5")
+
+             # Convert to PhotoImage for Tkinter
+             # ctk.CTk uses standard tkinter iconphoto
+             self.icon_photo = ImageTk.PhotoImage(icon_img)
+             self.iconphoto(False, self.icon_photo)
+        except Exception as e:
+             print(f"Failed to set icon: {e}")
 
         self.organizer = FileOrganizer()
         if self.organizer.load_config():
@@ -58,11 +71,11 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         theme = self.organizer.get_theme_mode()
         if theme:
             ctk.set_appearance_mode(theme)
-            # self.appearance_mode_optionemenu.set(theme) # This will be set later, but let's pre-set variable if we could
 
         self.load_recent()
         self.selected_path = None
         self.is_running = False
+        self.start_time = 0
 
         # --- Layout ---
         self.grid_columnconfigure(1, weight=1)
@@ -71,43 +84,113 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         # 1. Sidebar
         self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(5, weight=1) # Push bottom items down
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Pro Organizer", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        self.sidebar_button_1 = ctk.CTkButton(self.sidebar_frame, text="Home", command=lambda: print("Home"))
-        self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
+        self.sidebar_btn_home = ctk.CTkButton(self.sidebar_frame, text="Home", command=self.show_home)
+        self.sidebar_btn_home.grid(row=1, column=0, padx=20, pady=10)
 
-        self.sidebar_button_batch = ctk.CTkButton(self.sidebar_frame, text="Batch Mode", command=self.open_batch)
-        self.sidebar_button_batch.grid(row=2, column=0, padx=20, pady=10)
+        self.sidebar_btn_org = ctk.CTkButton(self.sidebar_frame, text="Organizer", command=self.show_organizer)
+        self.sidebar_btn_org.grid(row=2, column=0, padx=20, pady=10)
 
-        self.sidebar_button_settings = ctk.CTkButton(self.sidebar_frame, text="Settings", command=self.open_settings)
-        self.sidebar_button_settings.grid(row=3, column=0, padx=20, pady=10)
+        self.sidebar_btn_batch = ctk.CTkButton(self.sidebar_frame, text="Batch Mode", command=self.open_batch)
+        self.sidebar_btn_batch.grid(row=3, column=0, padx=20, pady=10)
+
+        self.sidebar_btn_settings = ctk.CTkButton(self.sidebar_frame, text="Settings", command=self.open_settings)
+        self.sidebar_btn_settings.grid(row=4, column=0, padx=20, pady=10)
 
         # Theme Switcher
         self.appearance_mode_label = ctk.CTkLabel(self.sidebar_frame, text="Appearance Mode:", anchor="w")
-        self.appearance_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0))
+        self.appearance_mode_label.grid(row=6, column=0, padx=20, pady=(10, 0))
         self.appearance_mode_optionemenu = ctk.CTkOptionMenu(self.sidebar_frame, values=["Light", "Dark", "System"],
                                                                        command=self.change_appearance_mode_event)
-        self.appearance_mode_optionemenu.grid(row=6, column=0, padx=20, pady=(10, 20))
+        self.appearance_mode_optionemenu.grid(row=7, column=0, padx=20, pady=(10, 20))
 
         current_mode = self.organizer.get_theme_mode() or "System"
         self.appearance_mode_optionemenu.set(current_mode)
         ctk.set_appearance_mode(current_mode)
 
-        # 2. Main Area
-        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        # 2. Main Area Containers
+        # We use a container frame to hold views
+        self.container = ctk.CTkFrame(self, fg_color="transparent")
+        self.container.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
+
+        # Initialize Views
+        self._init_home_frame()
+        self._init_organizer_frame()
+
+        # Show Home by default
+        self.show_home()
+
+        # Check models availability in background on startup
+        self.check_ml_status()
+
+    def _init_home_frame(self):
+        self.frame_home = ctk.CTkFrame(self.container, fg_color="transparent")
+
+        lbl_welcome = ctk.CTkLabel(self.frame_home, text="Welcome to Pro File Organizer", font=ctk.CTkFont(size=24, weight="bold"))
+        lbl_welcome.pack(pady=(40, 20))
+
+        # Quick Actions
+        frame_actions = ctk.CTkFrame(self.frame_home)
+        frame_actions.pack(fill="x", padx=40, pady=20)
+
+        lbl_actions = ctk.CTkLabel(frame_actions, text="Quick Actions", font=ctk.CTkFont(size=16, weight="bold"))
+        lbl_actions.pack(anchor="w", padx=20, pady=10)
+
+        btn_start = ctk.CTkButton(frame_actions, text="Start New Organization", command=self.show_organizer, height=40)
+        btn_start.pack(padx=20, pady=10, fill="x")
+
+        btn_batch = ctk.CTkButton(frame_actions, text="Batch Processing", command=self.open_batch, height=40)
+        btn_batch.pack(padx=20, pady=10, fill="x")
+
+        # Recent
+        frame_recent = ctk.CTkFrame(self.frame_home)
+        frame_recent.pack(fill="both", expand=True, padx=40, pady=20)
+
+        lbl_recent = ctk.CTkLabel(frame_recent, text="Recent Folders", font=ctk.CTkFont(size=16, weight="bold"))
+        lbl_recent.pack(anchor="w", padx=20, pady=10)
+
+        self.scroll_recent = ctk.CTkScrollableFrame(frame_recent, fg_color="transparent")
+        self.scroll_recent.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.refresh_recent_home()
+
+    def refresh_recent_home(self):
+        for w in self.scroll_recent.winfo_children():
+            w.destroy()
+
+        if not self.recent_folders:
+            ctk.CTkLabel(self.scroll_recent, text="No recent folders.").pack(pady=10)
+            return
+
+        for folder in self.recent_folders:
+            btn = ctk.CTkButton(self.scroll_recent, text=folder, anchor="w", fg_color="transparent",
+                                border_width=1, border_color="gray", text_color=("black", "white"),
+                                command=lambda f=folder: self.load_folder_and_show(f))
+            btn.pack(fill="x", pady=2)
+
+    def load_folder_and_show(self, path):
+        self.set_folder(path)
+        self.show_organizer()
+
+    def _init_organizer_frame(self):
+        self.frame_organizer = ctk.CTkFrame(self.container, fg_color="transparent")
 
         # Path Selection
-        self.frame_path = ctk.CTkFrame(self.main_frame)
+        self.frame_path = ctk.CTkFrame(self.frame_organizer)
         self.frame_path.pack(fill="x", pady=(0, 20))
 
         # Drag and Drop support
         try:
             self.frame_path.drop_target_register(DND_FILES)
             self.frame_path.dnd_bind('<<Drop>>', self.on_drop)
+            self.frame_path.dnd_bind('<<DragEnter>>', self.on_drag_enter)
+            self.frame_path.dnd_bind('<<DragLeave>>', self.on_drag_leave)
         except Exception as e:
             print(f"DnD setup failed: {e}")
 
@@ -117,13 +200,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.btn_browse = ctk.CTkButton(self.frame_path, text="Browse", command=self.browse_folder, width=100)
         self.btn_browse.pack(side="right", padx=10, pady=10)
 
-        # Recent
+        # Recent (Dropdown in Organizer view)
         self.option_recent = ctk.CTkOptionMenu(self.frame_path, values=["Recent..."], command=self.on_recent_select, width=150)
         self.option_recent.pack(side="right", padx=(0, 10), pady=10)
         self.update_recent_menu()
 
         # Options
-        self.frame_options = ctk.CTkFrame(self.main_frame)
+        self.frame_options = ctk.CTkFrame(self.frame_organizer)
         self.frame_options.pack(fill="x", pady=(0, 20))
 
         self.var_recursive = ctk.BooleanVar(value=False)
@@ -156,7 +239,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
 
         # Actions
-        self.frame_actions = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.frame_actions = ctk.CTkFrame(self.frame_organizer, fg_color="transparent")
         self.frame_actions.pack(fill="x", pady=(0, 20))
 
         self.btn_preview = ctk.CTkButton(self.frame_actions, text="Preview", command=self.run_preview, state="disabled")
@@ -169,31 +252,64 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.btn_undo.pack(side="left", fill="x", expand=True)
 
         # Progress
-        self.lbl_progress = ctk.CTkLabel(self.main_frame, text="", anchor="w", height=20)
+        self.lbl_progress = ctk.CTkLabel(self.frame_organizer, text="", anchor="w", height=20)
         self.lbl_progress.pack(fill="x", padx=5)
 
-        self.progress = ctk.CTkProgressBar(self.main_frame)
+        self.progress = ctk.CTkProgressBar(self.frame_organizer)
         self.progress.pack(fill="x", pady=(0, 10))
         self.progress.set(0)
 
         # Logs
-        self.log_area = ctk.CTkTextbox(self.main_frame, state="disabled")
+        self.frame_logs = ctk.CTkFrame(self.frame_organizer, fg_color="transparent")
+        self.frame_logs.pack(fill="both", expand=True, pady=(0, 10))
+
+        # Log Toolbar
+        self.frame_log_tools = ctk.CTkFrame(self.frame_logs, height=30)
+        self.frame_log_tools.pack(fill="x", pady=(0, 5))
+
+        self.entry_search = ctk.CTkEntry(self.frame_log_tools, placeholder_text="Search logs...", width=200)
+        self.entry_search.pack(side="left", padx=5, pady=2)
+
+        self.btn_search = ctk.CTkButton(self.frame_log_tools, text="Find", width=60, command=self.search_log)
+        self.btn_search.pack(side="left", padx=5, pady=2)
+
+        self.btn_export_log = ctk.CTkButton(self.frame_log_tools, text="Export Log", width=100, command=self.export_log)
+        self.btn_export_log.pack(side="right", padx=5, pady=2)
+
+        self.log_area = ctk.CTkTextbox(self.frame_logs, state="disabled")
         self.log_area.pack(fill="both", expand=True)
+
+        # Tags for coloring (CTkTextbox uses underlying tk.Text)
+        try:
+             self.log_area._textbox.tag_config("category", foreground="#3B8ED0") # Blueish
+             self.log_area._textbox.tag_config("error", foreground="red")
+             self.log_area._textbox.tag_config("success", foreground="green")
+             self.log_area._textbox.tag_config("ml", foreground="purple")
+        except:
+             pass
 
         # Shortcuts
         self.bind('<Return>', self.start_thread)
         self.bind('<Escape>', lambda e: self.stop_process())
 
-        # Check models availability in background on startup
-        self.check_ml_status()
+    def show_home(self):
+        self.frame_organizer.pack_forget()
+        self.frame_home.pack(fill="both", expand=True)
+        self.refresh_recent_home()
+        self.sidebar_btn_home.configure(fg_color=["#3B8ED0", "#1F6AA5"])
+        self.sidebar_btn_org.configure(fg_color="transparent")
+
+    def show_organizer(self):
+        self.frame_home.pack_forget()
+        self.frame_organizer.pack(fill="both", expand=True)
+        self.sidebar_btn_home.configure(fg_color="transparent")
+        self.sidebar_btn_org.configure(fg_color=["#3B8ED0", "#1F6AA5"])
 
     def check_ml_status(self):
         """Checks if ML models are present and updates UI hint if needed."""
         def _check():
             try:
-                # We use a static-like approach or just instantiate lightly
                 from ml_organizer import MultimodalFileOrganizer
-                # We don't want to load them, just check presence
                 present = MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer)
                 if not present:
                     self.after(0, lambda: ToolTip(self.chk_ml, "Models missing. Will download (~2GB) on first run."))
@@ -238,7 +354,14 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         else:
              self.option_recent.set("Recent...")
 
+    def on_drag_enter(self, event):
+        self.frame_path.configure(border_width=2, border_color="#3B8ED0")
+
+    def on_drag_leave(self, event):
+        self.frame_path.configure(border_width=0) # Or default
+
     def on_drop(self, event):
+        self.on_drag_leave(event) # Reset border
         if event.data:
             path = event.data
             if path.startswith('{') and path.endswith('}'):
@@ -277,7 +400,23 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
     def log(self, message):
         def _update():
             self.log_area.configure(state='normal')
-            self.log_area.insert("end", message + "\n")
+
+            # Simple heuristic for coloring
+            tags = []
+            if "ERROR" in message or "Error" in message:
+                tags.append("error")
+            elif "Moved:" in message or "Renamed & Moved:" in message:
+                tags.append("success")
+            elif "[ML Init]" in message or "ML:" in message:
+                tags.append("ml")
+
+            # We use the underlying widget to insert with tags
+            # CTkTextbox.insert doesn't support tags directly usually
+            try:
+                self.log_area._textbox.insert("end", message + "\n", tuple(tags))
+            except:
+                self.log_area.insert("end", message + "\n")
+
             self.log_area.see("end")
             self.log_area.configure(state='disabled')
         self.after(0, _update)
@@ -292,7 +431,23 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         def _update():
             if total > 0:
                 self.progress.set(current / total)
-            self.lbl_progress.configure(text=f"Processing: {filename}" if filename else "")
+
+                # Speed & ETA
+                elapsed = time.time() - self.start_time
+                if elapsed > 0 and current > 0:
+                    speed = current / elapsed
+                    remaining_files = total - current
+                    eta = remaining_files / speed if speed > 0 else 0
+
+                    status_text = f"Processing: {filename} ({speed:.1f} files/s, ETA: {eta:.0f}s)"
+                else:
+                    status_text = f"Processing: {filename}"
+
+                self.lbl_progress.configure(text=status_text)
+            else:
+                # Indeterminate or just message (e.g. ML loading)
+                self.lbl_progress.configure(text=f"Status: {filename}" if filename else "")
+
         self.after(0, _update)
 
     def start_thread(self, event=None):
@@ -306,7 +461,6 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
         # Additional check for ML Download
         if self.var_ml_categorize.get():
-             # Check if we need to warn the user about download
              from ml_organizer import MultimodalFileOrganizer
              if not MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer):
                   if not messagebox.askyesno("Download ML Models",
@@ -320,8 +474,48 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
     def run_preview(self):
         self.run_organization(dry_run_override=True)
 
+    def search_log(self):
+        query = self.entry_search.get()
+        if not query:
+            return
+
+        # Clear previous tags if any
+        try:
+             # Access underlying text widget safely
+             text_widget = self.log_area._textbox
+             text_widget.tag_remove('found', '1.0', tk.END)
+
+             if query:
+                idx = '1.0'
+                while 1:
+                    idx = text_widget.search(query, idx, nocase=1, stopindex=tk.END)
+                    if not idx: break
+                    lastidx = '%s+%dc' % (idx, len(query))
+                    text_widget.tag_add('found', idx, lastidx)
+                    idx = lastidx
+
+                text_widget.tag_config('found', foreground='red', background='yellow')
+        except Exception as e:
+             print(f"Search error: {e}")
+
+    def export_log(self):
+        content = self.log_area.get("1.0", "end")
+        if not content.strip():
+             messagebox.showinfo("Info", "Log is empty.")
+             return
+
+        path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt")])
+        if path:
+             try:
+                 with open(path, "w") as f:
+                      f.write(content)
+                 messagebox.showinfo("Success", "Log exported successfully.")
+             except Exception as e:
+                 messagebox.showerror("Error", f"Failed to save log: {e}")
+
     def run_organization(self, dry_run_override=None):
         self.is_running = True
+        self.start_time = time.time() # Reset start time
         self.btn_run.configure(text="Stop", fg_color="red", hover_color="darkred", command=self.stop_process)
         self.btn_preview.configure(state="disabled")
         self.btn_undo.configure(state="disabled")

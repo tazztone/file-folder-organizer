@@ -57,6 +57,7 @@ class FileOrganizer:
         self.max_undo_stack = 5
         self.theme_mode = "System"
         self.ml_categorizer = None
+        self.ml_confidence = 0.3
 
         # Exclusions
         self.excluded_names = {"app.py", "organizer.py", "config.json", "themes.py", "recent.json", "batch_config.json"}
@@ -110,6 +111,7 @@ class FileOrganizer:
                         self.excluded_extensions = set(data.get("excluded_extensions", []))
                         self.excluded_folders = set(data.get("excluded_folders", []))
                         self.theme_mode = data.get("theme_mode", "System")
+                        self.ml_confidence = data.get("ml_confidence", 0.3)
                     else:
                         # Fallback for old format
                         self.directories = data
@@ -133,7 +135,8 @@ class FileOrganizer:
                     "excluded_names": list(self.excluded_names),
                     "excluded_extensions": list(self.excluded_extensions),
                     "excluded_folders": list(self.excluded_folders),
-                    "theme_mode": self.theme_mode
+                    "theme_mode": self.theme_mode,
+                    "ml_confidence": self.ml_confidence
                 }, f, indent=4)
             return True
         except Exception as e:
@@ -210,7 +213,7 @@ class FileOrganizer:
                  self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
                  # Note: models might not be loaded yet, which smart_categorize handles by returning status
 
-            category, confidence, method = self.ml_categorizer.smart_categorize(file_path)
+            category, confidence, method = self.ml_categorizer.smart_categorize(file_path, threshold=self.ml_confidence)
 
             # If ML returned a valid result (not 'extension' fallback or error)
             if method not in ["extension", "ml-not-loaded"]:
@@ -239,8 +242,16 @@ class FileOrganizer:
                   # but organize_files is threaded)
                   if log_callback:
                       log_callback("Initializing ML models (this may take a while)...")
+
+                  def _ml_progress(msg, val=None):
+                      if log_callback:
+                          log_callback(f"[ML Init] {msg}")
+                      if progress_callback and val is not None:
+                           # Pass 0 for total files to indicate initialization
+                           progress_callback(0, 0, f"Loading AI Models: {int(val*100)}%")
+
                   try:
-                      self.ml_categorizer.load_models(progress_callback=lambda x: log_callback(f"[ML Init] {x}"))
+                      self.ml_categorizer.load_models(progress_callback=_ml_progress)
                   except Exception as e:
                       if log_callback:
                           log_callback(f"Failed to load ML models: {e}. Falling back to extension mode.")
