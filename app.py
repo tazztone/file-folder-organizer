@@ -1,62 +1,116 @@
 import os
 import threading
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox, ttk
+from tkinter import filedialog, scrolledtext, messagebox, ttk, simpledialog
+import json
 from pathlib import Path
 from organizer import FileOrganizer
+
+THEMES = {
+    "light": {
+        "bg": "#f0f0f0", "fg": "#000000",
+        "btn_bg": "#e0e0e0", "btn_fg": "#000000",
+        "entry_bg": "#ffffff", "entry_fg": "#000000",
+        "text_bg": "#ffffff", "text_fg": "#000000",
+        "select_bg": "#a6a6a6", "select_fg": "#000000",
+        "success_bg": "#4CAF50", "success_fg": "#ffffff",
+        "undo_bg": "#ffcccc", "undo_fg": "#000000",
+        "disabled_bg": "#dddddd", "disabled_fg": "#888888"
+    },
+    "dark": {
+        "bg": "#2d2d2d", "fg": "#ffffff",
+        "btn_bg": "#444444", "btn_fg": "#ffffff",
+        "entry_bg": "#3d3d3d", "entry_fg": "#ffffff",
+        "text_bg": "#1e1e1e", "text_fg": "#d4d4d4",
+        "select_bg": "#555555", "select_fg": "#ffffff",
+        "success_bg": "#388E3C", "success_fg": "#ffffff",
+        "undo_bg": "#D32F2F", "undo_fg": "#ffffff",
+        "disabled_bg": "#555555", "disabled_fg": "#aaaaaa"
+    }
+}
 
 class OrganizerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Pro File Organizer")
-        self.root.geometry("600x600")
+        self.root.geometry("600x650")
 
         self.organizer = FileOrganizer()
         # Try loading config
         if self.organizer.load_config():
             print("Loaded custom configuration.")
 
+        # Load recent folders
+        self.load_recent()
+
+        self.current_theme = "dark"  # Default to dark mode
+        self.colors = THEMES[self.current_theme]
+        self.style = ttk.Style()
+        self.selected_path = None
+
         # 1. Folder Selection Area
-        frame_top = tk.Frame(root, pady=10)
+        frame_top = ttk.Frame(root, padding=10)
         frame_top.pack(fill="x", padx=10)
 
-        self.lbl_path = tk.Label(frame_top, text="No folder selected", fg="gray", anchor="w", relief="sunken")
+        self.lbl_path = ttk.Label(frame_top, text="No folder selected", anchor="w", relief="sunken")
         self.lbl_path.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        btn_browse = tk.Button(frame_top, text="Browse Folder", command=self.browse_folder)
+        btn_browse = ttk.Button(frame_top, text="Browse Folder", command=self.browse_folder)
         btn_browse.pack(side="right")
 
-        # Options Frame
-        frame_options = tk.Frame(root, pady=5)
-        frame_options.pack(fill="x", padx=10)
+        # Recent Folders Combobox
+        self.var_recent = tk.StringVar()
+        self.opt_recent = ttk.Combobox(frame_top, textvariable=self.var_recent, values=self.recent_folders, state="readonly", width=5)
+        self.opt_recent.set("...")
+        self.opt_recent.pack(side="right", padx=5)
+        self.opt_recent.bind("<<ComboboxSelected>>", self.on_recent_select)
+
+        # Options Frame (using LabelFrame for grouping)
+        frame_options = ttk.LabelFrame(root, text="Options", padding=10)
+        frame_options.pack(fill="x", padx=20, pady=5)
 
         # Recursive Checkbox
         self.var_recursive = tk.BooleanVar()
-        chk_rec = tk.Checkbutton(frame_options, text="Include Subfolders", variable=self.var_recursive)
+        chk_rec = ttk.Checkbutton(frame_options, text="Include Subfolders", variable=self.var_recursive)
         chk_rec.pack(side="left", padx=5)
 
         # Date Sorting Checkbox
         self.var_date_sort = tk.BooleanVar()
-        chk_date = tk.Checkbutton(frame_options, text="Sort by Date", variable=self.var_date_sort)
+        chk_date = ttk.Checkbutton(frame_options, text="Sort by Date", variable=self.var_date_sort)
         chk_date.pack(side="left", padx=5)
 
         # Delete Empty Folders Checkbox
         self.var_del_empty = tk.BooleanVar()
-        chk_del = tk.Checkbutton(frame_options, text="Delete Empty Folders", variable=self.var_del_empty)
+        chk_del = ttk.Checkbutton(frame_options, text="Delete Empty Folders", variable=self.var_del_empty)
         chk_del.pack(side="left", padx=5)
 
         # Dry Run Checkbox
         self.var_dry_run = tk.BooleanVar()
-        chk_dry = tk.Checkbutton(frame_options, text="Dry Run (Simulate)", variable=self.var_dry_run)
+        chk_dry = ttk.Checkbutton(frame_options, text="Dry Run (Simulate)", variable=self.var_dry_run)
         chk_dry.pack(side="left", padx=5)
 
-        # 2. Action Buttons
-        self.btn_run = tk.Button(root, text="Start Organizing", command=self.start_thread, state="disabled", bg="#dddddd", height=2)
-        self.btn_run.pack(fill="x", padx=10, pady=5)
+        # Toolbar Frame for actions
+        frame_toolbar = ttk.Frame(root, padding=5)
+        frame_toolbar.pack(fill="x", padx=10)
+
+        # Theme Toggle
+        self.btn_theme = ttk.Button(frame_toolbar, text="Theme", command=self.toggle_theme)
+        self.btn_theme.pack(side="right", padx=5)
+
+        # Settings Button
+        self.btn_settings = ttk.Button(frame_toolbar, text="Settings", command=self.open_settings)
+        self.btn_settings.pack(side="right", padx=5)
+
+        # 2. Action Buttons Area
+        frame_actions = ttk.Frame(root, padding=10)
+        frame_actions.pack(fill="x", padx=10)
+
+        self.btn_run = ttk.Button(frame_actions, text="Start Organizing", command=self.start_thread, state="disabled")
+        self.btn_run.pack(fill="x", pady=2)
 
         # Undo Button
-        self.btn_undo = tk.Button(root, text="Undo Last Run", command=self.undo_changes, state="disabled", bg="#ffcccc")
-        self.btn_undo.pack(fill="x", padx=10, pady=5)
+        self.btn_undo = ttk.Button(frame_actions, text="Undo Last Run", command=self.undo_changes, state="disabled")
+        self.btn_undo.pack(fill="x", pady=2)
 
         # Progress Bar
         self.progress = ttk.Progressbar(root, orient="horizontal", length=100, mode="determinate")
@@ -66,15 +120,230 @@ class OrganizerApp:
         self.log_area = scrolledtext.ScrolledText(root, state='disabled', height=15)
         self.log_area.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.selected_path = None
+        # Apply initial theme
+        self.apply_theme()
+
+    def toggle_theme(self):
+        self.current_theme = "light" if self.current_theme == "dark" else "dark"
+        self.colors = THEMES[self.current_theme]
+        self.apply_theme()
+
+    def apply_theme(self):
+        c = self.colors
+        self.root.config(bg=c["bg"])
+
+        # Configure ttk styles
+        self.style.theme_use('clam')
+
+        # Generic styles
+        self.style.configure(".", background=c["bg"], foreground=c["fg"])
+        self.style.configure("TFrame", background=c["bg"])
+        self.style.configure("TLabel", background=c["bg"], foreground=c["fg"])
+        self.style.configure("TButton", background=c["btn_bg"], foreground=c["btn_fg"], bordercolor=c["bg"], lightcolor=c["btn_bg"], darkcolor=c["btn_bg"])
+        self.style.map("TButton",
+            background=[("active", c["select_bg"]), ("disabled", c["disabled_bg"])],
+            foreground=[("active", c["select_fg"]), ("disabled", c["disabled_fg"])]
+        )
+
+        # Checkbuttons
+        self.style.configure("TCheckbutton", background=c["bg"], foreground=c["fg"], indicatorcolor=c["btn_bg"], indicatorbackground=c["btn_fg"])
+        self.style.map("TCheckbutton",
+             background=[("active", c["bg"])],
+             indicatorcolor=[("selected", c["success_bg"]), ("pressed", c["select_bg"])]
+        )
+
+        # LabelFrame
+        self.style.configure("TLabelframe", background=c["bg"], foreground=c["fg"], bordercolor=c["fg"])
+        self.style.configure("TLabelframe.Label", background=c["bg"], foreground=c["fg"])
+
+        # Progress bar
+        self.style.configure("Horizontal.TProgressbar", background=c["success_bg"], troughcolor=c["btn_bg"], bordercolor=c["bg"], lightcolor=c["success_bg"], darkcolor=c["success_bg"])
+
+        # Manually update non-ttk widgets (ScrolledText, Toplevel windows if any)
+        self.log_area.config(bg=c["text_bg"], fg=c["text_fg"], insertbackground=c["fg"])
+
+    def load_recent(self):
+        self.recent_folders = []
+        if os.path.exists("recent.json"):
+            try:
+                with open("recent.json", "r") as f:
+                    self.recent_folders = json.load(f)
+            except:
+                pass
+
+    def add_recent(self, path):
+        str_path = str(path)
+        if str_path in self.recent_folders:
+            self.recent_folders.remove(str_path)
+        self.recent_folders.insert(0, str_path)
+        self.recent_folders = self.recent_folders[:10] # Keep last 10
+
+        # Update UI
+        self.opt_recent['values'] = self.recent_folders
+
+        with open("recent.json", "w") as f:
+            json.dump(self.recent_folders, f)
+
+    def on_recent_select(self, event):
+        selected = self.var_recent.get()
+        if selected and selected != "...":
+            self.selected_path = Path(selected)
+            self.lbl_path.config(text=str(self.selected_path))
+            self.btn_run.config(state="normal")
+            self.log("Selected (Recent): " + str(self.selected_path))
+            # Move to top of recent list
+            self.add_recent(self.selected_path)
+            self.opt_recent.set("...") # Reset text to dot dot dot
 
     def browse_folder(self):
         folder_selected = filedialog.askdirectory()
         if folder_selected:
             self.selected_path = Path(folder_selected)
-            self.lbl_path.config(text=str(self.selected_path), fg="black")
-            self.btn_run.config(state="normal", bg="#4CAF50", fg="white")
+            self.lbl_path.config(text=str(self.selected_path))
+            self.btn_run.config(state="normal", bg=self.colors["success_bg"], fg=self.colors["success_fg"])
             self.log("Selected: " + str(self.selected_path))
+
+    def open_settings(self):
+        """Opens a window to configure file extensions and categories."""
+        settings_win = tk.Toplevel(self.root)
+        settings_win.title("Configuration")
+        settings_win.geometry("500x400")
+
+        # Apply current theme to new window
+        c = self.colors
+        settings_win.config(bg=c["bg"])
+
+        # UI Layout for Settings
+        # Top: List of categories
+        frame_list = ttk.Frame(settings_win, padding=10)
+        frame_list.pack(side="left", fill="y", padx=10, pady=10)
+
+        lbl_cats = ttk.Label(frame_list, text="Categories")
+        lbl_cats.pack(anchor="w")
+
+        listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"], selectbackground=c["select_bg"], selectforeground=c["select_fg"])
+        listbox.pack(fill="y", expand=True)
+
+        # Right: Edit area
+        frame_edit = ttk.Frame(settings_win, padding=10)
+        frame_edit.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
+        lbl_exts = ttk.Label(frame_edit, text="Extensions (comma separated)")
+        lbl_exts.pack(anchor="w")
+
+        txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        txt_exts.pack(fill="x")
+
+        # Buttons for Add/Delete Category
+        frame_btns = ttk.Frame(frame_edit, padding=10)
+        frame_btns.pack(fill="x")
+
+        btn_add = ttk.Button(frame_btns, text="Add Category")
+        btn_add.pack(side="left", padx=5)
+
+        btn_del = ttk.Button(frame_btns, text="Delete Category")
+        btn_del.pack(side="left", padx=5)
+
+        btn_save = ttk.Button(frame_edit, text="Save Configuration", command=None) # command set later
+        btn_save.pack(side="bottom", pady=10)
+
+        # Logic
+        current_cats = list(self.organizer.directories.keys())
+        for cat in current_cats:
+            listbox.insert(tk.END, cat)
+
+        def on_select(event):
+            selection = listbox.curselection()
+            if selection:
+                index = selection[0]
+                cat = listbox.get(index)
+                exts = self.organizer.directories.get(cat, [])
+                txt_exts.delete("1.0", tk.END)
+                txt_exts.insert(tk.END, ", ".join(exts))
+
+        listbox.bind('<<ListboxSelect>>', on_select)
+
+        def save_current_edit():
+            selection = listbox.curselection()
+            if selection:
+                cat = listbox.get(selection[0])
+                raw_exts = txt_exts.get("1.0", tk.END).strip()
+                # Allow empty list (clearing extensions)
+                ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
+                self.organizer.directories[cat] = ext_list
+
+        def save_config():
+            save_current_edit() # Save pending changes in text box
+            if self.organizer.save_config():
+                self.organizer.extension_map = self.organizer.build_extension_map()
+                messagebox.showinfo("Success", "Configuration saved!")
+                settings_win.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to save configuration.")
+
+        def add_category():
+            new_cat = simpledialog.askstring("New Category", "Enter category name:", parent=settings_win)
+            if new_cat and new_cat not in self.organizer.directories:
+                self.organizer.directories[new_cat] = []
+                listbox.insert(tk.END, new_cat)
+                listbox.selection_clear(0, tk.END)
+                listbox.selection_set(tk.END)
+                on_select(None)
+
+        def delete_category():
+            selection = listbox.curselection()
+            if selection:
+                cat = listbox.get(selection[0])
+                if messagebox.askyesno("Confirm", f"Delete category '{cat}'?"):
+                    del self.organizer.directories[cat]
+                    listbox.delete(selection[0])
+                    txt_exts.delete("1.0", tk.END)
+                    self.last_selected_index = None # Prevent saving cleared state to wrong category
+
+        btn_save.config(command=save_config)
+        btn_add.config(command=add_category)
+        btn_del.config(command=delete_category)
+
+        # Ensure we also save changes when switching list items
+        def on_select_wrapper(event):
+            # Try to save previous selection first?
+            # It's tricky because we don't know what was previously selected easily without tracking.
+            # For simplicity, we only save when "Save Configuration" is clicked,
+            # BUT we need to update the internal dict when switching away from a category.
+            # Let's track last selected index.
+            pass
+            # Actually, standard UX: clicking another item discards unsaved changes in details view
+            # unless we auto-save to memory.
+            # Let's auto-save to memory (self.organizer.directories) when selection changes.
+
+        self.last_selected_index = None
+
+        def on_select_improved(event):
+            # Save previous if any
+            if self.last_selected_index is not None:
+                try:
+                    prev_cat = listbox.get(self.last_selected_index)
+                    # Check if it still exists (might have been deleted)
+                    if prev_cat in self.organizer.directories:
+                        raw_exts = txt_exts.get("1.0", tk.END).strip()
+                        ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
+                        self.organizer.directories[prev_cat] = ext_list
+                except tk.TclError:
+                    pass # Index might be out of bounds if deletion happened
+
+            selection = listbox.curselection()
+            if selection:
+                index = selection[0]
+                self.last_selected_index = index
+                cat = listbox.get(index)
+                exts = self.organizer.directories.get(cat, [])
+                txt_exts.delete("1.0", tk.END)
+                txt_exts.insert(tk.END, ", ".join(exts))
+            else:
+                self.last_selected_index = None
+
+        listbox.bind('<<ListboxSelect>>', on_select_improved)
+
 
     def log(self, message):
         """Thread-safe logging to the text box."""

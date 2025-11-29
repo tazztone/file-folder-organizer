@@ -21,8 +21,11 @@ class FileOrganizer:
         self.extension_map = self._build_extension_map()
         self.history = []  # Stores [(new_path, old_path), ...]
 
-    def _build_extension_map(self):
+    def build_extension_map(self):
+        """Rebuilds the internal extension map."""
         return {ext: category for category, exts in self.directories.items() for ext in exts}
+
+    _build_extension_map = build_extension_map # Alias for backward compatibility if needed internally
 
     def load_config(self, config_path="config.json"):
         """Loads configuration from a JSON file."""
@@ -36,6 +39,16 @@ class FileOrganizer:
                 print(f"Error loading config: {e}")
                 return False
         return False
+
+    def save_config(self, config_path="config.json"):
+        """Saves current configuration to a JSON file."""
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(self.directories, f, indent=4)
+            return True
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            return False
 
     def get_unique_path(self, path: Path) -> Path:
         """Generates a unique path by appending a counter if the file exists."""
