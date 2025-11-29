@@ -20,6 +20,8 @@ class FileOrganizer:
         self.directories = DEFAULT_DIRECTORIES.copy()
         self.extension_map = self._build_extension_map()
         self.history = []  # Stores [(new_path, old_path), ...]
+        self.last_source_path = None
+        self.excluded_names = {"app.py", "organizer.py", "config.json", "themes.py", "recent.json"}
 
     def _build_extension_map(self):
         return {ext: category for category, exts in self.directories.items() for ext in exts}
@@ -29,7 +31,14 @@ class FileOrganizer:
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:
-                    self.directories = json.load(f)
+                    data = json.load(f)
+                    # Check if new format (has "directories" key)
+                    if "directories" in data:
+                        self.directories = data.get("directories", DEFAULT_DIRECTORIES)
+                        self.excluded_names = set(data.get("excluded_names", self.excluded_names))
+                    else:
+                        # Fallback for old format
+                        self.directories = data
                 self.extension_map = self._build_extension_map()
                 return True
             except Exception as e:
@@ -41,7 +50,10 @@ class FileOrganizer:
         """Saves current configuration to a JSON file."""
         try:
             with open(config_path, 'w') as f:
-                json.dump(self.directories, f, indent=4)
+                json.dump({
+                    "directories": self.directories,
+                    "excluded_names": list(self.excluded_names)
+                }, f, indent=4)
             return True
         except Exception as e:
             print(f"Error saving config: {e}")
@@ -65,11 +77,8 @@ class FileOrganizer:
         else:
             iterator = source_path.iterdir()
 
-        # Generator for valid files
-        # Exclude self (if run from source) and other artifacts if needed
-        excluded_files = {"app.py", "organizer.py", "config.json"}
         for item in iterator:
-            if item.is_file() and item.name not in excluded_files:
+            if item.is_file() and item.name not in self.excluded_names:
                 yield item
 
     def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None):
@@ -90,6 +99,7 @@ class FileOrganizer:
         """
         if not dry_run:
             self.history.clear()
+            self.last_source_path = source_path
 
         if log_callback:
             log_callback(f"--- Starting {'Dry Run ' if dry_run else ''}Organization ---")
@@ -125,21 +135,16 @@ class FileOrganizer:
                         if log_callback:
                             log_callback(f"Date error for {item.name}: {e}")
 
+                # SKIP ALREADY ORGANIZED FILES
+                # Resolve paths to handle potential relative/absolute mismatches
+                if item.parent.resolve() == target_dir.resolve():
+                     continue
+
                 dest_path = target_dir / item.name
 
-                # We need to calculate unique path even for dry run to show correct simulation
-                # However, for dry run, if we simulate moving multiple files to same name, we can't easily check 'exists'
-                # unless we track simulated existence. For simplicity, we assume 'exists' check works against real FS.
-                # Only if NOT dry_run, we check against FS.
-                # Actually, simply checking against FS is fine for dry_run approximation,
-                # though it won't catch collisions within the batch being moved.
-
                 # Determine final unique path
-                # Note: This logic might be slightly off in Dry Run if multiple files map to same dest in same run.
-                # But it's acceptable for a simple dry run.
                 final_dest_path = dest_path
-                if not dry_run: # or check existence anyway?
-                    # If dry run, we can check if file ALREADY exists on disk.
+                if not dry_run:
                     final_dest_path = self.get_unique_path(dest_path)
 
                 # Show relative path for logging
@@ -198,16 +203,42 @@ class FileOrganizer:
             log_callback("\n--- Undoing Changes ---")
 
         count = 0
+        folders_to_check = set()
+
         # Process in reverse order
         for current_path, original_path in reversed(self.history):
             try:
                 if current_path.exists():
                     original_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(current_path), str(original_path))
+                    folders_to_check.add(current_path.parent)
                     count += 1
             except Exception as e:
                 if log_callback:
                     log_callback(f"Failed to undo {current_path.name}: {e}")
+
+        # Cleanup empty folders created/left by undo
+        cleaned_folders = 0
+        # Sort folders by path length descending to handle nested structures (like Date Sort)
+        sorted_folders = sorted(folders_to_check, key=lambda p: len(str(p)), reverse=True)
+
+        for folder in sorted_folders:
+            try:
+                curr = folder
+                # Recursively delete empty parent folders, but stop at source_path
+                while curr.exists() and (not self.last_source_path or curr != self.last_source_path):
+                     # Check emptiness safely
+                     if not any(curr.iterdir()):
+                         curr.rmdir()
+                         cleaned_folders += 1
+                         curr = curr.parent
+                     else:
+                         break
+            except OSError:
+                pass
+
+        if cleaned_folders > 0 and log_callback:
+             log_callback(f"Cleaned up {cleaned_folders} empty folders during undo.")
 
         self.history.clear()
         if log_callback:
