@@ -1,11 +1,11 @@
 import os
 import threading
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox, ttk, simpledialog
+from tkinter import filedialog, messagebox, ttk
 import json
 from pathlib import Path
 from organizer import FileOrganizer
-from themes import THEMES
+from themes import setup_themes, get_palette
 from settings_dialog import SettingsDialog
 from batch_dialog import BatchDialog
 from ui_utils import ToolTip
@@ -23,26 +23,27 @@ class OrganizerApp:
 
         # Load recent folders
         self.load_recent()
-
-        self.current_theme = "dark"  # Default to dark mode
-        self.colors = THEMES[self.current_theme]
-        self.style = ttk.Style()
         self.selected_path = None
         self.is_running = False
+
+        # Theme setup
+        self.style = ttk.Style()
+        setup_themes(self.style)
+        self.current_theme = "dark" # Default preference
 
         # Bind Shortcuts
         self.root.bind('<Return>', self.start_thread)
         self.root.bind('<Escape>', lambda e: self.stop_process())
 
         # 1. Folder Selection Area
-        frame_top = tk.Frame(root, pady=10)
+        frame_top = ttk.Frame(root, padding=10)
         frame_top.pack(fill="x", padx=10)
 
-        self.lbl_path = tk.Label(frame_top, text="No folder selected", anchor="w", relief="sunken")
+        self.lbl_path = ttk.Label(frame_top, text="No folder selected", anchor="w", relief="sunken", padding=5)
         self.lbl_path.pack(side="left", fill="x", expand=True, padx=(0, 5))
         ToolTip(self.lbl_path, "Selected folder path")
 
-        btn_browse = tk.Button(frame_top, text="Browse Folder", command=self.browse_folder)
+        btn_browse = ttk.Button(frame_top, text="Browse Folder", command=self.browse_folder)
         btn_browse.pack(side="right")
         ToolTip(btn_browse, "Select a folder to organize")
 
@@ -55,62 +56,62 @@ class OrganizerApp:
         ToolTip(self.opt_recent, "Select from recently used folders")
 
         # Options Frame
-        frame_options = tk.Frame(root, pady=5)
+        frame_options = ttk.Frame(root, padding=5)
         frame_options.pack(fill="x", padx=10)
 
         # Recursive Checkbox
         self.var_recursive = tk.BooleanVar()
-        chk_rec = tk.Checkbutton(frame_options, text="Include Subfolders", variable=self.var_recursive)
+        chk_rec = ttk.Checkbutton(frame_options, text="Include Subfolders", variable=self.var_recursive)
         chk_rec.pack(side="left", padx=5)
         ToolTip(chk_rec, "Search and organize files in subdirectories")
 
         # Date Sorting Checkbox
         self.var_date_sort = tk.BooleanVar()
-        chk_date = tk.Checkbutton(frame_options, text="Sort by Date", variable=self.var_date_sort)
+        chk_date = ttk.Checkbutton(frame_options, text="Sort by Date", variable=self.var_date_sort)
         chk_date.pack(side="left", padx=5)
         ToolTip(chk_date, "Organize files into Year/Month folders")
 
         # Delete Empty Folders Checkbox
         self.var_del_empty = tk.BooleanVar()
-        chk_del = tk.Checkbutton(frame_options, text="Delete Empty Folders", variable=self.var_del_empty)
+        chk_del = ttk.Checkbutton(frame_options, text="Delete Empty Folders", variable=self.var_del_empty)
         chk_del.pack(side="left", padx=5)
         ToolTip(chk_del, "Remove empty folders after moving files")
 
         # Dry Run Checkbox
         self.var_dry_run = tk.BooleanVar()
-        chk_dry = tk.Checkbutton(frame_options, text="Dry Run (Simulate)", variable=self.var_dry_run)
+        chk_dry = ttk.Checkbutton(frame_options, text="Dry Run (Simulate)", variable=self.var_dry_run)
         chk_dry.pack(side="left", padx=5)
         ToolTip(chk_dry, "Simulate the organization without moving files")
 
         # Theme Toggle
-        self.btn_theme = tk.Button(frame_options, text=f"Theme: {self.current_theme.title()}", command=self.toggle_theme)
+        self.btn_theme = ttk.Button(frame_options, text=f"Theme: {self.current_theme.title()}", command=self.toggle_theme)
         self.btn_theme.pack(side="right", padx=5)
         ToolTip(self.btn_theme, "Toggle between Light and Dark themes")
 
         # Settings Button
-        self.btn_settings = tk.Button(frame_options, text="Settings", command=self.open_settings)
+        self.btn_settings = ttk.Button(frame_options, text="Settings", command=self.open_settings)
         self.btn_settings.pack(side="right", padx=5)
         ToolTip(self.btn_settings, "Configure file categories and extensions")
 
         # Batch Button
-        self.btn_batch = tk.Button(frame_options, text="Batch", command=self.open_batch)
+        self.btn_batch = ttk.Button(frame_options, text="Batch", command=self.open_batch)
         self.btn_batch.pack(side="right", padx=5)
         ToolTip(self.btn_batch, "Organize multiple folders")
 
         # 2. Action Buttons
-        frame_actions = tk.Frame(root)
+        frame_actions = ttk.Frame(root)
         frame_actions.pack(fill="x", padx=10, pady=5)
 
-        self.btn_preview = tk.Button(frame_actions, text="Preview", command=self.run_preview, state="disabled", height=2)
+        self.btn_preview = ttk.Button(frame_actions, text="Preview", command=self.run_preview, state="disabled")
         self.btn_preview.pack(side="left", fill="x", expand=True, padx=(0, 5))
         ToolTip(self.btn_preview, "Preview the changes (Dry Run)")
 
-        self.btn_run = tk.Button(frame_actions, text="Start Organizing", command=self.start_thread, state="disabled", height=2)
+        self.btn_run = ttk.Button(frame_actions, text="Start Organizing", command=self.start_thread, state="disabled", style="Success.TButton")
         self.btn_run.pack(side="left", fill="x", expand=True, padx=(5, 0))
         ToolTip(self.btn_run, "Start the organization process")
 
         # Undo Button
-        self.btn_undo = tk.Button(root, text="Undo Last Run", command=self.undo_changes, state="disabled")
+        self.btn_undo = ttk.Button(root, text="Undo Last Run", command=self.undo_changes, state="disabled", style="Danger.TButton")
         self.btn_undo.pack(fill="x", padx=10, pady=5)
         ToolTip(self.btn_undo, "Revert the last organization operation")
 
@@ -119,56 +120,41 @@ class OrganizerApp:
         self.progress.pack(fill="x", padx=10, pady=(0, 5))
 
         # 3. Log Area
-        self.log_area = scrolledtext.ScrolledText(root, state='disabled', height=15)
-        self.log_area.pack(fill="both", expand=True, padx=10, pady=10)
+        self.log_area_frame = ttk.Frame(root)
+        self.log_area_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Using tk.Text for logs because ttk doesn't have a multi-line text widget
+        # but wrapping it in ttk.Frame and adding ttk.Scrollbar
+        self.log_scrollbar = ttk.Scrollbar(self.log_area_frame)
+        self.log_scrollbar.pack(side="right", fill="y")
+
+        self.log_area = tk.Text(self.log_area_frame, height=15, state='disabled',
+                                yscrollcommand=self.log_scrollbar.set, relief="flat")
+        self.log_area.pack(side="left", fill="both", expand=True)
+
+        self.log_scrollbar.config(command=self.log_area.yview)
 
         # Apply initial theme
         self.apply_theme()
 
     def toggle_theme(self):
         self.current_theme = "light" if self.current_theme == "dark" else "dark"
-        self.colors = THEMES[self.current_theme]
         self.btn_theme.config(text=f"Theme: {self.current_theme.title()}")
         self.apply_theme()
 
     def apply_theme(self):
-        c = self.colors
+        # Use the ttk theme
+        theme_name = f"pro_{self.current_theme}"
+        self.style.theme_use(theme_name)
+
+        # Get palette for non-ttk widgets
+        c = get_palette(self.current_theme)
+
+        # Manual updates for non-ttk widgets
         self.root.config(bg=c["bg"])
-
-        # Configure ttk styles
-        self.style.theme_use('clam')
-        self.style.configure("Horizontal.TProgressbar", background=c["success_bg"], troughcolor=c["btn_bg"], bordercolor=c["bg"], lightcolor=c["success_bg"], darkcolor=c["success_bg"])
-
-        # Recursively update widget colors
-        self.update_widget_colors(self.root, c)
-
-        # Re-apply specific states if needed
-        if self.selected_path:
-             self.btn_run.config(bg=c["success_bg"], fg=c["success_fg"])
-             self.btn_preview.config(bg=c["btn_bg"], fg=c["btn_fg"])
-        else:
-             self.btn_run.config(bg=c["disabled_bg"], fg=c["disabled_fg"])
-             self.btn_preview.config(bg=c["disabled_bg"], fg=c["disabled_fg"])
+        self.log_area.config(bg=c["text_bg"], fg=c["text_fg"], insertbackground=c["fg"])
 
         self.update_undo_button()
-
-
-    def update_widget_colors(self, widget, c):
-        try:
-            w_type = widget.winfo_class()
-            if w_type in ('Frame', 'Label', 'Checkbutton'):
-                widget.config(bg=c["bg"], fg=c["fg"])
-                if w_type == 'Checkbutton':
-                    widget.config(selectcolor=c["select_bg"], activebackground=c["bg"], activeforeground=c["fg"])
-            elif w_type == 'Button':
-                widget.config(bg=c["btn_bg"], fg=c["btn_fg"], activebackground=c["select_bg"], activeforeground=c["select_fg"])
-            elif w_type == 'Text':
-                widget.config(bg=c["text_bg"], fg=c["text_fg"], insertbackground=c["fg"])
-        except tk.TclError:
-            pass
-
-        for child in widget.winfo_children():
-            self.update_widget_colors(child, c)
 
     def load_recent(self):
         self.recent_folders = []
@@ -202,8 +188,8 @@ class OrganizerApp:
             self.opt_recent.set("...")
 
     def enable_buttons(self):
-        self.btn_run.config(state="normal", bg=self.colors["success_bg"], fg=self.colors["success_fg"])
-        self.btn_preview.config(state="normal", bg=self.colors["btn_bg"], fg=self.colors["btn_fg"])
+        self.btn_run.config(state="normal")
+        self.btn_preview.config(state="normal")
 
     def browse_folder(self):
         folder_selected = filedialog.askdirectory()
@@ -214,10 +200,11 @@ class OrganizerApp:
             self.log("Selected: " + str(self.selected_path))
 
     def open_settings(self):
-        SettingsDialog(self.root, self.organizer, self.colors)
+        # Pass current theme info if needed, though settings dialog should query style/palette
+        SettingsDialog(self.root, self.organizer, self.current_theme)
 
     def open_batch(self):
-        BatchDialog(self.root, self.organizer, self.colors, on_complete_callback=self.update_undo_button)
+        BatchDialog(self.root, self.organizer, self.current_theme, on_complete_callback=self.update_undo_button)
 
     def log(self, message):
         def _update():
@@ -250,7 +237,7 @@ class OrganizerApp:
 
     def run_organization(self, dry_run_override=None):
         self.is_running = True
-        self.btn_run.config(text="Stop", command=self.stop_process, bg=self.colors["undo_bg"], fg=self.colors["undo_fg"])
+        self.btn_run.config(text="Stop", command=self.stop_process, style="Danger.TButton")
         self.btn_preview.config(state="disabled")
         self.btn_undo.config(state="disabled")
         self.progress["value"] = 0
@@ -284,19 +271,18 @@ class OrganizerApp:
         self.root.after(0, lambda: messagebox.showinfo("Result", msg))
         
         def reset_ui():
-            self.btn_run.config(state="normal", text="Start Organizing", command=self.start_thread, bg=self.colors["success_bg"], fg=self.colors["success_fg"])
-            self.btn_preview.config(state="normal", bg=self.colors["btn_bg"], fg=self.colors["btn_fg"])
+            self.btn_run.config(state="normal", text="Start Organizing", command=self.start_thread, style="Success.TButton")
+            self.btn_preview.config(state="normal")
             self.update_undo_button()
 
         self.root.after(0, reset_ui)
 
     def update_undo_button(self):
         stack_size = len(self.organizer.undo_stack)
-        c = self.colors
         if stack_size > 0:
-            self.btn_undo.config(state="normal", text=f"Undo Last Run ({stack_size})", bg=c["undo_bg"], fg=c["undo_fg"])
+            self.btn_undo.config(state="normal", text=f"Undo Last Run ({stack_size})")
         else:
-            self.btn_undo.config(state="disabled", text="Undo Last Run", bg=c["disabled_bg"], fg=c["disabled_fg"])
+            self.btn_undo.config(state="disabled", text="Undo Last Run")
 
     def undo_changes(self):
         self.btn_undo.config(state="disabled")

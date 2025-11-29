@@ -1,20 +1,22 @@
 import tkinter as tk
-from tkinter import filedialog, ttk, messagebox, simpledialog
+from tkinter import filedialog, ttk, messagebox
 import json
 import threading
 from pathlib import Path
+from themes import get_palette
 
 class BatchDialog:
-    def __init__(self, parent, organizer, colors, on_complete_callback=None):
+    def __init__(self, parent, organizer, theme_name, on_complete_callback=None):
         self.parent = parent
         self.organizer = organizer
-        self.colors = colors
+        self.theme_name = theme_name
+        self.palette = get_palette(theme_name)
         self.on_complete_callback = on_complete_callback
 
         self.window = tk.Toplevel(parent)
         self.window.title("Batch Organization")
         self.window.geometry("700x500")
-        self.window.config(bg=colors["bg"])
+        self.window.config(bg=self.palette["bg"])
 
         # batch_folders is list of dicts: {"path": str, "settings": dict or None}
         self.batch_folders = []
@@ -24,22 +26,22 @@ class BatchDialog:
         self._refresh_list()
 
     def _setup_ui(self):
-        c = self.colors
+        c = self.palette
 
         # Toolbar
-        frame_toolbar = tk.Frame(self.window, bg=c["bg"], pady=5)
+        frame_toolbar = ttk.Frame(self.window, padding=5)
         frame_toolbar.pack(fill="x", padx=10)
 
-        btn_add = tk.Button(frame_toolbar, text="Add Folder", command=self.add_folder, bg=c["btn_bg"], fg=c["btn_fg"])
+        btn_add = ttk.Button(frame_toolbar, text="Add Folder", command=self.add_folder)
         btn_add.pack(side="left", padx=5)
 
-        btn_remove = tk.Button(frame_toolbar, text="Remove Selected", command=self.remove_folder, bg=c["btn_bg"], fg=c["btn_fg"])
+        btn_remove = ttk.Button(frame_toolbar, text="Remove Selected", command=self.remove_folder)
         btn_remove.pack(side="left", padx=5)
 
-        btn_config = tk.Button(frame_toolbar, text="Configure Folder", command=self.configure_folder, bg=c["btn_bg"], fg=c["btn_fg"])
+        btn_config = ttk.Button(frame_toolbar, text="Configure Folder", command=self.configure_folder)
         btn_config.pack(side="left", padx=5)
 
-        btn_clear = tk.Button(frame_toolbar, text="Clear All", command=self.clear_all, bg=c["btn_bg"], fg=c["btn_fg"])
+        btn_clear = ttk.Button(frame_toolbar, text="Clear All", command=self.clear_all)
         btn_clear.pack(side="left", padx=5)
 
         # List
@@ -53,13 +55,13 @@ class BatchDialog:
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
         # Bottom Actions
-        frame_actions = tk.Frame(self.window, bg=c["bg"], pady=10)
+        frame_actions = ttk.Frame(self.window, padding=10)
         frame_actions.pack(fill="x", padx=10)
 
         self.progress = ttk.Progressbar(frame_actions, orient="horizontal", mode="determinate")
         self.progress.pack(fill="x", pady=(0, 5))
 
-        btn_run = tk.Button(frame_actions, text="Run Batch", command=self.run_batch, bg=c["success_bg"], fg=c["success_fg"], height=2)
+        btn_run = ttk.Button(frame_actions, text="Run Batch", command=self.run_batch, style="Success.TButton")
         btn_run.pack(fill="x")
 
     def _load_batch_config(self):
@@ -157,25 +159,23 @@ class BatchDialog:
     def _open_config_dialog(self, folder_item, current_settings):
         d = tk.Toplevel(self.window)
         d.title("Folder Settings")
-        d.config(bg=self.colors["bg"])
+        d.config(bg=self.palette["bg"])
 
         var_rec = tk.BooleanVar(value=current_settings.get("recursive", False))
         var_date = tk.BooleanVar(value=current_settings.get("date_sort", False))
         var_del = tk.BooleanVar(value=current_settings.get("del_empty", False))
         var_dry = tk.BooleanVar(value=current_settings.get("dry_run", False))
 
-        c = self.colors
-
-        chk_rec = tk.Checkbutton(d, text="Include Subfolders", variable=var_rec, bg=c["bg"], fg=c["fg"], selectcolor=c["select_bg"])
+        chk_rec = ttk.Checkbutton(d, text="Include Subfolders", variable=var_rec)
         chk_rec.pack(anchor="w", padx=10, pady=5)
 
-        chk_date = tk.Checkbutton(d, text="Sort by Date", variable=var_date, bg=c["bg"], fg=c["fg"], selectcolor=c["select_bg"])
+        chk_date = ttk.Checkbutton(d, text="Sort by Date", variable=var_date)
         chk_date.pack(anchor="w", padx=10, pady=5)
 
-        chk_del = tk.Checkbutton(d, text="Delete Empty Folders", variable=var_del, bg=c["bg"], fg=c["fg"], selectcolor=c["select_bg"])
+        chk_del = ttk.Checkbutton(d, text="Delete Empty Folders", variable=var_del)
         chk_del.pack(anchor="w", padx=10, pady=5)
 
-        chk_dry = tk.Checkbutton(d, text="Dry Run", variable=var_dry, bg=c["bg"], fg=c["fg"], selectcolor=c["select_bg"])
+        chk_dry = ttk.Checkbutton(d, text="Dry Run", variable=var_dry)
         chk_dry.pack(anchor="w", padx=10, pady=5)
 
         def save():
@@ -189,7 +189,7 @@ class BatchDialog:
             self._refresh_list()
             d.destroy()
 
-        btn_save = tk.Button(d, text="Save", command=save, bg=c["success_bg"], fg=c["success_fg"])
+        btn_save = ttk.Button(d, text="Save", command=save, style="Success.TButton")
         btn_save.pack(pady=10)
 
     def run_batch(self):

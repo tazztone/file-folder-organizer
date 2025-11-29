@@ -1,113 +1,125 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk, filedialog
 from ui_utils import ToolTip
+from themes import get_palette
 
 class SettingsDialog:
-    def __init__(self, parent, organizer, colors):
+    def __init__(self, parent, organizer, theme_name):
         self.parent = parent
         self.organizer = organizer
-        self.colors = colors
+        self.theme_name = theme_name
+        self.palette = get_palette(theme_name)
         self.last_selected_cat = None
 
         self.window = tk.Toplevel(parent)
         self.window.title("Configuration")
         self.window.geometry("600x500")
-        self.window.config(bg=colors["bg"])
+        self.window.config(bg=self.palette["bg"])
+
+        # Configure local style for Toplevel logic if needed,
+        # but since parent has style, it should inherit Ttk settings.
+        # Just need to handle non-ttk backgrounds.
 
         self.notebook = ttk.Notebook(self.window)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Tab 1: Categories
-        self.tab_categories = tk.Frame(self.notebook, bg=colors["bg"])
+        self.tab_categories = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_categories, text="Categories")
         self._setup_categories_tab()
 
         # Tab 2: Exclusions
-        self.tab_exclusions = tk.Frame(self.notebook, bg=colors["bg"])
+        self.tab_exclusions = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_exclusions, text="Exclusions")
         self._setup_exclusions_tab()
 
         # Tab 3: Profiles
-        self.tab_profiles = tk.Frame(self.notebook, bg=colors["bg"])
+        self.tab_profiles = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_profiles, text="Profiles")
         self._setup_profiles_tab()
 
         # Bottom Buttons
-        frame_bottom = tk.Frame(self.window, bg=colors["bg"], pady=10)
+        frame_bottom = ttk.Frame(self.window, padding=10)
         frame_bottom.pack(fill="x", side="bottom")
 
-        btn_save = tk.Button(frame_bottom, text="Save & Close", bg=colors["success_bg"], fg=colors["success_fg"], command=self.save_config)
+        btn_save = ttk.Button(frame_bottom, text="Save & Close", command=self.save_config, style="Success.TButton")
         btn_save.pack(side="right", padx=10)
         ToolTip(btn_save, "Save changes to config.json and close")
 
     def _setup_categories_tab(self):
-        c = self.colors
+        c = self.palette
         frame = self.tab_categories
 
         # Left: List of categories
-        frame_list = tk.Frame(frame, bg=c["bg"])
-        frame_list.pack(side="left", fill="y", padx=10, pady=10)
+        frame_list = ttk.Frame(frame, padding=10)
+        frame_list.pack(side="left", fill="y")
 
-        lbl_cats = tk.Label(frame_list, text="Categories", bg=c["bg"], fg=c["fg"])
+        lbl_cats = ttk.Label(frame_list, text="Categories")
         lbl_cats.pack(anchor="w")
 
-        self.listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"], selectbackground=c["select_bg"], selectforeground=c["select_fg"])
+        # Listbox is standard Tk
+        self.listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"],
+                                  selectbackground=c["select_bg"], selectforeground=c["select_fg"],
+                                  relief="flat", borderwidth=1)
         self.listbox.pack(fill="y", expand=True)
         self.listbox.bind('<<ListboxSelect>>', self.on_cat_select)
 
         # Right: Edit area
-        frame_edit = tk.Frame(frame, bg=c["bg"])
-        frame_edit.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        frame_edit = ttk.Frame(frame, padding=10)
+        frame_edit.pack(side="left", fill="both", expand=True)
 
-        lbl_exts = tk.Label(frame_edit, text="Extensions (comma separated)", bg=c["bg"], fg=c["fg"])
+        lbl_exts = ttk.Label(frame_edit, text="Extensions (comma separated)")
         lbl_exts.pack(anchor="w")
 
-        self.txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        # Text is standard Tk
+        self.txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"],
+                                insertbackground=c["fg"], relief="flat", borderwidth=1)
         self.txt_exts.pack(fill="x")
 
         # Buttons
-        frame_btns = tk.Frame(frame_edit, bg=c["bg"], pady=10)
+        frame_btns = ttk.Frame(frame_edit, padding=(0, 10))
         frame_btns.pack(fill="x")
 
-        btn_add = tk.Button(frame_btns, text="Add Category", bg=c["btn_bg"], fg=c["btn_fg"], command=self.add_category)
+        btn_add = ttk.Button(frame_btns, text="Add Category", command=self.add_category)
         btn_add.pack(side="left", padx=5)
 
-        btn_del = tk.Button(frame_btns, text="Delete Category", bg=c["btn_bg"], fg=c["btn_fg"], command=self.delete_category)
+        btn_del = ttk.Button(frame_btns, text="Delete Category", command=self.delete_category)
         btn_del.pack(side="left", padx=5)
 
         self._populate_cat_list()
 
     def _setup_exclusions_tab(self):
-        c = self.colors
+        c = self.palette
         frame = self.tab_exclusions
 
         # Excluded Extensions
-        lbl_exts = tk.Label(frame, text="Excluded Extensions (e.g., .tmp, .log) - Comma separated", bg=c["bg"], fg=c["fg"])
+        lbl_exts = ttk.Label(frame, text="Excluded Extensions (e.g., .tmp, .log) - Comma separated")
         lbl_exts.pack(anchor="w", padx=10, pady=(10, 0))
 
-        self.txt_excl_exts = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        self.txt_excl_exts = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"],
+                                     insertbackground=c["fg"], relief="flat", borderwidth=1)
         self.txt_excl_exts.pack(fill="x", padx=10, pady=5)
         self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
 
         # Excluded Folders
-        lbl_folders = tk.Label(frame, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated", bg=c["bg"], fg=c["fg"])
+        lbl_folders = ttk.Label(frame, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated")
         lbl_folders.pack(anchor="w", padx=10, pady=(10, 0))
 
-        self.txt_excl_folders = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
+        self.txt_excl_folders = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"],
+                                        insertbackground=c["fg"], relief="flat", borderwidth=1)
         self.txt_excl_folders.pack(fill="x", padx=10, pady=5)
         self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
 
     def _setup_profiles_tab(self):
-        c = self.colors
         frame = self.tab_profiles
 
-        lbl_info = tk.Label(frame, text="Import and Export Configuration Profiles", bg=c["bg"], fg=c["fg"])
+        lbl_info = ttk.Label(frame, text="Import and Export Configuration Profiles")
         lbl_info.pack(pady=20)
 
-        btn_export = tk.Button(frame, text="Export Configuration", command=self.export_profile, bg=c["btn_bg"], fg=c["btn_fg"], height=2)
+        btn_export = ttk.Button(frame, text="Export Configuration", command=self.export_profile)
         btn_export.pack(fill="x", padx=50, pady=10)
 
-        btn_import = tk.Button(frame, text="Import Configuration", command=self.import_profile, bg=c["btn_bg"], fg=c["btn_fg"], height=2)
+        btn_import = ttk.Button(frame, text="Import Configuration", command=self.import_profile)
         btn_import.pack(fill="x", padx=50, pady=10)
 
     def _populate_cat_list(self):

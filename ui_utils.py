@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 
 class ToolTip:
     def __init__(self, widget, text):
@@ -16,10 +17,13 @@ class ToolTip:
         self.tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                         font=("tahoma", "8", "normal"))
-        label.pack(ipadx=1)
+
+        # specific style for tooltip could be added, but standard frame/label is fine
+        frame = ttk.Frame(tw, relief="solid", borderwidth=1)
+        frame.pack(fill="both", expand=True)
+
+        label = ttk.Label(frame, text=self.text, padding=(5, 2))
+        label.pack()
 
     def hide_tip(self, event=None):
         tw = self.tip_window
