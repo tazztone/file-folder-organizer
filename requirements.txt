@@ -1,2 +1,10 @@
 customtkinter
 tkinterdnd2
+transformers
+torch
+pillow
+sentence-transformers
+scipy
+numpy
+pypdf
+python-docx

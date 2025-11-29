@@ -145,6 +145,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.switch_rollback = ctk.CTkSwitch(self.frame_options, text="Rollback on Error", variable=self.var_rollback)
         self.switch_rollback.pack(side="left", padx=20, pady=10)
 
+        # ML Categorization
+        self.var_ml_categorize = tk.BooleanVar(value=False)
+        self.chk_ml = ctk.CTkSwitch(self.frame_options, text="Smart Categorization (AI)", variable=self.var_ml_categorize)
+        self.chk_ml.pack(side="left", padx=20, pady=10)
+        ToolTip(self.chk_ml, "Use AI to understand file content for better organization\n(Will download models on first run)")
+
+
         # Actions
         self.frame_actions = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.frame_actions.pack(fill="x", pady=(0, 20))
@@ -173,6 +180,24 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         # Shortcuts
         self.bind('<Return>', self.start_thread)
         self.bind('<Escape>', lambda e: self.stop_process())
+
+        # Check models availability in background on startup
+        self.check_ml_status()
+
+    def check_ml_status(self):
+        """Checks if ML models are present and updates UI hint if needed."""
+        def _check():
+            try:
+                # We use a static-like approach or just instantiate lightly
+                from ml_organizer import MultimodalFileOrganizer
+                # We don't want to load them, just check presence
+                present = MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer)
+                if not present:
+                    self.after(0, lambda: ToolTip(self.chk_ml, "Models missing. Will download (~2GB) on first run."))
+            except ImportError:
+                pass
+
+        threading.Thread(target=_check, daemon=True).start()
 
     def load_recent(self):
         self.recent_folders = []
@@ -276,6 +301,17 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
              if not messagebox.askyesno("Confirm", "Are you sure you want to organize files?"):
                  return
 
+        # Additional check for ML Download
+        if self.var_ml_categorize.get():
+             # Check if we need to warn the user about download
+             from ml_organizer import MultimodalFileOrganizer
+             if not MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer):
+                  if not messagebox.askyesno("Download ML Models",
+                                             "Smart Categorization requires downloading AI models (~2GB).\n"
+                                             "This will happen automatically now and may take a few minutes.\n\n"
+                                             "Do you want to proceed?"):
+                       return
+
         self.run_organization(dry_run_override=None)
 
     def run_preview(self):
@@ -300,6 +336,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             return
 
         dry_run = dry_run_override if dry_run_override is not None else self.var_dry_run.get()
+        use_ml = self.var_ml_categorize.get()
 
         stats = self.organizer.organize_files(
             source_path=self.selected_path,
@@ -310,7 +347,8 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             progress_callback=self.update_progress,
             log_callback=self.log,
             check_stop=lambda: not self.is_running,
-            rollback_on_error=self.var_rollback.get()
+            rollback_on_error=self.var_rollback.get(),
+            use_ml=use_ml
         )
 
         msg = f"Organization {'stopped' if not self.is_running else 'complete'}!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files."

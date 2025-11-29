@@ -47,6 +47,10 @@ sys.modules['tkinterdnd2'] = mock_tkdnd
 
 import app
 
+# Mock MultimodalFileOrganizer used in app
+# We patch it globally or where it's used
+app.MultimodalFileOrganizer = MagicMock()
+
 class TestOrganizerApp(unittest.TestCase):
     def setUp(self):
         # Reset side effects
@@ -57,7 +61,9 @@ class TestOrganizerApp(unittest.TestCase):
         mock_ctk.BooleanVar.return_value = bool_var_mock
         mock_ctk.BooleanVar.side_effect = None
 
-        self.app = app.OrganizerApp()
+        # Patch check_ml_status to prevent background thread startup logic in tests
+        with patch.object(app.OrganizerApp, 'check_ml_status', return_value=None):
+             self.app = app.OrganizerApp()
 
         self.app.var_recursive = MagicMock()
         self.app.var_recursive.get.return_value = False
@@ -70,6 +76,9 @@ class TestOrganizerApp(unittest.TestCase):
 
         self.app.var_dry_run = MagicMock()
         self.app.var_dry_run.get.return_value = False
+
+        self.app.var_ml_categorize = MagicMock()
+        self.app.var_ml_categorize.get.return_value = False
 
         self.app.organizer = MagicMock()
         self.app.organizer.organize_files.return_value = {"moved": 0, "errors": 0}
@@ -93,6 +102,7 @@ class TestOrganizerApp(unittest.TestCase):
             with patch('threading.Thread') as mock_thread:
                 self.app.start_thread()
 
+                # Should call askyesno once for "Confirm"
                 mock_ask.assert_called_once()
                 mock_thread.assert_called_once()
 
@@ -103,6 +113,24 @@ class TestOrganizerApp(unittest.TestCase):
 
                 self.app.organizer.organize_files.assert_called_once()
                 self.assertEqual(self.app.organizer.organize_files.call_args[1]['source_path'], Path("/tmp/test"))
+
+    def test_start_thread_ml_check(self):
+        # Test that enabling ML triggers a model check
+        self.app.var_ml_categorize.get.return_value = True
+
+        # Patch import inside function if needed or patch the class method
+        with patch('ml_organizer.MultimodalFileOrganizer.are_models_present', return_value=False):
+             with patch('app.messagebox.askyesno', side_effect=[True, True]) as mock_ask: # 1. Confirm run, 2. Confirm Download
+                 with patch('threading.Thread') as mock_thread:
+                     self.app.start_thread()
+
+                     # Check calls
+                     self.assertEqual(mock_ask.call_count, 2)
+                     # First call is "Confirm", Second is "Download ML Models"
+                     # Note: In implementation, "Confirm" run happens *before* ML check if not dry run.
+
+                     mock_thread.assert_called_once()
+
 
     def test_start_thread_cancel(self):
         with patch('app.messagebox.askyesno', return_value=False) as mock_ask:
