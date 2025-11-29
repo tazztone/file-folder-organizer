@@ -10,18 +10,19 @@
     },
     "excluded_names": [
         "organizer.py",
-        "batch_config.json",
-        "config.json",
         "app.py",
+        "themes.py",
         "recent.json",
-        "themes.py"
+        "config.json",
+        "batch_config.json"
     ],
     "excluded_extensions": [
         ".bak",
         ".log"
     ],
     "excluded_folders": [
-        "node_modules",
-        "build"
-    ]
+        "build",
+        "node_modules"
+    ],
+    "theme_mode": "System"
 }

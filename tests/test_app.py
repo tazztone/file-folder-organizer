@@ -36,6 +36,15 @@ mock_ctk.CTkFont = MagicMock()
 
 sys.modules['customtkinter'] = mock_ctk
 
+# Mock tkinterdnd2
+mock_tkdnd = MagicMock()
+class DummyDnDWrapper:
+    pass
+mock_tkdnd.DnDWrapper = DummyDnDWrapper
+mock_tkdnd.TkinterDnD._require = MagicMock()
+mock_tkdnd.DND_FILES = "DND_Files"
+sys.modules['tkinterdnd2'] = mock_tkdnd
+
 import app
 
 class TestOrganizerApp(unittest.TestCase):
@@ -178,7 +187,7 @@ class TestOrganizerApp(unittest.TestCase):
         self.app.btn_run.configure.assert_called_with(state="normal")
 
     def test_on_recent_select_placeholder(self):
-        self.app.on_recent_select("Recent Folders...")
+        self.app.on_recent_select("Recent...")
         self.assertEqual(self.app.selected_path, Path("/tmp/test"))
 
 if __name__ == "__main__":

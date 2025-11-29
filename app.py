@@ -1,22 +1,48 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
+try:
+    import tkinterdnd2
+    from tkinterdnd2 import DND_FILES
+    # Define DnDWrapper for mixin
+    DnDWrapper = tkinterdnd2.DnDWrapper
+except ImportError:
+    # Fallback
+    class DnDWrapper:
+        def drop_target_register(self, *args): pass
+        def dnd_bind(self, *args): pass
+    DND_FILES = 'DND_Files'
+
 import os
 import threading
 import json
 from pathlib import Path
 from organizer import FileOrganizer
-from settings_dialog import SettingsDialog
-from batch_dialog import BatchDialog
+from settings_dialog_ctk import SettingsDialog
+from batch_dialog_ctk import BatchDialog
 from ui_utils import ToolTip
 
 # Set default theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
-class OrganizerApp(ctk.CTk):
+class OrganizerApp(ctk.CTk, DnDWrapper):
     def __init__(self):
         super().__init__()
+        if hasattr(tkinterdnd2, 'TkinterDnD') and hasattr(self, 'TkdndVersion'):
+             # This might be needed if inheriting from TkinterDnD.Tk but here we mixin
+             # We might need to manually init if dnd is present
+             pass
+
+        # If tkinterdnd2 is loaded, we might need to initialize it properly
+        # Usually TkinterDnD.Tk() handles it. Mixing into ctk.CTk is harder.
+        # But commonly:
+        if 'tkinterdnd2' in globals():
+             # We need to call _require(self) if we are the root
+             try:
+                 tkinterdnd2.TkinterDnD._require(self)
+             except:
+                 pass
 
         self.title("Pro File Organizer")
         self.geometry("900x700")
@@ -24,6 +50,12 @@ class OrganizerApp(ctk.CTk):
         self.organizer = FileOrganizer()
         if self.organizer.load_config():
             print("Loaded custom configuration.")
+
+        # Load theme from config if available
+        theme = self.organizer.get_theme_mode()
+        if theme:
+            ctk.set_appearance_mode(theme)
+            # self.appearance_mode_optionemenu.set(theme) # This will be set later, but let's pre-set variable if we could
 
         self.load_recent()
         self.selected_path = None
@@ -56,7 +88,10 @@ class OrganizerApp(ctk.CTk):
         self.appearance_mode_optionemenu = ctk.CTkOptionMenu(self.sidebar_frame, values=["Light", "Dark", "System"],
                                                                        command=self.change_appearance_mode_event)
         self.appearance_mode_optionemenu.grid(row=6, column=0, padx=20, pady=(10, 20))
-        self.appearance_mode_optionemenu.set("System")
+
+        current_mode = self.organizer.get_theme_mode() or "System"
+        self.appearance_mode_optionemenu.set(current_mode)
+        ctk.set_appearance_mode(current_mode)
 
         # 2. Main Area
         self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -66,14 +101,21 @@ class OrganizerApp(ctk.CTk):
         self.frame_path = ctk.CTkFrame(self.main_frame)
         self.frame_path.pack(fill="x", pady=(0, 20))
 
-        self.lbl_path = ctk.CTkLabel(self.frame_path, text="No folder selected", anchor="w", fg_color="transparent")
+        # Drag and Drop support
+        try:
+            self.frame_path.drop_target_register(DND_FILES)
+            self.frame_path.dnd_bind('<<Drop>>', self.on_drop)
+        except Exception as e:
+            print(f"DnD setup failed: {e}")
+
+        self.lbl_path = ctk.CTkLabel(self.frame_path, text="No folder selected (Drag & Drop here)", anchor="w", fg_color="transparent")
         self.lbl_path.pack(side="left", fill="x", expand=True, padx=10, pady=10)
 
         self.btn_browse = ctk.CTkButton(self.frame_path, text="Browse", command=self.browse_folder, width=100)
         self.btn_browse.pack(side="right", padx=10, pady=10)
 
         # Recent
-        self.option_recent = ctk.CTkOptionMenu(self.frame_path, values=["Recent Folders..."], command=self.on_recent_select, width=150)
+        self.option_recent = ctk.CTkOptionMenu(self.frame_path, values=["Recent..."], command=self.on_recent_select, width=150)
         self.option_recent.pack(side="right", padx=(0, 10), pady=10)
         self.update_recent_menu()
 
@@ -99,6 +141,10 @@ class OrganizerApp(ctk.CTk):
         self.switch_dry = ctk.CTkSwitch(self.frame_options, text="Dry Run", variable=self.var_dry_run)
         self.switch_dry.pack(side="left", padx=20, pady=10)
 
+        self.var_rollback = ctk.BooleanVar(value=True)
+        self.switch_rollback = ctk.CTkSwitch(self.frame_options, text="Rollback on Error", variable=self.var_rollback)
+        self.switch_rollback.pack(side="left", padx=20, pady=10)
+
         # Actions
         self.frame_actions = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.frame_actions.pack(fill="x", pady=(0, 20))
@@ -113,6 +159,9 @@ class OrganizerApp(ctk.CTk):
         self.btn_undo.pack(side="left", fill="x", expand=True)
 
         # Progress
+        self.lbl_progress = ctk.CTkLabel(self.main_frame, text="", anchor="w", height=20)
+        self.lbl_progress.pack(fill="x", padx=5)
+
         self.progress = ctk.CTkProgressBar(self.main_frame)
         self.progress.pack(fill="x", pady=(0, 10))
         self.progress.set(0)
@@ -135,9 +184,9 @@ class OrganizerApp(ctk.CTk):
                 pass
 
     def update_recent_menu(self):
-        values = ["Recent Folders..."] + self.recent_folders
+        values = ["Recent..."] + self.recent_folders
         self.option_recent.configure(values=values)
-        self.option_recent.set("Recent Folders...")
+        self.option_recent.set("Recent...")
 
     def add_recent(self, path):
         str_path = str(path)
@@ -152,23 +201,36 @@ class OrganizerApp(ctk.CTk):
             json.dump(self.recent_folders, f)
 
     def on_recent_select(self, selected):
-        if selected and selected != "Recent Folders...":
+        if selected and selected != "Recent...":
             self.selected_path = Path(selected)
             self.lbl_path.configure(text=str(self.selected_path))
             self.enable_buttons()
             self.log("Selected (Recent): " + str(self.selected_path))
             self.add_recent(self.selected_path)
         else:
-             self.option_recent.set("Recent Folders...")
+             self.option_recent.set("Recent...")
 
-    def browse_folder(self):
-        folder_selected = filedialog.askdirectory()
-        if folder_selected:
-            self.selected_path = Path(folder_selected)
+    def on_drop(self, event):
+        if event.data:
+            path = event.data
+            if path.startswith('{') and path.endswith('}'):
+                path = path[1:-1]
+            self.set_folder(path)
+
+    def set_folder(self, path):
+        if os.path.isdir(path):
+            self.selected_path = Path(path)
             self.lbl_path.configure(text=str(self.selected_path))
             self.enable_buttons()
             self.log("Selected: " + str(self.selected_path))
             self.add_recent(self.selected_path)
+        else:
+             self.log("Dropped item is not a folder: " + path)
+
+    def browse_folder(self):
+        folder_selected = filedialog.askdirectory()
+        if folder_selected:
+            self.set_folder(folder_selected)
 
     def enable_buttons(self):
         self.btn_run.configure(state="normal")
@@ -182,6 +244,7 @@ class OrganizerApp(ctk.CTk):
 
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
+        self.organizer.save_theme_mode(new_appearance_mode)
 
     def log(self, message):
         def _update():
@@ -197,10 +260,11 @@ class OrganizerApp(ctk.CTk):
         except:
             pass
 
-    def update_progress(self, current, total):
+    def update_progress(self, current, total, filename=""):
         def _update():
             if total > 0:
                 self.progress.set(current / total)
+            self.lbl_progress.configure(text=f"Processing: {filename}" if filename else "")
         self.after(0, _update)
 
     def start_thread(self, event=None):
@@ -245,16 +309,21 @@ class OrganizerApp(ctk.CTk):
             dry_run=dry_run,
             progress_callback=self.update_progress,
             log_callback=self.log,
-            check_stop=lambda: not self.is_running
+            check_stop=lambda: not self.is_running,
+            rollback_on_error=self.var_rollback.get()
         )
 
         msg = f"Organization {'stopped' if not self.is_running else 'complete'}!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files."
+        if stats.get('rolled_back'):
+             msg += "\n\nOperation was ROLLED BACK due to errors."
 
         self.after(0, lambda: messagebox.showinfo("Result", msg))
         
         def reset_ui():
             self.btn_run.configure(state="normal", text="Start Organizing", fg_color="green", hover_color="darkgreen", command=self.start_thread)
             self.btn_preview.configure(state="normal")
+            self.lbl_progress.configure(text="")
+            self.progress.set(0)
             self.update_undo_button()
 
         self.after(0, reset_ui)
