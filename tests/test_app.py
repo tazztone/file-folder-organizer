@@ -45,23 +45,55 @@ class TestOrganizerApp(unittest.TestCase):
 
     def test_start_thread_calls_organizer(self):
         """Test that start_thread triggers organization."""
-        # We need to mock threading to run synchronously or check thread creation
+        # Mock confirmation to return True
+        with patch('app.messagebox.askyesno', return_value=True) as mock_ask:
+            with patch('threading.Thread') as mock_thread:
+                self.app.start_thread()
+
+                # Check confirmation was asked (since default dry_run is False)
+                mock_ask.assert_called_once()
+
+                mock_thread.assert_called_once()
+                # Get the target function passed to thread
+                target = mock_thread.call_args[1]['target']
+                args = mock_thread.call_args[1]['args']
+
+                # Run it directly
+                target(*args)
+
+                # Check if organizer.organize_files was called
+                self.app.organizer.organize_files.assert_called_once()
+
+                # Verify arguments
+                call_kwargs = self.app.organizer.organize_files.call_args[1]
+                self.assertEqual(call_kwargs['source_path'], Path("/tmp/test"))
+                self.assertEqual(call_kwargs['recursive'], False)
+                self.assertEqual(call_kwargs['dry_run'], False)
+
+    def test_start_thread_cancel(self):
+        """Test that start_thread aborts if confirmation is No."""
+        with patch('app.messagebox.askyesno', return_value=False) as mock_ask:
+             with patch('threading.Thread') as mock_thread:
+                self.app.start_thread()
+                mock_ask.assert_called_once()
+                mock_thread.assert_not_called()
+
+    def test_run_preview(self):
+        """Test that run_preview triggers dry run organization."""
         with patch('threading.Thread') as mock_thread:
-            self.app.start_thread()
+            self.app.run_preview()
+
             mock_thread.assert_called_once()
-            # Get the target function passed to thread
             target = mock_thread.call_args[1]['target']
-            # Run it directly
-            target()
+            args = mock_thread.call_args[1]['args']
 
-            # Check if organizer.organize_files was called
-            self.app.organizer.organize_files.assert_called_once()
+            self.assertEqual(args[0], True) # dry_run_override=True
 
-            # Verify arguments
+            # Execute target with args
+            target(*args)
+
             call_kwargs = self.app.organizer.organize_files.call_args[1]
-            self.assertEqual(call_kwargs['source_path'], Path("/tmp/test"))
-            self.assertEqual(call_kwargs['recursive'], False)
-            self.assertEqual(call_kwargs['dry_run'], False)
+            self.assertEqual(call_kwargs['dry_run'], True)
 
     def test_undo_changes(self):
         """Test that undo_changes triggers organizer undo."""
@@ -76,13 +108,19 @@ class TestOrganizerApp(unittest.TestCase):
         """Test that dry run flag is passed correctly."""
         self.mock_var_dry_run.get.return_value = True
 
-        with patch('threading.Thread') as mock_thread:
-            self.app.start_thread()
-            target = mock_thread.call_args[1]['target']
-            target()
+        with patch('app.messagebox.askyesno') as mock_ask:
+            with patch('threading.Thread') as mock_thread:
+                self.app.start_thread()
 
-            call_kwargs = self.app.organizer.organize_files.call_args[1]
-            self.assertTrue(call_kwargs['dry_run'])
+                # Should NOT ask for confirmation
+                mock_ask.assert_not_called()
+
+                target = mock_thread.call_args[1]['target']
+                args = mock_thread.call_args[1].get('args', ())
+                target(*args)
+
+                call_kwargs = self.app.organizer.organize_files.call_args[1]
+                self.assertTrue(call_kwargs['dry_run'])
 
 if __name__ == "__main__":
     unittest.main()
