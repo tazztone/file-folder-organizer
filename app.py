@@ -20,7 +20,13 @@ import os
 import threading
 import json
 import time
+from datetime import datetime
 from pathlib import Path
+try:
+    from PIL import Image, ImageTk, ImageDraw
+except ImportError:
+    Image = ImageTk = ImageDraw = None
+
 from organizer import FileOrganizer
 from settings_dialog_ctk import SettingsDialog
 from batch_dialog_ctk import BatchDialog
@@ -48,13 +54,17 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         # Icon setup
         try:
              # Create a simple icon
-             from PIL import Image, ImageTk, ImageDraw
+             if not Image:
+                  raise ImportError("PIL not loaded")
              icon_size = 32
              icon_img = Image.new("RGBA", (icon_size, icon_size), (0, 0, 0, 0))
              draw = ImageDraw.Draw(icon_img)
              # Draw a folder-like shape
              draw.rectangle([2, 6, 30, 28], fill="#3B8ED0", outline="#1F6AA5")
              draw.rectangle([2, 2, 14, 6], fill="#3B8ED0", outline="#1F6AA5")
+             # Draw a checkmark or something to make it distinctive
+             draw.line([10, 16, 14, 22], fill="white", width=2)
+             draw.line([14, 22, 22, 12], fill="white", width=2)
 
              # Convert to PhotoImage for Tkinter
              # ctk.CTk uses standard tkinter iconphoto
@@ -73,6 +83,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             ctk.set_appearance_mode(theme)
 
         self.load_recent()
+        self.load_stats()
         self.selected_path = None
         self.is_running = False
         self.start_time = 0
@@ -132,12 +143,26 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
     def _init_home_frame(self):
         self.frame_home = ctk.CTkFrame(self.container, fg_color="transparent")
 
+        # Header
         lbl_welcome = ctk.CTkLabel(self.frame_home, text="Welcome to Pro File Organizer", font=ctk.CTkFont(size=24, weight="bold"))
-        lbl_welcome.pack(pady=(40, 20))
+        lbl_welcome.pack(pady=(20, 20))
+
+        # Dashboard / Stats
+        self.frame_stats = ctk.CTkFrame(self.frame_home, fg_color="transparent")
+        self.frame_stats.pack(fill="x", padx=20, pady=(0, 20))
+
+        # Create stat cards
+        self._create_stat_card("Total Files Organized", self.stats.get("total_files", 0), 0)
+        self._create_stat_card("Last Run", self.stats.get("last_run", "Never"), 1)
+        self._create_stat_card("Batches Run", self.stats.get("batches_run", 0), 2)
+
+        self.frame_stats.grid_columnconfigure(0, weight=1)
+        self.frame_stats.grid_columnconfigure(1, weight=1)
+        self.frame_stats.grid_columnconfigure(2, weight=1)
 
         # Quick Actions
         frame_actions = ctk.CTkFrame(self.frame_home)
-        frame_actions.pack(fill="x", padx=40, pady=20)
+        frame_actions.pack(fill="x", padx=40, pady=10)
 
         lbl_actions = ctk.CTkLabel(frame_actions, text="Quick Actions", font=ctk.CTkFont(size=16, weight="bold"))
         lbl_actions.pack(anchor="w", padx=20, pady=10)
@@ -159,6 +184,24 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.scroll_recent.pack(fill="both", expand=True, padx=10, pady=10)
 
         self.refresh_recent_home()
+
+    def _create_stat_card(self, title, value, col):
+        card = ctk.CTkFrame(self.frame_stats)
+        card.grid(row=0, column=col, padx=10, sticky="ew")
+
+        lbl_val = ctk.CTkLabel(card, text=str(value), font=ctk.CTkFont(size=20, weight="bold"), text_color="#3B8ED0")
+        lbl_val.pack(pady=(10, 0))
+
+        lbl_title = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12))
+        lbl_title.pack(pady=(0, 10))
+
+    def update_home_stats(self):
+        # Re-create stats cards
+        for w in self.frame_stats.winfo_children():
+            w.destroy()
+        self._create_stat_card("Total Files Organized", self.stats.get("total_files", 0), 0)
+        self._create_stat_card("Last Run", self.stats.get("last_run", "Never"), 1)
+        self._create_stat_card("Batches Run", self.stats.get("batches_run", 0), 2)
 
     def refresh_recent_home(self):
         for w in self.scroll_recent.winfo_children():
@@ -296,6 +339,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.frame_organizer.pack_forget()
         self.frame_home.pack(fill="both", expand=True)
         self.refresh_recent_home()
+        self.update_home_stats()
         self.sidebar_btn_home.configure(fg_color=["#3B8ED0", "#1F6AA5"])
         self.sidebar_btn_org.configure(fg_color="transparent")
 
@@ -317,6 +361,22 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
                 pass
 
         threading.Thread(target=_check, daemon=True).start()
+
+    def load_stats(self):
+        self.stats = {"total_files": 0, "last_run": "Never", "batches_run": 0}
+        if os.path.exists("stats.json"):
+            try:
+                with open("stats.json", "r") as f:
+                    self.stats.update(json.load(f))
+            except:
+                pass
+
+    def save_stats(self):
+        try:
+            with open("stats.json", "w") as f:
+                json.dump(self.stats, f)
+        except:
+            pass
 
     def load_recent(self):
         self.recent_folders = []
@@ -355,13 +415,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
              self.option_recent.set("Recent...")
 
     def on_drag_enter(self, event):
-        self.frame_path.configure(border_width=2, border_color="#3B8ED0")
+        self.frame_path.configure(border_width=4, border_color="#3B8ED0", fg_color=("gray85", "gray25"))
 
     def on_drag_leave(self, event):
-        self.frame_path.configure(border_width=0) # Or default
+        self.frame_path.configure(border_width=0, fg_color="transparent") # Reset to default (transparent or theme default)
 
     def on_drop(self, event):
-        self.on_drag_leave(event) # Reset border
+        self.on_drag_leave(event) # Reset border and color
         if event.data:
             path = event.data
             if path.startswith('{') and path.endswith('}'):
@@ -391,7 +451,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         SettingsDialog(self, self.organizer)
 
     def open_batch(self):
-        BatchDialog(self, self.organizer, on_complete_callback=self.update_undo_button)
+        BatchDialog(self, self.organizer, on_complete_callback=self.on_batch_complete)
+
+    def on_batch_complete(self):
+        self.update_undo_button()
+        self.stats["batches_run"] = self.stats.get("batches_run", 0) + 1
+        self.save_stats()
+        self.update_home_stats()
 
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -432,20 +498,32 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             if total > 0:
                 self.progress.set(current / total)
 
-                # Speed & ETA
-                elapsed = time.time() - self.start_time
-                if elapsed > 0 and current > 0:
-                    speed = current / elapsed
-                    remaining_files = total - current
-                    eta = remaining_files / speed if speed > 0 else 0
+                # Check if this is ML loading (total is usually 1.0 float for ML, integer for files)
+                is_ml_loading = isinstance(total, float) and total == 1.0 and "Loading AI" in str(filename)
 
-                    status_text = f"Processing: {filename} ({speed:.1f} files/s, ETA: {eta:.0f}s)"
+                if is_ml_loading:
+                     self.lbl_progress.configure(text=f"Status: {filename}")
                 else:
-                    status_text = f"Processing: {filename}"
+                    # File processing
+                    # Truncate filename if too long
+                    display_name = filename
+                    if len(display_name) > 40:
+                        display_name = display_name[:37] + "..."
 
-                self.lbl_progress.configure(text=status_text)
+                    # Speed & ETA
+                    elapsed = time.time() - self.start_time
+                    # Only show speed if we have processed at least a few items or some time has passed
+                    if elapsed > 0.5 and current > 0 and total > 1:
+                        speed = current / elapsed
+                        remaining_files = total - current
+                        eta = remaining_files / speed if speed > 0 else 0
+                        status_text = f"Processing: {display_name} ({speed:.1f} files/s, ETA: {eta:.0f}s)"
+                    else:
+                        status_text = f"Processing: {display_name}"
+
+                    self.lbl_progress.configure(text=status_text)
             else:
-                # Indeterminate or just message (e.g. ML loading)
+                # Indeterminate or just message
                 self.lbl_progress.configure(text=f"Status: {filename}" if filename else "")
 
         self.after(0, _update)
@@ -551,6 +629,11 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         msg = f"Organization {'stopped' if not self.is_running else 'complete'}!\n{'Would move' if dry_run else 'Moved'} {stats['moved']} files."
         if stats.get('rolled_back'):
              msg += "\n\nOperation was ROLLED BACK due to errors."
+
+        if not dry_run and not stats.get('rolled_back'):
+            self.stats["total_files"] = self.stats.get("total_files", 0) + stats["moved"]
+            self.stats["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            self.save_stats()
 
         self.after(0, lambda: messagebox.showinfo("Result", msg))
         
