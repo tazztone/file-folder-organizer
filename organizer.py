@@ -26,6 +26,33 @@ class FileOrganizer:
     def _build_extension_map(self):
         return {ext: category for category, exts in self.directories.items() for ext in exts}
 
+    def validate_config(self):
+        """
+        Validates the current configuration.
+        Returns a list of error messages. If list is empty, config is valid.
+        """
+        errors = []
+
+        # Check for empty category names
+        for cat in self.directories:
+            if not cat or not cat.strip():
+                errors.append("Category name cannot be empty.")
+
+        # Check for invalid extensions and duplicates
+        all_exts = {}
+        for cat, exts in self.directories.items():
+            for ext in exts:
+                if not ext.startswith("."):
+                    errors.append(f"Invalid extension '{ext}' in category '{cat}': Must start with '.'")
+
+                if ext in all_exts:
+                    other_cat = all_exts[ext]
+                    errors.append(f"Duplicate extension '{ext}' found in '{cat}' and '{other_cat}'")
+                else:
+                    all_exts[ext] = cat
+
+        return errors
+
     def load_config(self, config_path="config.json"):
         """Loads configuration from a JSON file."""
         if os.path.exists(config_path):

@@ -6,33 +6,8 @@ import json
 from pathlib import Path
 from organizer import FileOrganizer
 from themes import THEMES
-
-class ToolTip:
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tip_window = None
-        self.widget.bind("<Enter>", self.show_tip)
-        self.widget.bind("<Leave>", self.hide_tip)
-
-    def show_tip(self, event=None):
-        if self.tip_window or not self.text:
-            return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 10
-        self.tip_window = tw = tk.Toplevel(self.widget)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                         font=("tahoma", "8", "normal"))
-        label.pack(ipadx=1)
-
-    def hide_tip(self, event=None):
-        tw = self.tip_window
-        self.tip_window = None
-        if tw:
-            tw.destroy()
+from settings_dialog import SettingsDialog
+from ui_utils import ToolTip
 
 class OrganizerApp:
     def __init__(self, root):
@@ -237,121 +212,7 @@ class OrganizerApp:
 
     def open_settings(self):
         """Opens a window to configure file extensions and categories."""
-        settings_win = tk.Toplevel(self.root)
-        settings_win.title("Configuration")
-        settings_win.geometry("500x400")
-
-        # Apply current theme to new window
-        c = self.colors
-        settings_win.config(bg=c["bg"])
-
-        # UI Layout for Settings
-        # Top: List of categories
-        frame_list = tk.Frame(settings_win, bg=c["bg"])
-        frame_list.pack(side="left", fill="y", padx=10, pady=10)
-
-        lbl_cats = tk.Label(frame_list, text="Categories", bg=c["bg"], fg=c["fg"])
-        lbl_cats.pack(anchor="w")
-
-        listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"], selectbackground=c["select_bg"], selectforeground=c["select_fg"])
-        listbox.pack(fill="y", expand=True)
-
-        # Right: Edit area
-        frame_edit = tk.Frame(settings_win, bg=c["bg"])
-        frame_edit.pack(side="left", fill="both", expand=True, padx=10, pady=10)
-
-        lbl_exts = tk.Label(frame_edit, text="Extensions (comma separated)", bg=c["bg"], fg=c["fg"])
-        lbl_exts.pack(anchor="w")
-
-        txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"], insertbackground=c["fg"])
-        txt_exts.pack(fill="x")
-
-        # Buttons for Add/Delete Category
-        frame_btns = tk.Frame(frame_edit, bg=c["bg"], pady=10)
-        frame_btns.pack(fill="x")
-
-        btn_add = tk.Button(frame_btns, text="Add Category", bg=c["btn_bg"], fg=c["btn_fg"])
-        btn_add.pack(side="left", padx=5)
-
-        btn_del = tk.Button(frame_btns, text="Delete Category", bg=c["btn_bg"], fg=c["btn_fg"])
-        btn_del.pack(side="left", padx=5)
-
-        btn_save = tk.Button(frame_edit, text="Save Configuration", bg=c["success_bg"], fg=c["success_fg"])
-        btn_save.pack(side="bottom", pady=10)
-
-        # Add ToolTips for Settings
-        ToolTip(btn_add, "Create a new category")
-        ToolTip(btn_del, "Remove selected category")
-        ToolTip(btn_save, "Save changes to config.json")
-
-
-        # Logic
-        current_cats = list(self.organizer.directories.keys())
-        for cat in current_cats:
-            listbox.insert(tk.END, cat)
-
-        self.last_selected_index = None
-
-        def on_select_improved(event):
-            # Save previous if any
-            if self.last_selected_index is not None:
-                try:
-                    prev_cat = listbox.get(self.last_selected_index)
-                    # Check if it still exists (might have been deleted)
-                    if prev_cat in self.organizer.directories:
-                        raw_exts = txt_exts.get("1.0", tk.END).strip()
-                        ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
-                        self.organizer.directories[prev_cat] = ext_list
-                except tk.TclError:
-                    pass # Index might be out of bounds if deletion happened
-
-            selection = listbox.curselection()
-            if selection:
-                index = selection[0]
-                self.last_selected_index = index
-                cat = listbox.get(index)
-                exts = self.organizer.directories.get(cat, [])
-                txt_exts.delete("1.0", tk.END)
-                txt_exts.insert(tk.END, ", ".join(exts))
-            else:
-                self.last_selected_index = None
-
-        listbox.bind('<<ListboxSelect>>', on_select_improved)
-
-        def save_config():
-            # Force save current selection first
-            if self.last_selected_index is not None:
-                 on_select_improved(None)
-
-            if self.organizer.save_config():
-                self.organizer.extension_map = self.organizer._build_extension_map()
-                messagebox.showinfo("Success", "Configuration saved!")
-                settings_win.destroy()
-            else:
-                messagebox.showerror("Error", "Failed to save configuration.")
-
-        def add_category():
-            new_cat = simpledialog.askstring("New Category", "Enter category name:", parent=settings_win)
-            if new_cat and new_cat not in self.organizer.directories:
-                self.organizer.directories[new_cat] = []
-                listbox.insert(tk.END, new_cat)
-                listbox.selection_clear(0, tk.END)
-                listbox.selection_set(tk.END)
-                on_select_improved(None)
-
-        def delete_category():
-            selection = listbox.curselection()
-            if selection:
-                cat = listbox.get(selection[0])
-                if messagebox.askyesno("Confirm", f"Delete category '{cat}'?"):
-                    del self.organizer.directories[cat]
-                    listbox.delete(selection[0])
-                    txt_exts.delete("1.0", tk.END)
-                    self.last_selected_index = None
-
-        btn_save.config(command=save_config)
-        btn_add.config(command=add_category)
-        btn_del.config(command=delete_category)
+        SettingsDialog(self.root, self.organizer, self.colors)
 
 
     def log(self, message):
