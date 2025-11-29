@@ -228,28 +228,46 @@ class OrganizerApp:
         for cat in current_cats:
             listbox.insert(tk.END, cat)
 
-        def on_select(event):
-            selection = listbox.curselection()
-            if selection:
-                index = selection[0]
-                cat = listbox.get(index)
-                exts = self.organizer.directories.get(cat, [])
-                txt_exts.delete("1.0", tk.END)
-                txt_exts.insert(tk.END, ", ".join(exts))
+        self.last_selected_cat = None
 
-        listbox.bind('<<ListboxSelect>>', on_select)
-
-        def save_current_edit():
-            selection = listbox.curselection()
-            if selection:
-                cat = listbox.get(selection[0])
+        def save_current_to_memory():
+            if self.last_selected_cat and self.last_selected_cat in self.organizer.directories:
                 raw_exts = txt_exts.get("1.0", tk.END).strip()
                 if raw_exts:
                     ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
-                    self.organizer.directories[cat] = ext_list
+                    self.organizer.directories[self.last_selected_cat] = ext_list
+                else:
+                    self.organizer.directories[self.last_selected_cat] = []
+
+        def on_select(event):
+            # 1. Save changes for the *previous* selection
+            save_current_to_memory()
+
+            # 2. Switch to new selection
+            selection = listbox.curselection()
+            if selection:
+                cat = listbox.get(selection[0])
+                self.last_selected_cat = cat
+
+                exts = self.organizer.directories.get(cat, [])
+                txt_exts.delete("1.0", tk.END)
+                txt_exts.insert(tk.END, ", ".join(exts))
+            else:
+                self.last_selected_cat = None
+                txt_exts.delete("1.0", tk.END)
+
+        listbox.bind('<<ListboxSelect>>', on_select)
 
         def save_config():
-            save_current_edit() # Save pending changes in text box
+            save_current_to_memory() # Save pending changes in text box
+
+            # Validate
+            is_valid, errors = self.organizer.validate_config(self.organizer.directories)
+            if not is_valid:
+                msg = "Configuration has errors:\n\n" + "\n".join(errors)
+                messagebox.showerror("Validation Error", msg)
+                return
+
             if self.organizer.save_config():
                 self.organizer.extension_map = self.organizer._build_extension_map()
                 messagebox.showinfo("Success", "Configuration saved!")
@@ -258,12 +276,28 @@ class OrganizerApp:
                 messagebox.showerror("Error", "Failed to save configuration.")
 
         def add_category():
+            save_current_to_memory() # Save current edits first
+
             new_cat = simpledialog.askstring("New Category", "Enter category name:", parent=settings_win)
-            if new_cat and new_cat not in self.organizer.directories:
+            if new_cat:
+                new_cat = new_cat.strip()
+                if not new_cat:
+                     messagebox.showerror("Error", "Category name cannot be empty.")
+                     return
+                if new_cat in self.organizer.directories:
+                     messagebox.showerror("Error", "Category already exists.")
+                     return
+
                 self.organizer.directories[new_cat] = []
                 listbox.insert(tk.END, new_cat)
+
+                # Select the new category
                 listbox.selection_clear(0, tk.END)
-                listbox.selection_set(tk.END)
+                idx = listbox.get(0, tk.END).index(new_cat)
+                listbox.selection_set(idx)
+                listbox.activate(idx)
+
+                # Update UI and tracking
                 on_select(None)
 
         def delete_category():
@@ -273,52 +307,14 @@ class OrganizerApp:
                 if messagebox.askyesno("Confirm", f"Delete category '{cat}'?"):
                     del self.organizer.directories[cat]
                     listbox.delete(selection[0])
-                    txt_exts.delete("1.0", tk.END)
-                    self.last_selected_index = None # Prevent saving cleared state to wrong category
+
+                    if self.last_selected_cat == cat:
+                        self.last_selected_cat = None
+                        txt_exts.delete("1.0", tk.END)
 
         btn_save.config(command=save_config)
         btn_add.config(command=add_category)
         btn_del.config(command=delete_category)
-
-        # Ensure we also save changes when switching list items
-        def on_select_wrapper(event):
-            # Try to save previous selection first?
-            # It's tricky because we don't know what was previously selected easily without tracking.
-            # For simplicity, we only save when "Save Configuration" is clicked,
-            # BUT we need to update the internal dict when switching away from a category.
-            # Let's track last selected index.
-            pass
-            # Actually, standard UX: clicking another item discards unsaved changes in details view
-            # unless we auto-save to memory.
-            # Let's auto-save to memory (self.organizer.directories) when selection changes.
-
-        self.last_selected_index = None
-
-        def on_select_improved(event):
-            # Save previous if any
-            if self.last_selected_index is not None:
-                try:
-                    prev_cat = listbox.get(self.last_selected_index)
-                    # Check if it still exists (might have been deleted)
-                    if prev_cat in self.organizer.directories:
-                        raw_exts = txt_exts.get("1.0", tk.END).strip()
-                        ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
-                        self.organizer.directories[prev_cat] = ext_list
-                except tk.TclError:
-                    pass # Index might be out of bounds if deletion happened
-
-            selection = listbox.curselection()
-            if selection:
-                index = selection[0]
-                self.last_selected_index = index
-                cat = listbox.get(index)
-                exts = self.organizer.directories.get(cat, [])
-                txt_exts.delete("1.0", tk.END)
-                txt_exts.insert(tk.END, ", ".join(exts))
-            else:
-                self.last_selected_index = None
-
-        listbox.bind('<<ListboxSelect>>', on_select_improved)
 
 
     def log(self, message):

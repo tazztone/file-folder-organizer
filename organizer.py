@@ -59,6 +59,32 @@ class FileOrganizer:
             print(f"Error saving config: {e}")
             return False
 
+    def validate_config(self, directories):
+        """
+        Validates the configuration.
+        Returns: (is_valid, list_of_error_messages)
+        """
+        errors = []
+        seen_extensions = {}
+
+        for category, extensions in directories.items():
+            if not category or not category.strip():
+                errors.append("Category name cannot be empty.")
+                continue # Skip checking extensions for invalid category
+
+            for ext in extensions:
+                ext = ext.strip()
+                if not ext.startswith("."):
+                    errors.append(f"Invalid extension format '{ext}' in '{category}'. Must start with '.'")
+
+                if ext in seen_extensions:
+                    prev_cat = seen_extensions[ext]
+                    errors.append(f"Duplicate extension '{ext}' found in '{category}' (already in '{prev_cat}').")
+                else:
+                    seen_extensions[ext] = category
+
+        return len(errors) == 0, errors
+
     def get_unique_path(self, path: Path) -> Path:
         """Generates a unique path by appending a counter if the file exists."""
         if not path.exists():
