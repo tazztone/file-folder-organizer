@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 
 class ToolTip:
     def __init__(self, widget, text):
@@ -12,17 +12,24 @@ class ToolTip:
     def show_tip(self, event=None):
         if self.tip_window or not self.text:
             return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 10
+
+        try:
+            x = self.widget.winfo_rootx() + 20
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 10
+        except Exception:
+            return
+
         self.tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
 
-        # specific style for tooltip could be added, but standard frame/label is fine
-        frame = ttk.Frame(tw, relief="solid", borderwidth=1)
+        # Determine colors based on appearance mode to ensure visibility
+        # or just rely on CTk default which handles it.
+
+        frame = ctk.CTkFrame(tw, corner_radius=6, border_width=1)
         frame.pack(fill="both", expand=True)
 
-        label = ttk.Label(frame, text=self.text, padding=(5, 2))
+        label = ctk.CTkLabel(frame, text=self.text, padx=10, pady=5, font=("Arial", 12))
         label.pack()
 
     def hide_tip(self, event=None):
