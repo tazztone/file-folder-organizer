@@ -214,6 +214,13 @@ class OrganizerApp:
             self.log_area.config(state='disabled')
         self.root.after(0, _update)
 
+        # Log to file
+        try:
+            with open("organizer.log", "a") as f:
+                 f.write(message + "\n")
+        except Exception as e:
+            print(f"Failed to write to log file: {e}")
+
     def update_progress(self, current, total):
         def _update():
             if total > 0:
@@ -285,6 +292,16 @@ class OrganizerApp:
             self.btn_undo.config(state="disabled", text="Undo Last Run")
 
     def undo_changes(self):
+        stack_size = len(self.organizer.undo_stack)
+        if stack_size == 0:
+            return
+
+        last_op = self.organizer.undo_stack[-1]
+        history_len = len(last_op.get("history", []))
+
+        if not messagebox.askyesno("Confirm Undo", f"Undo last operation?\nThis will restore {history_len} files."):
+             return
+
         self.btn_undo.config(state="disabled")
 
         def _undo_thread():

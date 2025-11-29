@@ -97,12 +97,20 @@ class TestOrganizerApp(unittest.TestCase):
 
     def test_undo_changes(self):
         """Test that undo_changes triggers organizer undo."""
-        with patch('threading.Thread') as mock_thread:
-            self.app.undo_changes()
-            target = mock_thread.call_args[1]['target']
-            target()
+        # Mock undo stack to be non-empty
+        self.app.organizer.undo_stack = [{"history": [1, 2, 3], "source_path": Path("/tmp")}]
 
-            self.app.organizer.undo_changes.assert_called_once()
+        with patch('app.messagebox.askyesno', return_value=True) as mock_ask:
+            with patch('threading.Thread') as mock_thread:
+                self.app.undo_changes()
+
+                # Check confirmation was asked
+                mock_ask.assert_called_once()
+
+                target = mock_thread.call_args[1]['target']
+                target()
+
+                self.app.organizer.undo_changes.assert_called_once()
 
     def test_dry_run_flag(self):
         """Test that dry run flag is passed correctly."""
