@@ -83,6 +83,8 @@ class FileOrganizer:
 
     def save_config(self, config_path="config.json"):
         """Saves current configuration to a JSON file."""
+        if self.validate_config():
+            return False
         try:
             with open(config_path, 'w') as f:
                 json.dump({
@@ -213,12 +215,15 @@ class FileOrganizer:
                 else:
                     final_dest_path.parent.mkdir(parents=True, exist_ok=True)
                     # Recalculate unique path right before move to be safe against race conditions
-                    final_dest_path = self.get_unique_path(final_dest_path)
+                    final_dest_path_unique = self.get_unique_path(final_dest_path)
 
-                    shutil.move(str(item), final_dest_path)
-                    current_history.append((final_dest_path, item))
+                    shutil.move(str(item), final_dest_path_unique)
+                    current_history.append((final_dest_path_unique, item))
                     if log_callback:
-                        log_callback(f"Moved: {item.name} -> {rel_dest}")
+                        msg = f"Moved: {item.name} -> {rel_dest}"
+                        if final_dest_path_unique != final_dest_path:
+                             msg = f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} (in {rel_dest})"
+                        log_callback(msg)
 
                 moved_count += 1
 

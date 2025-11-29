@@ -197,7 +197,13 @@ class BatchDialog:
             messagebox.showwarning("Warning", "No folders to process.")
             return
 
-        if not messagebox.askyesno("Confirm", f"Process {len(self.batch_folders)} folders?"):
+        details = "\n".join([f"- {f['path']}" for f in self.batch_folders[:5]])
+        if len(self.batch_folders) > 5:
+            details += f"\n...and {len(self.batch_folders) - 5} more"
+
+        msg = f"Are you sure you want to process these {len(self.batch_folders)} folders?\n\n{details}"
+
+        if not messagebox.askyesno("Confirm Batch", msg):
             return
 
         threading.Thread(target=self._process_batch, daemon=True).start()
