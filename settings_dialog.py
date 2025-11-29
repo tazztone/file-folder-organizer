@@ -1,156 +1,154 @@
-import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk, filedialog
+import customtkinter as ctk
+from tkinter import messagebox, filedialog
+import tkinter as tk # For Listbox/Text if needed, or replacements
 from ui_utils import ToolTip
-from themes import get_palette
 
 class SettingsDialog:
-    def __init__(self, parent, organizer, theme_name):
+    def __init__(self, parent, organizer, theme_name=None):
         self.parent = parent
         self.organizer = organizer
-        self.theme_name = theme_name
-        self.palette = get_palette(theme_name)
         self.last_selected_cat = None
 
-        self.window = tk.Toplevel(parent)
+        self.window = ctk.CTkToplevel(parent)
         self.window.title("Configuration")
-        self.window.geometry("600x500")
-        self.window.config(bg=self.palette["bg"])
+        self.window.geometry("700x550")
 
-        # Configure local style for Toplevel logic if needed,
-        # but since parent has style, it should inherit Ttk settings.
-        # Just need to handle non-ttk backgrounds.
+        # Ensure it stays on top
+        self.window.transient(parent)
+        self.window.grab_set()
 
-        self.notebook = ttk.Notebook(self.window)
-        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        self.tabview = ctk.CTkTabview(self.window)
+        self.tabview.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Tab 1: Categories
-        self.tab_categories = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_categories, text="Categories")
+        self.tabview.add("Categories")
+        self.tabview.add("Exclusions")
+        self.tabview.add("Profiles")
+
         self._setup_categories_tab()
-
-        # Tab 2: Exclusions
-        self.tab_exclusions = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_exclusions, text="Exclusions")
         self._setup_exclusions_tab()
-
-        # Tab 3: Profiles
-        self.tab_profiles = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_profiles, text="Profiles")
         self._setup_profiles_tab()
 
         # Bottom Buttons
-        frame_bottom = ttk.Frame(self.window, padding=10)
-        frame_bottom.pack(fill="x", side="bottom")
-
-        btn_save = ttk.Button(frame_bottom, text="Save & Close", command=self.save_config, style="Success.TButton")
-        btn_save.pack(side="right", padx=10)
-        ToolTip(btn_save, "Save changes to config.json and close")
+        self.btn_save = ctk.CTkButton(self.window, text="Save & Close", command=self.save_config, fg_color="green", hover_color="darkgreen")
+        self.btn_save.pack(side="bottom", pady=20)
+        ToolTip(self.btn_save, "Save changes to config.json and close")
 
     def _setup_categories_tab(self):
-        c = self.palette
-        frame = self.tab_categories
+        tab = self.tabview.tab("Categories")
+        tab.grid_columnconfigure(1, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
 
-        # Left: List of categories
-        frame_list = ttk.Frame(frame, padding=10)
-        frame_list.pack(side="left", fill="y")
+        # Left: Category List (Using CTkScrollableFrame with Buttons effectively acting as list items)
+        # Actually, using a standard Listbox is often easier for simple lists,
+        # but let's try to be "pure" CTk or use a ScrollableFrame with selectable buttons.
+        # For simplicity and robustness, I'll use CTkScrollableFrame.
 
-        lbl_cats = ttk.Label(frame_list, text="Categories")
-        lbl_cats.pack(anchor="w")
-
-        # Listbox is standard Tk
-        self.listbox = tk.Listbox(frame_list, bg=c["entry_bg"], fg=c["entry_fg"],
-                                  selectbackground=c["select_bg"], selectforeground=c["select_fg"],
-                                  relief="flat", borderwidth=1)
-        self.listbox.pack(fill="y", expand=True)
-        self.listbox.bind('<<ListboxSelect>>', self.on_cat_select)
+        self.frame_list = ctk.CTkScrollableFrame(tab, width=200, label_text="Categories")
+        self.frame_list.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
         # Right: Edit area
-        frame_edit = ttk.Frame(frame, padding=10)
-        frame_edit.pack(side="left", fill="both", expand=True)
+        self.frame_edit = ctk.CTkFrame(tab)
+        self.frame_edit.grid(row=0, column=1, sticky="nsew")
 
-        lbl_exts = ttk.Label(frame_edit, text="Extensions (comma separated)")
-        lbl_exts.pack(anchor="w")
+        self.lbl_exts = ctk.CTkLabel(self.frame_edit, text="Extensions (comma separated):", anchor="w")
+        self.lbl_exts.pack(fill="x", padx=10, pady=(10, 5))
 
-        # Text is standard Tk
-        self.txt_exts = tk.Text(frame_edit, height=10, bg=c["entry_bg"], fg=c["entry_fg"],
-                                insertbackground=c["fg"], relief="flat", borderwidth=1)
-        self.txt_exts.pack(fill="x")
+        self.txt_exts = ctk.CTkTextbox(self.frame_edit, height=200)
+        self.txt_exts.pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Buttons
-        frame_btns = ttk.Frame(frame_edit, padding=(0, 10))
-        frame_btns.pack(fill="x")
+        # Action Buttons
+        frame_btns = ctk.CTkFrame(self.frame_edit, fg_color="transparent")
+        frame_btns.pack(fill="x", padx=10, pady=10)
 
-        btn_add = ttk.Button(frame_btns, text="Add Category", command=self.add_category)
-        btn_add.pack(side="left", padx=5)
+        self.btn_add = ctk.CTkButton(frame_btns, text="Add Category", command=self.add_category, width=100)
+        self.btn_add.pack(side="left", padx=(0, 5))
 
-        btn_del = ttk.Button(frame_btns, text="Delete Category", command=self.delete_category)
-        btn_del.pack(side="left", padx=5)
+        self.btn_del = ctk.CTkButton(frame_btns, text="Delete Category", command=self.delete_category, width=100, fg_color="red", hover_color="darkred")
+        self.btn_del.pack(side="left", padx=(5, 0))
+
+        self.cat_buttons = {} # Map category name to button widget
+        self.selected_cat_btn = None
 
         self._populate_cat_list()
 
     def _setup_exclusions_tab(self):
-        c = self.palette
-        frame = self.tab_exclusions
+        tab = self.tabview.tab("Exclusions")
 
-        # Excluded Extensions
-        lbl_exts = ttk.Label(frame, text="Excluded Extensions (e.g., .tmp, .log) - Comma separated")
-        lbl_exts.pack(anchor="w", padx=10, pady=(10, 0))
+        lbl_exts = ctk.CTkLabel(tab, text="Excluded Extensions (e.g., .tmp, .log) - Comma separated:", anchor="w")
+        lbl_exts.pack(fill="x", padx=10, pady=(10, 5))
 
-        self.txt_excl_exts = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"],
-                                     insertbackground=c["fg"], relief="flat", borderwidth=1)
+        self.txt_excl_exts = ctk.CTkTextbox(tab, height=100)
         self.txt_excl_exts.pack(fill="x", padx=10, pady=5)
         self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
 
-        # Excluded Folders
-        lbl_folders = ttk.Label(frame, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated")
-        lbl_folders.pack(anchor="w", padx=10, pady=(10, 0))
+        lbl_folders = ctk.CTkLabel(tab, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated:", anchor="w")
+        lbl_folders.pack(fill="x", padx=10, pady=(10, 5))
 
-        self.txt_excl_folders = tk.Text(frame, height=5, bg=c["entry_bg"], fg=c["entry_fg"],
-                                        insertbackground=c["fg"], relief="flat", borderwidth=1)
+        self.txt_excl_folders = ctk.CTkTextbox(tab, height=100)
         self.txt_excl_folders.pack(fill="x", padx=10, pady=5)
         self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
 
     def _setup_profiles_tab(self):
-        frame = self.tab_profiles
+        tab = self.tabview.tab("Profiles")
 
-        lbl_info = ttk.Label(frame, text="Import and Export Configuration Profiles")
-        lbl_info.pack(pady=20)
+        lbl_info = ctk.CTkLabel(tab, text="Import and Export Configuration Profiles")
+        lbl_info.pack(pady=30)
 
-        btn_export = ttk.Button(frame, text="Export Configuration", command=self.export_profile)
-        btn_export.pack(fill="x", padx=50, pady=10)
+        btn_export = ctk.CTkButton(tab, text="Export Configuration", command=self.export_profile)
+        btn_export.pack(fill="x", padx=80, pady=10)
 
-        btn_import = ttk.Button(frame, text="Import Configuration", command=self.import_profile)
-        btn_import.pack(fill="x", padx=50, pady=10)
+        btn_import = ctk.CTkButton(tab, text="Import Configuration", command=self.import_profile)
+        btn_import.pack(fill="x", padx=80, pady=10)
 
     def _populate_cat_list(self):
-        self.listbox.delete(0, tk.END)
+        # Clear existing buttons
+        for btn in self.cat_buttons.values():
+            btn.destroy()
+        self.cat_buttons.clear()
+
         current_cats = list(self.organizer.directories.keys())
         for cat in current_cats:
-            self.listbox.insert(tk.END, cat)
+            btn = ctk.CTkButton(self.frame_list, text=cat, fg_color="transparent",
+                                border_width=1, border_color="gray",
+                                text_color=("black", "white"),
+                                anchor="w",
+                                command=lambda c=cat: self.on_cat_select(c))
+            btn.pack(fill="x", pady=2)
+            self.cat_buttons[cat] = btn
+
+        # Select first if available
+        if current_cats:
+            self.on_cat_select(current_cats[0])
 
     def save_pending_cat_changes(self):
         if self.last_selected_cat:
             cat = self.last_selected_cat
             if cat in self.organizer.directories:
-                raw_exts = self.txt_exts.get("1.0", tk.END).strip()
+                raw_exts = self.txt_exts.get("1.0", "end").strip()
                 ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
                 self.organizer.directories[cat] = ext_list
 
-    def on_cat_select(self, event):
+    def on_cat_select(self, cat_name):
         self.save_pending_cat_changes()
-        selection = self.listbox.curselection()
-        if selection:
-            cat = self.listbox.get(selection[0])
-            self.last_selected_cat = cat
-            exts = self.organizer.directories.get(cat, [])
-            self.txt_exts.delete("1.0", tk.END)
-            self.txt_exts.insert(tk.END, ", ".join(exts))
-        else:
-            self.last_selected_cat = None
-            self.txt_exts.delete("1.0", tk.END)
+
+        # Update UI selection state
+        if self.selected_cat_btn:
+            self.selected_cat_btn.configure(fg_color="transparent")
+
+        if cat_name in self.cat_buttons:
+            self.selected_cat_btn = self.cat_buttons[cat_name]
+            # Use theme color for selection
+            self.selected_cat_btn.configure(fg_color=["#3B8ED0", "#1F6AA5"])
+
+        self.last_selected_cat = cat_name
+        exts = self.organizer.directories.get(cat_name, [])
+        self.txt_exts.delete("1.0", "end")
+        self.txt_exts.insert("end", ", ".join(exts))
 
     def add_category(self):
-        new_cat = simpledialog.askstring("New Category", "Enter category name:", parent=self.window)
+        dialog = ctk.CTkInputDialog(text="Enter category name:", title="New Category")
+        new_cat = dialog.get_input()
+
         if new_cat:
             new_cat = new_cat.strip()
             if not new_cat:
@@ -161,26 +159,25 @@ class SettingsDialog:
                  return
 
             self.organizer.directories[new_cat] = []
-            self.listbox.insert(tk.END, new_cat)
-            idx = self.listbox.size() - 1
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(idx)
-            self.on_cat_select(None)
+
+            # Refresh list
+            self._populate_cat_list()
+            self.on_cat_select(new_cat)
 
     def delete_category(self):
-        selection = self.listbox.curselection()
-        if selection:
-            cat = self.listbox.get(selection[0])
-            if messagebox.askyesno("Confirm", f"Delete category '{cat}'?"):
-                del self.organizer.directories[cat]
-                self.listbox.delete(selection[0])
-                self.txt_exts.delete("1.0", tk.END)
-                self.last_selected_cat = None
+        if not self.last_selected_cat:
+            return
+
+        cat = self.last_selected_cat
+        if messagebox.askyesno("Confirm", f"Delete category '{cat}'?"):
+            del self.organizer.directories[cat]
+            self.last_selected_cat = None
+            self._populate_cat_list()
+            self.txt_exts.delete("1.0", "end")
 
     def export_profile(self):
         path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
         if path:
-            # We need to save current in-memory changes before export
             self._apply_exclusions()
             self.save_pending_cat_changes()
 
@@ -194,30 +191,26 @@ class SettingsDialog:
         if path:
             if messagebox.askyesno("Confirm", "Importing will overwrite current settings. Continue?"):
                 if self.organizer.import_config_file(path):
-                    # Refresh UI
                     self._populate_cat_list()
-                    self.txt_exts.delete("1.0", tk.END)
-                    self.txt_excl_exts.delete("1.0", tk.END)
+                    self.txt_excl_exts.delete("1.0", "end")
                     self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
-                    self.txt_excl_folders.delete("1.0", tk.END)
+                    self.txt_excl_folders.delete("1.0", "end")
                     self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
                     messagebox.showinfo("Success", "Profile imported successfully.")
                 else:
                     messagebox.showerror("Error", "Failed to import profile.")
 
     def _apply_exclusions(self):
-        # Update organizer with values from exclusion fields
-        raw_exts = self.txt_excl_exts.get("1.0", tk.END).strip()
+        raw_exts = self.txt_excl_exts.get("1.0", "end").strip()
         self.organizer.excluded_extensions = {e.strip() for e in raw_exts.split(',') if e.strip()}
 
-        raw_folders = self.txt_excl_folders.get("1.0", tk.END).strip()
+        raw_folders = self.txt_excl_folders.get("1.0", "end").strip()
         self.organizer.excluded_folders = {f.strip() for f in raw_folders.split(',') if f.strip()}
 
     def save_config(self):
         self.save_pending_cat_changes()
         self._apply_exclusions()
 
-        # Validate
         errors = self.organizer.validate_config()
         if errors:
             msg = "Configuration has errors:\n\n" + "\n".join(errors)
@@ -226,7 +219,6 @@ class SettingsDialog:
 
         if self.organizer.save_config():
             self.organizer.extension_map = self.organizer._build_extension_map()
-            messagebox.showinfo("Success", "Configuration saved!")
             self.window.destroy()
         else:
             messagebox.showerror("Error", "Failed to save configuration.")
