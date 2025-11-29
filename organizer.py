@@ -15,15 +15,48 @@ DEFAULT_DIRECTORIES = {
     "Executables": [".exe", ".msi", ".bat", ".sh"]
 }
 
+DEFAULT_ML_CATEGORIES = {
+    "Images/Personal": {
+        "text": "personal photos family vacation memories selfies",
+        "visual": ["a photograph of people", "family photos", "vacation pictures", "selfie"]
+    },
+    "Images/Screenshots": {
+        "text": "screenshot application software interface UI",
+        "visual": ["a screenshot of software", "computer interface", "app screen"]
+    },
+    "Images/Diagrams": {
+        "text": "diagram flowchart technical drawing architecture",
+        "visual": ["a technical diagram", "flowchart", "architectural drawing"]
+    },
+    "Images/Design": {
+        "text": "logo mockup design graphic illustration artwork",
+        "visual": ["graphic design", "logo design", "mockup"]
+    },
+    "Documents/Code": {
+        "text": "programming code python javascript html css",
+        "visual": ["code snippet", "programming text"]
+    },
+    "Documents/Financial": {
+        "text": "invoice receipt tax financial statement budget",
+        "visual": ["invoice document", "financial statement"]
+    },
+    "Documents/Reports": {
+        "text": "report analysis presentation business document",
+        "visual": ["business report", "presentation slide"]
+    }
+}
+
 class FileOrganizer:
     def __init__(self):
         self.directories = DEFAULT_DIRECTORIES.copy()
+        self.ml_categories = DEFAULT_ML_CATEGORIES.copy()
         self.extension_map = self._build_extension_map()
         # undo_stack is a list of history records. Each record is a tuple: (history_list, last_source_path)
         # history_list is [(new_path, old_path), ...]
         self.undo_stack = []
         self.max_undo_stack = 5
         self.theme_mode = "System"
+        self.ml_categorizer = None
 
         # Exclusions
         self.excluded_names = {"app.py", "organizer.py", "config.json", "themes.py", "recent.json", "batch_config.json"}
@@ -72,6 +105,7 @@ class FileOrganizer:
 
                     if "directories" in data:
                         self.directories = data.get("directories", DEFAULT_DIRECTORIES)
+                        self.ml_categories = data.get("ml_categories", DEFAULT_ML_CATEGORIES)
                         self.excluded_names = set(data.get("excluded_names", self.excluded_names))
                         self.excluded_extensions = set(data.get("excluded_extensions", []))
                         self.excluded_folders = set(data.get("excluded_folders", []))
@@ -95,6 +129,7 @@ class FileOrganizer:
             with open(config_path, 'w') as f:
                 json.dump({
                     "directories": self.directories,
+                    "ml_categories": self.ml_categories,
                     "excluded_names": list(self.excluded_names),
                     "excluded_extensions": list(self.excluded_extensions),
                     "excluded_folders": list(self.excluded_folders),
@@ -161,11 +196,55 @@ class FileOrganizer:
                         continue
                     yield item
 
-    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None, rollback_on_error=False):
+    def get_category(self, file_path, use_ml=False):
+        """
+        Determines the target category for a file.
+        Returns: (category_path, confidence, method)
+        """
+        # 1. Try ML if enabled
+        if use_ml:
+            if not self.ml_categorizer:
+                 # Initialize if not already done (lazy loading mechanism in organize loop if needed,
+                 # but ideally done before)
+                 from ml_organizer import MultimodalFileOrganizer
+                 self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
+                 # Note: models might not be loaded yet, which smart_categorize handles by returning status
+
+            category, confidence, method = self.ml_categorizer.smart_categorize(file_path)
+
+            # If ML returned a valid result (not 'extension' fallback or error)
+            if method not in ["extension", "ml-not-loaded"]:
+                return category, confidence, method
+
+        # 2. Fallback to Extension
+        ext = file_path.suffix.lower()
+        category = self.extension_map.get(ext, "Others")
+        return category, 1.0, "extension"
+
+
+    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None, rollback_on_error=False, use_ml=False):
         """
         Organizes files from source_path.
         """
         current_history = []
+
+        # Ensure ML is ready if requested
+        if use_ml and not self.ml_categorizer:
+             # This should ideally be handled by caller (loading models with progress),
+             # but we can do a lazy init here just in case.
+             from ml_organizer import MultimodalFileOrganizer
+             self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
+             if not self.ml_categorizer.models_loaded:
+                  # If models aren't loaded, try loading (this might block/freeze if not done in thread,
+                  # but organize_files is threaded)
+                  if log_callback:
+                      log_callback("Initializing ML models (this may take a while)...")
+                  try:
+                      self.ml_categorizer.load_models(progress_callback=lambda x: log_callback(f"[ML Init] {x}"))
+                  except Exception as e:
+                      if log_callback:
+                          log_callback(f"Failed to load ML models: {e}. Falling back to extension mode.")
+                      use_ml = False
 
         if log_callback:
             log_callback(f"--- Starting {'Dry Run ' if dry_run else ''}Organization ---")
@@ -196,7 +275,10 @@ class FileOrganizer:
                 progress_callback(i, total_files, item.name)
 
             try:
-                category = self.extension_map.get(item.suffix.lower(), "Others")
+                # Get Category Logic
+                category, confidence, method = self.get_category(item, use_ml)
+
+                # If ML is used, category might be a nested path string "Images/Personal"
                 target_dir = source_path / category
 
                 if date_sort:
@@ -227,9 +309,12 @@ class FileOrganizer:
                 except ValueError:
                     rel_dest = final_dest_path.name
 
+                log_prefix = "[Dry Run] " if dry_run else ""
+                log_suffix = f" (ML: {method}, {confidence:.2f})" if use_ml and method != "extension" else ""
+
                 if dry_run:
                     if log_callback:
-                        log_callback(f"[Dry Run] would move: {item.name} -> {rel_dest}")
+                        log_callback(f"{log_prefix}would move: {item.name} -> {rel_dest}{log_suffix}")
                 else:
                     final_dest_path.parent.mkdir(parents=True, exist_ok=True)
                     # Recalculate unique path right before move to be safe against race conditions
@@ -238,9 +323,9 @@ class FileOrganizer:
                     shutil.move(str(item), final_dest_path_unique)
                     current_history.append((final_dest_path_unique, item))
                     if log_callback:
-                        msg = f"Moved: {item.name} -> {rel_dest}"
+                        msg = f"Moved: {item.name} -> {rel_dest}{log_suffix}"
                         if final_dest_path_unique != final_dest_path:
-                             msg = f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} (in {rel_dest})"
+                             msg = f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} (in {rel_dest}){log_suffix}"
                              renamed_count += 1
                         log_callback(msg)
 
