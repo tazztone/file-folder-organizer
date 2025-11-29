@@ -88,6 +88,21 @@ class SettingsDialog:
         self.txt_excl_folders.pack(fill="x", padx=10, pady=5)
         self.txt_excl_folders.insert("1.0", ", ".join(self.organizer.excluded_folders))
 
+        # ML Threshold
+        lbl_ml = ctk.CTkLabel(tab, text="AI Confidence Threshold (0.0 - 1.0):", anchor="w")
+        lbl_ml.pack(fill="x", padx=10, pady=(20, 5))
+
+        self.slider_ml = ctk.CTkSlider(tab, from_=0.0, to=1.0, number_of_steps=20)
+        self.slider_ml.pack(fill="x", padx=10, pady=5)
+
+        current_threshold = getattr(self.organizer, "ml_confidence", 0.3)
+        self.slider_ml.set(current_threshold)
+
+        self.lbl_ml_val = ctk.CTkLabel(tab, text=f"{current_threshold:.2f}")
+        self.lbl_ml_val.pack()
+
+        self.slider_ml.configure(command=lambda v: self.lbl_ml_val.configure(text=f"{v:.2f}"))
+
     def _setup_profiles_tab(self):
         tab = self.tabview.tab("Profiles")
 
@@ -206,6 +221,10 @@ class SettingsDialog:
 
         raw_folders = self.txt_excl_folders.get("1.0", "end").strip()
         self.organizer.excluded_folders = {f.strip() for f in raw_folders.split(',') if f.strip()}
+
+        # Save ML Threshold
+        if hasattr(self, 'slider_ml'):
+             self.organizer.ml_confidence = self.slider_ml.get()
 
     def save_config(self):
         self.save_pending_cat_changes()

@@ -1,86 +1,96 @@
-# Pro File Organizer
+# Pro File Organizer 📂
 
-A powerful and user-friendly file organizer built with Python and CustomTkinter. This application helps you declutter your folders by automatically sorting files into categories based on their extensions.
+A powerful, modern file organizer application built with Python and CustomTkinter. It uses intelligent rules and AI to organize your messy folders into a clean, structured hierarchy.
 
-## Features
+![Dashboard Placeholder](https://via.placeholder.com/800x500?text=Pro+File+Organizer+Dashboard)
 
-*   **Automatic Sorting**: Sorts files into categories like Images, Videos, Documents, Archives, Audio, Code, and Executables.
-*   **Recursive Mode**: Option to organize files inside subfolders ("Include Subfolders").
-*   **Date-Based Sorting**: Sort files into `Year/Month` subdirectories (e.g., `Images/2023/November/`).
-*   **Undo Functionality**: Safely undo the last 5 organization operations if you made a mistake.
-*   **Deep Clean**: Option to delete empty folders after moving files.
-*   **Batch Mode**: Process multiple folders at once with individual settings.
-*   **Rollback on Error**: Automatically reverts changes if a critical error occurs during processing.
-*   **Customizable Settings**:
-    *   **Categories**: Add, remove, or modify file categories and extensions.
-    *   **Exclusions**: Exclude specific file extensions or folder names from processing.
-    *   **Profiles**: Import and export configuration profiles.
-*   **Theme Support**: Switch between Light, Dark, and System themes (persisted across sessions).
-*   **Real-time Logging**: See what's happening as files are moved, with detailed progress.
+## Features ✨
 
-## Requirements
+*   **Smart Organization**: Automatically sorts files into categories (Images, Videos, Documents, etc.).
+*   **AI-Powered Categorization** 🧠:
+    *   Uses **Multimodal AI** (Qwen for text, SigLIP for images) to understand file content.
+    *   Categorizes "screenshot.png" into "Images/Screenshots" or "invoice.pdf" into "Documents/Financial".
+*   **Modern UI**: Clean, dark-mode friendly interface using CustomTkinter.
+*   **Drag & Drop**: Simply drag a folder into the window to start.
+*   **Batch Processing**: Organize multiple folders with different settings in one go.
+*   **Undo Support**: Made a mistake? Undo changes with a single click.
+*   **Customizable**: Define your own categories and extensions.
+*   **Performance**: Process thousands of files in seconds (with hardware acceleration support).
 
-*   Python 3.x
-*   `customtkinter`
-*   `tkinterdnd2`
-*   `tkinter` (standard library)
+## Installation 🛠️
 
-## Installation
+### Prerequisites
+*   Python 3.8+
+*   (Optional) NVIDIA GPU for faster AI processing
 
-1.  Clone the repository or download the source code.
-2.  Install dependencies:
+### Setup
+1.  Clone the repository:
     ```bash
-    pip install customtkinter tkinterdnd2
+    git clone https://github.com/yourusername/pro-file-organizer.git
+    cd pro-file-organizer
     ```
-    or
+2.  Run the setup script:
+    *   **Windows**: Double-click `setup.bat`
+    *   **Linux/macOS**: Run `./setup.sh`
+
+    Or install manually:
     ```bash
     pip install -r requirements.txt
     ```
 
-## How to Run
+## Usage 🚀
 
-Run the application using Python:
-```bash
-python app.py
-```
+1.  **Launch the App**:
+    ```bash
+    python app.py
+    ```
+2.  **Select a Folder**:
+    *   Drag and drop a folder onto the target area.
+    *   Or click "Browse" to select manually.
+3.  **Choose Options**:
+    *   **Include Subfolders**: Deep scan.
+    *   **Sort by Date**: Organizes into `Year/Month` subfolders.
+    *   **Smart Categorization (AI)**: Enable for content-based sorting (requires ~2GB model download on first run).
+4.  **Start**: Click "Start Organizing".
 
-## Usage
+## Smart Categorization (AI) 🤖
 
-1.  **Browse Folder**: Click the "Browse" button to select the directory you want to organize.
-    *   *Tip*: You can also drag and drop a folder into the window.
-2.  **Select Options**:
-    *   **Include Subfolders**: Check this to also organize files located in subdirectories.
-    *   **Sort by Date**: Check this to further organize files into Year/Month folders.
-    *   **Delete Empty Folders**: Check this to remove any empty folders left behind.
-    *   **Rollback on Error**: Check this to automatically undo changes if an error occurs.
-    *   **Dry Run**: simulate the process without moving files.
-3.  **Start Organizing**: Click "Start Organizing" to begin.
-4.  **Undo**: If you need to revert changes, click "Undo Last Run".
+When enabled, the app uses local AI models to inspect file content:
+*   **Images**: Analyzed by `google/siglip2-base-patch32-256` to detect scene/content (e.g., Personal, Screenshots, Diagrams).
+*   **Documents/Text**: Analyzed by `Qwen/Qwen3-Embedding-0.6B` to classify based on semantic content (e.g., Financial, Code, Reports).
 
-## Shortcuts
+**Note**: The first run will download approximately **2GB** of model data. This is cached locally.
+**Hardware**: GPU is recommended but runs on CPU (slower).
 
-*   `<Return>`: Start organizing (after selecting a folder).
-*   `<Escape>`: Stop the current process.
+## Configuration ⚙️
 
-## Configuration
+You can customize categories via the "Settings" menu or by editing `config.json`.
 
-*   **Settings**: Click the "Settings" button to manage categories, exclusions, and profiles.
-*   **Batch Mode**: Click "Batch Mode" to queue multiple folders for processing.
-
-### config.json Structure
-
-The `config.json` file stores your preferences and category definitions.
-
+### Example `config.json`:
 ```json
 {
-    "directories": {
-        "Images": [".jpg", ".png", ...],
-        "Videos": [".mp4", ...],
-        ...
+  "directories": {
+    "Images": [".jpg", ".png", ".gif"],
+    "Documents": [".pdf", ".docx", ".txt"],
+    "MyScripts": [".py", ".sh"]
+  },
+  "ml_categories": {
+    "Images/Memes": {
+      "visual": ["funny meme", "internet meme", "text on image"]
     },
-    "excluded_names": ["app.py", ...],
-    "excluded_extensions": [".tmp", ".log"],
-    "excluded_folders": ["node_modules", ".git"],
-    "theme_mode": "System"
+    "Documents/Invoices": {
+      "text": "invoice total amount due payment bill receipt"
+    }
+  },
+  "excluded_extensions": [".tmp", ".log"],
+  "excluded_folders": [".git", "node_modules"]
 }
 ```
+
+## Screenshots 📸
+
+*(Add screenshots of the Main Dashboard, Organizer View, and Settings Dialog here)*
+
+## License 📄
+
+MIT License

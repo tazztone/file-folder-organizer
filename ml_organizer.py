@@ -66,7 +66,7 @@ class MultimodalFileOrganizer:
 
         try:
             if progress_callback:
-                progress_callback("Loading Text Model (Qwen)...")
+                progress_callback("Loading Text Model (Qwen)...", 0.1)
 
             # Load Text Model
             # Note: SentenceTransformer usually downloads automatically if not found.
@@ -77,7 +77,7 @@ class MultimodalFileOrganizer:
             )
 
             if progress_callback:
-                progress_callback("Loading Image Model (SigLIP)...")
+                progress_callback("Loading Image Model (SigLIP)...", 0.4)
 
             # Load Image Model
             self.image_model = AutoModel.from_pretrained(
@@ -89,9 +89,12 @@ class MultimodalFileOrganizer:
             )
 
             if progress_callback:
-                progress_callback("Precomputing embeddings...")
+                progress_callback("Precomputing embeddings...", 0.8)
 
             self._precompute_text_embeddings()
+
+            if progress_callback:
+                progress_callback("Models loaded.", 1.0)
 
             self.models_loaded = True
 
@@ -204,7 +207,7 @@ class MultimodalFileOrganizer:
             print(f"Error categorizing image {image_path}: {e}")
             return None, 0.0
 
-    def categorize_text_file(self, file_path, content):
+    def categorize_text_file(self, file_path, content, threshold=0.4):
         """Categorize text-based file using Qwen3"""
         if not self.models_loaded or not content or len(content.strip()) < 10:
             return None, 0.0
@@ -237,7 +240,7 @@ class MultimodalFileOrganizer:
             print(f"Error categorizing text {file_path}: {e}")
             return None, 0.0
 
-    def smart_categorize(self, file_path):
+    def smart_categorize(self, file_path, threshold=0.3):
         """Main categorization method"""
         if not self.models_loaded:
             return None, 0.0, "ml-not-loaded"
@@ -247,15 +250,16 @@ class MultimodalFileOrganizer:
         # Image files
         if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
             category, confidence = self.categorize_image(file_path)
-            if confidence > 0.3:  # Threshold for trusting ML (SigLIP is usually confident)
+            if confidence > threshold:  # Threshold for trusting ML (SigLIP is usually confident)
                 return category, confidence, "image-ml"
 
         # Text-extractable files
         elif file_ext in ['.txt', '.md', '.py', '.js', '.html', '.pdf', '.docx', '.css', '.json']:
             content = self.extract_text(file_path)
             if content:
+                # Use slightly higher threshold for text if needed, or same
                 category, confidence = self.categorize_text_file(file_path, content)
-                if confidence > 0.4: # Qwen threshold
+                if confidence > threshold: # Qwen threshold
                     return category, confidence, "text-ml"
 
         return None, 0.0, "extension"
