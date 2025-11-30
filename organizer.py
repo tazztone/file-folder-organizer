@@ -247,8 +247,8 @@ class FileOrganizer:
                       if log_callback:
                           log_callback(f"[ML Init] {msg}")
                       if progress_callback and val is not None:
-                           # Pass 0 for total files to indicate initialization
-                           progress_callback(0, 0, f"Loading AI Models: {int(val*100)}%")
+                           # Pass val as current and 1.0 as total to drive progress bar (0-100%)
+                           progress_callback(val, 1.0, f"Loading AI Models: {int(val*100)}%")
 
                   try:
                       self.ml_categorizer.load_models(progress_callback=_ml_progress)

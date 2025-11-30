@@ -65,11 +65,11 @@
         }
     },
     "excluded_names": [
+        "batch_config.json",
+        "recent.json",
         "app.py",
         "themes.py",
         "config.json",
-        "recent.json",
-        "batch_config.json",
         "organizer.py"
     ],
     "excluded_extensions": [
