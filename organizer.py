@@ -225,7 +225,7 @@ class FileOrganizer:
         return category, 1.0, "extension"
 
 
-    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, check_stop=None, rollback_on_error=False, use_ml=False):
+    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, event_callback=None, check_stop=None, rollback_on_error=False, use_ml=False):
         """
         Organizes files from source_path.
         """
@@ -323,9 +323,23 @@ class FileOrganizer:
                 log_prefix = "[Dry Run] " if dry_run else ""
                 log_suffix = f" (ML: {method}, {confidence:.2f})" if use_ml and method != "extension" else ""
 
+                event_data = {
+                    "type": "move",
+                    "file": item.name,
+                    "source": str(item),
+                    "destination": str(final_dest_path),
+                    "category": category,
+                    "method": method,
+                    "confidence": confidence,
+                    "dry_run": dry_run,
+                    "renamed": False
+                }
+
                 if dry_run:
                     if log_callback:
                         log_callback(f"{log_prefix}would move: {item.name} -> {rel_dest}{log_suffix}")
+                    if event_callback:
+                        event_callback(event_data)
                 else:
                     final_dest_path.parent.mkdir(parents=True, exist_ok=True)
                     # Recalculate unique path right before move to be safe against race conditions
@@ -333,6 +347,12 @@ class FileOrganizer:
 
                     shutil.move(str(item), final_dest_path_unique)
                     current_history.append((final_dest_path_unique, item))
+
+                    event_data["destination"] = str(final_dest_path_unique) # Update dest
+                    if final_dest_path_unique != final_dest_path:
+                        event_data["renamed"] = True
+                        event_data["new_name"] = final_dest_path_unique.name
+
                     if log_callback:
                         msg = f"Moved: {item.name} -> {rel_dest}{log_suffix}"
                         if final_dest_path_unique != final_dest_path:
@@ -340,12 +360,22 @@ class FileOrganizer:
                              renamed_count += 1
                         log_callback(msg)
 
+                    if event_callback:
+                        event_callback(event_data)
+
                 moved_count += 1
 
             except Exception as e:
                 errors += 1
                 if log_callback:
                     log_callback(f"ERROR moving {item.name}: {e}")
+
+                if event_callback:
+                    event_callback({
+                        "type": "error",
+                        "file": item.name,
+                        "error": str(e)
+                    })
 
                 if rollback_on_error and not dry_run:
                      if log_callback:
