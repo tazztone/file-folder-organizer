@@ -68,6 +68,9 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.recent_folders = []
         self.stats = {}
 
+        # State control for download modal
+        self._download_modal_open = False
+
         self.load_recent()
         self.load_stats()
         self._setup_ui()
@@ -97,6 +100,8 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
         self.switch_ai = ctk.CTkSwitch(self.frame_ai_toggle, text="", command=self.toggle_ai_mode, width=40)
         self.switch_ai.pack(side="right", padx=5)
+
+        ToolTip(self.switch_ai, "Enable AI to categorize files by content (images & text) rather than just extension.")
 
         # Navigation Buttons (Optional, but kept for Batch/Settings)
         self.btn_batch = ctk.CTkButton(self.sidebar, text="Batch Mode", command=self.open_batch, fg_color="transparent", border_width=2, text_color=("gray10", "gray90"))
@@ -174,7 +179,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.slider_conf = ctk.CTkSlider(self.frame_ai_conf, from_=0.1, to=0.9, number_of_steps=8)
         self.slider_conf.set(0.3)
         self.slider_conf.pack(side="left", padx=5)
-        ToolTip(self.slider_conf, "Minimum confidence to trust AI decision")
+        ToolTip(self.slider_conf, "Higher confidence means stricter AI matching. Lower values might guess more but be less accurate.")
 
         # Action Buttons
         self.btn_preview = ctk.CTkButton(self.frame_controls, text="PREVIEW", width=120, command=self.run_preview, state="disabled")
@@ -204,6 +209,14 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
 
     def toggle_ai_mode(self):
+        # Prevent multiple clicks or action if modal is open
+        if self._download_modal_open:
+            # Revert switch if user clicked it while modal is open (unlikely if modal is modal)
+            # But good for safety
+            if self.ai_enabled: self.switch_ai.select()
+            else: self.switch_ai.deselect()
+            return
+
         if self.switch_ai.get() == 1:
             # Enable AI
             self.ai_enabled = True
@@ -220,6 +233,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         # Quick check first
         if not MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer):
             # Prompt download
+            self._download_modal_open = True
             ModelDownloadModal(self, on_complete=self._on_model_download_complete)
         else:
             self._enable_ai_ui()
@@ -229,6 +243,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         pass
 
     def _on_model_download_complete(self, success):
+        self._download_modal_open = False
         if success:
             self._enable_ai_ui()
         else:
