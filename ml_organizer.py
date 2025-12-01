@@ -42,26 +42,32 @@ class MultimodalFileOrganizer:
     def are_models_present(self):
         """
         Checks if the models are likely present in the cache.
-        This is a heuristic check.
         """
-        # We can check if we can load the config without downloading.
-        # But transformers `from_pretrained` with `local_files_only=True` is the standard way.
         try:
-            # We don't want to actually load the model into memory, just check presence.
-            # But checking presence without loading is tricky with huggingface APIs unless we inspect cache.
-            # A lighter check: try to load config.
             from transformers import AutoConfig
+            # Check SigLIP
             AutoConfig.from_pretrained("google/siglip2-base-patch32-256", local_files_only=True)
-            # For sentence-transformers, it's harder.
+            # Check Qwen - SentenceTransformer stores in ~/.cache/torch/sentence_transformers usually
+            # We can try to load just the configuration/modules.json lightly or rely on SigLIP as proxy
             return True
         except Exception:
             return False
+
+    def ensure_models(self, progress_callback=None):
+        """
+        Downloads models if missing, but does not load them into VRAM unless necessary.
+        Actually, for this library, downloading usually happens during load.
+        So this is an alias for load_models but semantically used for 'Download' button.
+        """
+        self.load_models(progress_callback)
 
     def load_models(self, progress_callback=None):
         """
         Loads the models. Downloads them if not present.
         """
         if self.models_loaded:
+            if progress_callback:
+                progress_callback("Models already loaded.", 1.0)
             return
 
         try:
@@ -69,11 +75,10 @@ class MultimodalFileOrganizer:
                 progress_callback("Loading Text Model (Qwen)...", 0.1)
 
             # Load Text Model
-            # Note: SentenceTransformer usually downloads automatically if not found.
             self.text_model = SentenceTransformer(
                 "Qwen/Qwen3-Embedding-0.6B",
                 device=self.device,
-                trust_remote_code=True # Qwen might need this
+                trust_remote_code=True
             )
 
             if progress_callback:
