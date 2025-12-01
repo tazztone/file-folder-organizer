@@ -22,6 +22,7 @@ A powerful, modern file organizer application built with Python and CustomTkinte
 
 ### Prerequisites
 *   Python 3.8+
+*   [uv](https://github.com/astral-sh/uv) (a fast Python package installer)
 *   (Optional) NVIDIA GPU for faster AI processing
 
 ### Setup
@@ -32,11 +33,15 @@ A powerful, modern file organizer application built with Python and CustomTkinte
     ```
 2.  Run the setup script:
     *   **Windows**: Double-click `setup.bat`
-    *   **Linux/macOS**: Run `./setup.sh`
+    *   **Linux/macOS**: Run `bash setup.sh`
 
-    Or install manually:
+    The setup script will create a virtual environment and install all necessary dependencies using `uv`.
+
+    Or install manually with `uv`:
     ```bash
-    pip install -r requirements.txt
+    uv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    uv pip install -r requirements.txt
     ```
 
 ## Usage 🚀

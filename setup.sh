@@ -1,27 +1,24 @@
 #!/bin/bash
-echo "Setting up Pro File Organizer..."
+echo "Setting up Pro File Organizer with uv..."
 
-# Check for python3
-if ! command -v python3 &> /dev/null; then
-    echo "Python 3 is not installed. Please install it first."
+# Check for uv
+if ! command -v uv &> /dev/null; then
+    echo "uv is not installed or not in PATH. Please install it from https://github.com/astral-sh/uv"
     exit 1
 fi
 
 # Create venv if not exists
 if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
+    echo "Creating virtual environment using uv..."
+    uv venv
 fi
 
 # Activate venv
 source venv/bin/activate
 
-# Upgrade pip
-pip install --upgrade pip
-
 # Install requirements (if any)
 if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
+    uv pip install -r requirements.txt
 fi
 
 echo "Setup complete. To run the app:"
