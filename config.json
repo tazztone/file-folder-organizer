@@ -66,19 +66,19 @@
     },
     "excluded_names": [
         "config.json",
+        "themes.py",
         "batch_config.json",
         "app.py",
         "recent.json",
-        "organizer.py",
-        "themes.py"
+        "organizer.py"
     ],
     "excluded_extensions": [
-        ".bak",
-        ".log"
+        ".log",
+        ".bak"
     ],
     "excluded_folders": [
         "build",
         "node_modules"
     ],
     "theme_mode": "System",
-    "ml_confidence":
+    "ml_confidence": 0.6}

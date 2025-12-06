@@ -118,6 +118,19 @@ You can exclude specific files, extensions, or folders from being processed.
 }
 ```
 
+## Development 💻
+
+### Running Tests
+
+To run the full test suite:
+```bash
+python -m unittest discover tests
+```
+
+### Agents 🤖
+
+If you are an AI agent working on this codebase, please refer to [AGENTS.md](AGENTS.md) for specific instructions and guidelines.
+
 ## Screenshots 📸
 
 *(Add screenshots of the Main Dashboard, Organizer View, and Settings Dialog here)*
