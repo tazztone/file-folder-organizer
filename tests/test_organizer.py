@@ -4,7 +4,7 @@ import tempfile
 import os
 import json
 from pathlib import Path
-from organizer import FileOrganizer
+from pro_file_organizer.core.organizer import FileOrganizer
 
 class TestFileOrganizer(unittest.TestCase):
     def setUp(self):

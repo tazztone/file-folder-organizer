@@ -4,19 +4,15 @@ import shutil
 import numpy as np
 from pathlib import Path
 from PIL import Image
+from .logger import logger
 
-# Import only when needed to save startup time, but since this module is imported
-# when "Smart Categorization" is enabled, top-level imports are acceptable if they are used throughout.
-# However, to be safe with startup time if this module is imported early, we might defer some.
-# But for now, standard imports.
-
+# Import only when needed to save startup time
 try:
     from transformers import AutoModel, AutoProcessor, AutoTokenizer
     from sentence_transformers import SentenceTransformer
     import pypdf
     import docx
 except ImportError:
-    # This should be handled by requirements.txt, but safe guard
     pass
 
 class MultimodalFileOrganizer:
@@ -47,18 +43,11 @@ class MultimodalFileOrganizer:
             from transformers import AutoConfig
             # Check SigLIP
             AutoConfig.from_pretrained("google/siglip2-base-patch32-256", local_files_only=True)
-            # Check Qwen - SentenceTransformer stores in ~/.cache/torch/sentence_transformers usually
-            # We can try to load just the configuration/modules.json lightly or rely on SigLIP as proxy
             return True
         except Exception:
             return False
 
     def ensure_models(self, progress_callback=None):
-        """
-        Downloads models if missing, but does not load them into VRAM unless necessary.
-        Actually, for this library, downloading usually happens during load.
-        So this is an alias for load_models but semantically used for 'Download' button.
-        """
         self.load_models(progress_callback)
 
     def load_models(self, progress_callback=None):
@@ -104,7 +93,7 @@ class MultimodalFileOrganizer:
             self.models_loaded = True
 
         except Exception as e:
-            print(f"Error loading ML models: {e}")
+            logger.error(f"Error loading ML models: {e}")
             raise e
 
     def _precompute_text_embeddings(self):
@@ -144,7 +133,7 @@ class MultimodalFileOrganizer:
                         if page_text:
                             content += page_text + "\n"
                 except Exception as e:
-                    print(f"PDF extraction error: {e}")
+                    logger.error(f"PDF extraction error: {e}")
 
             elif ext == '.docx':
                 try:
@@ -153,10 +142,10 @@ class MultimodalFileOrganizer:
                     paragraphs = [p.text for p in doc.paragraphs[:50]]
                     content = "\n".join(paragraphs)
                 except Exception as e:
-                    print(f"Docx extraction error: {e}")
+                    logger.error(f"Docx extraction error: {e}")
 
         except Exception as e:
-            print(f"Error extracting text from {file_path}: {e}")
+            logger.error(f"Error extracting text from {file_path}: {e}")
 
         return content
 
@@ -174,7 +163,6 @@ class MultimodalFileOrganizer:
 
             for cat, desc in self.categories_config.items():
                 if 'visual' in desc:
-                    # 'visual' can be a list or a string. Handle both.
                     visual_descs = desc['visual']
                     if isinstance(visual_descs, str):
                         visual_descs = [visual_descs]
@@ -197,7 +185,6 @@ class MultimodalFileOrganizer:
             # Get predictions
             with torch.no_grad():
                 outputs = self.image_model(**inputs)
-                # SigLIP uses sigmoid instead of softmax
                 probs = torch.sigmoid(outputs.logits_per_image[0])
 
             # Find best match
@@ -209,7 +196,7 @@ class MultimodalFileOrganizer:
             return category, confidence
 
         except Exception as e:
-            print(f"Error categorizing image {image_path}: {e}")
+            logger.error(f"Error categorizing image {image_path}: {e}")
             return None, 0.0
 
     def categorize_text_file(self, file_path, content, threshold=0.4):
@@ -242,7 +229,7 @@ class MultimodalFileOrganizer:
             return best_category[0], float(best_category[1])
 
         except Exception as e:
-            print(f"Error categorizing text {file_path}: {e}")
+            logger.error(f"Error categorizing text {file_path}: {e}")
             return None, 0.0
 
     def smart_categorize(self, file_path, threshold=0.3):
@@ -255,16 +242,15 @@ class MultimodalFileOrganizer:
         # Image files
         if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
             category, confidence = self.categorize_image(file_path)
-            if confidence > threshold:  # Threshold for trusting ML (SigLIP is usually confident)
+            if confidence > threshold:
                 return category, confidence, "image-ml"
 
         # Text-extractable files
         elif file_ext in ['.txt', '.md', '.py', '.js', '.html', '.pdf', '.docx', '.css', '.json']:
             content = self.extract_text(file_path)
             if content:
-                # Use slightly higher threshold for text if needed, or same
                 category, confidence = self.categorize_text_file(file_path, content)
-                if confidence > threshold: # Qwen threshold
+                if confidence > threshold:
                     return category, confidence, "text-ml"
 
         return None, 0.0, "extension"

@@ -4,47 +4,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-# Default Configuration
-DEFAULT_DIRECTORIES = {
-    "Images": [".jpeg", ".jpg", ".tiff", ".gif", ".bmp", ".png", ".bpg", ".svg", ".heif", ".psd"],
-    "Videos": [".avi", ".flv", ".wmv", ".mov", ".mp4", ".webm", ".vob", ".mng", ".qt", ".mpg", ".mpeg", ".3gp"],
-    "Documents": [".oxps", ".epub", ".pages", ".docx", ".doc", ".fdf", ".ods", ".odt", ".pwi", ".xsn", ".xps", ".dotx", ".docm", ".dox", ".rvg", ".rtf", ".rtfd", ".wpd", ".xls", ".xlsx", ".ppt", ".pptx", ".csv", ".pdf", ".txt", ".md"],
-    "Archives": [".a", ".ar", ".cpio", ".iso", ".tar", ".gz", ".rz", ".7z", ".dmg", ".rar", ".xar", ".zip"],
-    "Audio": [".aac", ".aa", ".aac", ".dvf", ".m4a", ".m4b", ".m4p", ".mp3", ".msv", ".ogg", ".oga", ".raw", ".vox", ".wav", ".wma"],
-    "Code": [".py", ".js", ".html", ".css", ".php", ".c", ".cpp", ".h", ".java", ".cs"],
-    "Executables": [".exe", ".msi", ".bat", ".sh"]
-}
-
-DEFAULT_ML_CATEGORIES = {
-    "Images/Personal": {
-        "text": "personal photos family vacation memories selfies",
-        "visual": ["a photograph of people", "family photos", "vacation pictures", "selfie"]
-    },
-    "Images/Screenshots": {
-        "text": "screenshot application software interface UI",
-        "visual": ["a screenshot of software", "computer interface", "app screen"]
-    },
-    "Images/Diagrams": {
-        "text": "diagram flowchart technical drawing architecture",
-        "visual": ["a technical diagram", "flowchart", "architectural drawing"]
-    },
-    "Images/Design": {
-        "text": "logo mockup design graphic illustration artwork",
-        "visual": ["graphic design", "logo design", "mockup"]
-    },
-    "Documents/Code": {
-        "text": "programming code python javascript html css",
-        "visual": ["code snippet", "programming text"]
-    },
-    "Documents/Financial": {
-        "text": "invoice receipt tax financial statement budget",
-        "visual": ["invoice document", "financial statement"]
-    },
-    "Documents/Reports": {
-        "text": "report analysis presentation business document",
-        "visual": ["business report", "presentation slide"]
-    }
-}
+from .constants import DEFAULT_DIRECTORIES, DEFAULT_ML_CATEGORIES, DEFAULT_CONFIG_FILE, EXCLUDED_NAMES
+from .logger import logger
 
 class FileOrganizer:
     def __init__(self):
@@ -60,9 +21,9 @@ class FileOrganizer:
         self.ml_confidence = 0.3
 
         # Exclusions
-        self.excluded_names = {"app.py", "organizer.py", "config.json", "themes.py", "recent.json", "batch_config.json"}
+        self.excluded_names = EXCLUDED_NAMES.copy()
         self.excluded_extensions = set() # e.g., {".tmp", ".log"}
-        self.excluded_folders = set() # e.g., {"node_modules", ".git"}
+        self.excluded_folders = {".git", "__pycache__", "venv", "src", "config", "logs", "scripts"}
 
     def _build_extension_map(self):
         return {ext: category for category, exts in self.directories.items() for ext in exts}
@@ -97,7 +58,7 @@ class FileOrganizer:
 
         return errors
 
-    def load_config(self, config_path="config.json"):
+    def load_config(self, config_path=DEFAULT_CONFIG_FILE):
         """Loads configuration from a JSON file."""
         if os.path.exists(config_path):
             try:
@@ -119,11 +80,11 @@ class FileOrganizer:
                 self.extension_map = self._build_extension_map()
                 return True
             except Exception as e:
-                print(f"Error loading config: {e}")
+                logger.error(f"Error loading config: {e}")
                 return False
         return False
 
-    def save_config(self, config_path="config.json"):
+    def save_config(self, config_path=DEFAULT_CONFIG_FILE):
         """Saves current configuration to a JSON file."""
         if self.validate_config():
             return False
@@ -140,7 +101,7 @@ class FileOrganizer:
                 }, f, indent=4)
             return True
         except Exception as e:
-            print(f"Error saving config: {e}")
+            logger.error(f"Error saving config: {e}")
             return False
 
     def export_config_file(self, path):
@@ -209,8 +170,8 @@ class FileOrganizer:
             if not self.ml_categorizer:
                  # Initialize if not already done (lazy loading mechanism in organize loop if needed,
                  # but ideally done before)
-                 from ml_organizer import MultimodalFileOrganizer
-                 self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
+                from .ml_organizer import MultimodalFileOrganizer
+                self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
                  # Note: models might not be loaded yet, which smart_categorize handles by returning status
 
             category, confidence, method = self.ml_categorizer.smart_categorize(file_path, threshold=self.ml_confidence)
@@ -235,7 +196,7 @@ class FileOrganizer:
         if use_ml and not self.ml_categorizer:
              # This should ideally be handled by caller (loading models with progress),
              # but we can do a lazy init here just in case.
-             from ml_organizer import MultimodalFileOrganizer
+             from .ml_organizer import MultimodalFileOrganizer
              self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
              if not self.ml_categorizer.models_loaded:
                   # If models aren't loaded, try loading (this might block/freeze if not done in thread,

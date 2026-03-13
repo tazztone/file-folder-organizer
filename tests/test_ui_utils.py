@@ -9,7 +9,7 @@ if 'tkinter' not in sys.modules:
 if 'customtkinter' not in sys.modules:
     sys.modules['customtkinter'] = MagicMock()
 
-import ui_utils
+from pro_file_organizer.ui import ui_utils
 
 class TestToolTip(unittest.TestCase):
     def setUp(self):

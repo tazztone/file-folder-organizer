@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import tkinter as tk # For Listbox/Text if needed, or replacements
-from ui_utils import ToolTip
+from ..ui_utils import ToolTip
 
 class SettingsDialog:
     def __init__(self, parent, organizer, theme_name=None):

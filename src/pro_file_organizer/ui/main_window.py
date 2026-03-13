@@ -27,11 +27,13 @@ try:
 except ImportError:
     Image = ImageTk = ImageDraw = None
 
-from organizer import FileOrganizer
-from settings_dialog_ctk import SettingsDialog
-from batch_dialog_ctk import BatchDialog
-from ui_utils import ToolTip
-from ui_components import FileCard, ModelDownloadModal
+from ..core.organizer import FileOrganizer
+from ..core.constants import DEFAULT_STATS_FILE, DEFAULT_RECENT_FILE
+from ..core.logger import logger
+from .dialogs.settings_dialog_ctk import SettingsDialog
+from .dialogs.batch_dialog_ctk import BatchDialog
+from .ui_utils import ToolTip
+from .components.ui_components import FileCard, ModelDownloadModal
 
 # Set default theme
 ctk.set_appearance_mode("System")
@@ -54,7 +56,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
         self.organizer = FileOrganizer()
         if self.organizer.load_config():
-            print("Loaded custom configuration.")
+            logger.info("Loaded custom configuration.")
 
         # Load theme
         theme = self.organizer.get_theme_mode()
@@ -135,7 +137,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             self.frame_top.dnd_bind('<<DragEnter>>', self.on_drag_enter)
             self.frame_top.dnd_bind('<<DragLeave>>', self.on_drag_leave)
         except Exception as e:
-            print(f"DnD setup failed: {e}")
+            logger.error(f"DnD setup failed: {e}")
 
         self.lbl_drop = ctk.CTkLabel(self.frame_top, text="Drag & Drop Folder Here", font=ctk.CTkFont(size=18))
         self.lbl_drop.pack(expand=True, side="left", padx=30)
@@ -229,7 +231,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             self.lbl_ai.configure(text_color="gray90" if ctk.get_appearance_mode()=="Dark" else "black")
 
     def _check_and_load_models(self):
-        from ml_organizer import MultimodalFileOrganizer
+        from ..core.ml_organizer import MultimodalFileOrganizer
         # Quick check first
         if not MultimodalFileOrganizer.are_models_present(MultimodalFileOrganizer):
             # Prompt download
@@ -258,7 +260,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
     def _preload_models(self):
         try:
-             from ml_organizer import MultimodalFileOrganizer
+             from ..core.ml_organizer import MultimodalFileOrganizer
              mo = MultimodalFileOrganizer()
              mo.load_models()
         except:
@@ -268,25 +270,25 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
     def load_stats(self):
         self.stats = {"total_files": 0, "last_run": "Never"}
-        if os.path.exists("stats.json"):
+        if os.path.exists(DEFAULT_STATS_FILE):
             try:
-                with open("stats.json", "r") as f:
+                with open(DEFAULT_STATS_FILE, "r") as f:
                     self.stats.update(json.load(f))
             except:
                 pass
 
     def save_stats(self):
         try:
-            with open("stats.json", "w") as f:
+            with open(DEFAULT_STATS_FILE, "w") as f:
                 json.dump(self.stats, f)
         except:
             pass
 
     def load_recent(self):
         self.recent_folders = []
-        if os.path.exists("recent.json"):
+        if os.path.exists(DEFAULT_RECENT_FILE):
             try:
-                with open("recent.json", "r") as f:
+                with open(DEFAULT_RECENT_FILE, "r") as f:
                     self.recent_folders = json.load(f)
             except:
                 pass
@@ -303,7 +305,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.recent_folders.insert(0, str_path)
         self.recent_folders = self.recent_folders[:10]
         self.update_recent_menu()
-        with open("recent.json", "w") as f:
+        with open(DEFAULT_RECENT_FILE, "w") as f:
             json.dump(self.recent_folders, f)
 
     def on_recent_select(self, selected):
@@ -438,6 +440,9 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             self.save_stats()
             messagebox.showinfo("Complete", msg)
 
-if __name__ == "__main__":
+def main():
     app = OrganizerApp()
     app.mainloop()
+
+if __name__ == "__main__":
+    main()

@@ -15,7 +15,7 @@ sys.modules['docx'] = MagicMock()
 sys.modules['numpy'] = MagicMock()
 
 # Now import the module to test
-from ml_organizer import MultimodalFileOrganizer
+from pro_file_organizer.core.ml_organizer import MultimodalFileOrganizer
 
 class TestMultimodalFileOrganizer(unittest.TestCase):
 
@@ -26,10 +26,10 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.mock_text_model.encode.return_value = MagicMock()
 
         # Patch SentenceTransformer to return our mock
-        with patch('ml_organizer.SentenceTransformer', return_value=self.mock_text_model):
+        with patch('pro_file_organizer.core.ml_organizer.SentenceTransformer', return_value=self.mock_text_model):
              # Patch AutoModel/Processor
-             with patch('ml_organizer.AutoModel') as mock_auto_model:
-                 with patch('ml_organizer.AutoProcessor') as mock_auto_processor:
+             with patch('pro_file_organizer.core.ml_organizer.AutoModel') as mock_auto_model:
+                 with patch('pro_file_organizer.core.ml_organizer.AutoProcessor') as mock_auto_processor:
                      self.organizer = MultimodalFileOrganizer(categories_config={
                          "Images/Personal": {"text": "desc", "visual": ["label"]},
                          "Documents/Code": {"text": "code", "visual": ["code"]}
@@ -77,12 +77,12 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         # Test device detection logic
         # We need to re-instantiate or test the private method if we can access it,
         # or mock torch.cuda.is_available
-        with patch('ml_organizer.torch.cuda.is_available', return_value=True):
+        with patch('pro_file_organizer.core.ml_organizer.torch.cuda.is_available', return_value=True):
             dev = self.organizer._get_device()
             self.assertEqual(dev, "cuda")
 
-        with patch('ml_organizer.torch.cuda.is_available', return_value=False):
-            with patch('ml_organizer.torch.backends.mps.is_available', return_value=True):
+        with patch('pro_file_organizer.core.ml_organizer.torch.cuda.is_available', return_value=False):
+            with patch('pro_file_organizer.core.ml_organizer.torch.backends.mps.is_available', return_value=True):
                 dev = self.organizer._get_device()
                 self.assertEqual(dev, "mps")
 

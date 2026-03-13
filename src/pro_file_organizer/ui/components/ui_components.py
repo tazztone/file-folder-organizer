@@ -237,7 +237,7 @@ class ModelDownloadModal(ctk.CTkToplevel):
         error_msg = ""
 
         try:
-            from ml_organizer import MultimodalFileOrganizer
+            from ...core.ml_organizer import MultimodalFileOrganizer
             # Mock organizer to reuse load_models logic
             ml_org = MultimodalFileOrganizer()
 

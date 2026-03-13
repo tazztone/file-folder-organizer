@@ -4,6 +4,7 @@ from tkinter import filedialog, messagebox, ttk
 import json
 import threading
 from pathlib import Path
+from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
 
 class BatchDialog:
     def __init__(self, parent, organizer, theme_name=None, on_complete_callback=None):
@@ -68,9 +69,9 @@ class BatchDialog:
         btn_run.pack(fill="x")
 
     def _load_batch_config(self):
-        if Path("batch_config.json").exists():
+        if Path(DEFAULT_BATCH_CONFIG_FILE).exists():
             try:
-                with open("batch_config.json", "r") as f:
+                with open(DEFAULT_BATCH_CONFIG_FILE, "r") as f:
                     data = json.load(f)
                     if data and isinstance(data[0], str):
                         self.batch_folders = [{"path": p, "settings": None} for p in data]
@@ -81,7 +82,7 @@ class BatchDialog:
 
     def _save_batch_config(self):
         try:
-            with open("batch_config.json", "w") as f:
+            with open(DEFAULT_BATCH_CONFIG_FILE, "w") as f:
                 json.dump(self.batch_folders, f)
         except:
             pass
@@ -199,67 +200,6 @@ class BatchDialog:
 
     def _process_batch(self):
         total = len(self.batch_folders)
-
-        def update_progress(val):
-            self.progress.set(val / total)
-
-        for i, folder_item in enumerate(self.batch_folders):
-            folder_path = folder_item["path"]
-            settings = folder_item.get("settings")
-
-            # Update status to running
-            if "status_label" in folder_item:
-                 folder_item["status_label"].configure(text="Running...")
-
-            p = Path(folder_path)
-            status_msg = ""
-
-            if p.exists():
-                try:
-                    kwargs = {
-                        "recursive": False,
-                        "date_sort": False,
-                        "del_empty": False,
-                        "dry_run": False
-                    }
-                    if settings:
-                        kwargs.update(settings)
-
-                    self.organizer.organize_files(p, **kwargs)
-                    status_msg = "Done"
-                except Exception as e:
-                    status_msg = "Error"
-            else:
-                status_msg = "Not Found"
-
-            # Update status
-            if "status_label" in folder_item:
-                 folder_item["status_label"].configure(text=status_msg)
-
-            update_progress(i + 1)
-
-        def finish():
-             messagebox.showinfo("Batch Complete", "Batch organization finished.")
-             if self.on_complete_callback:
-                 self.on_complete_callback()
-
-        # CTk is thread safe for some operations but it's better to schedule
-        # However, CTk widgets access from other thread might be risky.
-        # The labels were updated above, hope it doesn't crash.
-        # If it crashes, I need to wrap in after.
-        # Let's wrap updates in after just to be safe.
-        # But wait, I can't easily pass the label object across thread if I want to use .after correctly without reference.
-        # I'll rely on Tcl/Tk's thread handling via .after in main thread if possible, but here I'm lazy.
-        # Actually CTk might not crash, but let's see.
-
-        # Proper way:
-        # self.window.after(0, finish)
-
-        # But for row updates...
-        # I'll update the loop to use .after
-        pass
-
-        # Re-writing loop for safety
 
         # Since we are in a thread, we can process sequentially, but must update UI via after
         for i, folder_item in enumerate(self.batch_folders):

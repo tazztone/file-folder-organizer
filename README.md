@@ -32,23 +32,28 @@ A powerful, modern file organizer application built with Python and CustomTkinte
     cd pro-file-organizer
     ```
 2.  Run the setup script:
-    *   **Windows**: Double-click `setup.bat`
-    *   **Linux/macOS**: Run `bash setup.sh`
+    *   **Windows**: Double-click `scripts/setup.bat`
+    *   **Linux/macOS**: Run `bash scripts/setup.sh`
 
     The setup script will create a virtual environment and install all necessary dependencies using `uv`.
 
-    Or install manually with `uv`:
+    Or install as a package:
     ```bash
     uv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    uv pip install -r requirements.txt
+    source venv/bin/activate
+    pip install .
     ```
+
 
 ## Usage 🚀
 
 1.  **Launch the App**:
     ```bash
-    python app.py
+    python run_app.py
+    ```
+    Alternatively, if installed as a package:
+    ```bash
+    pro-file-organizer
     ```
 2.  **Select a Folder**:
     *   Drag and drop a folder onto the target area.
@@ -70,7 +75,7 @@ When enabled, the app uses local AI models to inspect file content:
 
 ## Configuration ⚙️
 
-You can customize categories via the "Settings" menu or by editing `config.json`.
+You can customize categories via the "Settings" menu or by editing `config/config.json`.
 
 ### Basic Configuration
 The `directories` key maps category names to lists of file extensions.

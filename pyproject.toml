@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pro-file-organizer"
+version = "0.1.0"
+description = "A powerful and intelligent file organization tool with AI-powered categorization."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Tazztone"}
+]
+dependencies = [
+    "customtkinter",
+    "tkinterdnd2",
+    "transformers",
+    "torch",
+    "pillow",
+    "sentence-transformers",
+    "scipy",
+    "numpy",
+    "pypdf",
+    "python-docx",
+]
+
+[project.scripts]
+pro-file-organizer = "pro_file_organizer.ui.main_window:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.6.1",
+]

@@ -13,15 +13,21 @@ Welcome! This guide helps AI agents understand the codebase, development workflo
 
 ## 📂 Project Structure
 
-*   **`app.py`**: The main entry point. Initializes the GUI, handles the main event loop, and ties UI components together.
-*   **`organizer.py`**: Contains the core logic for file organization (`FileOrganizer` class). Handles scanning, sorting (extension-based), and moving files.
-*   **`ml_organizer.py`**: Handles AI-powered categorization. Uses `MultimodalFileOrganizer` to classify files based on content (text/images). Models are lazy-loaded.
-*   **`ui_components.py`**: Reusable UI widgets (e.g., `FileCard`, `ModelDownloadModal`).
-*   **`ui_utils.py`**: UI utilities like `ToolTip`.
-*   **`settings_dialog_ctk.py`**: The settings window logic (`SettingsDialog`).
-*   **`batch_dialog_ctk.py`**: The batch processing window logic (`BatchDialog`).
-*   **`themes.py`**: Defines color palettes and styles for non-customtkinter widgets (standard tkinter elements).
-*   **`tests/`**: Contains unit tests.
+*   **`src/pro_file_organizer/`**: The main package.
+    *   **`src/pro_file_organizer/ui/main_window.py`**: The main GUI entry point.
+    *   **`src/pro_file_organizer/core/organizer.py`**: Core logic for file organization (`FileOrganizer` class).
+    *   **`src/pro_file_organizer/core/ml_organizer.py`**: AI categorization logic (`MultimodalFileOrganizer`).
+    *   **`src/pro_file_organizer/core/constants.py`**: Centralized default settings and file paths.
+    *   **`src/pro_file_organizer/core/logger.py`**: Centralized logging system.
+    *   **`src/pro_file_organizer/ui/components/`**: Reusable UI widgets like `FileCard`.
+    *   **`src/pro_file_organizer/ui/dialogs/`**: Configuration and Batch processing windows.
+    *   **`src/pro_file_organizer/ui/themes/`**: Custom styles for non-standard widgets.
+*   **`config/`**: Contains application state and configuration files (`config.json`, `recent.json`, etc.).
+*   **`logs/`**: Directory for application logs.
+*   **`scripts/`**: Convenience scripts for environment setup.
+*   **`tests/`**: Unit test suite.
+*   **`run_app.py`**: Development entry point script.
+*   **`pyproject.toml`**: Modern Python project metadata and entry points.
 
 ## 🧪 Testing
 
@@ -40,8 +46,8 @@ python -m unittest discover tests
 
 ## 🏗️ Architecture & Behaviors
 
-1.  **Config First**: The app relies heavily on `config.json`. The `FileOrganizer` class loads this at startup. `validate_config` ensures integrity.
-2.  **Lazy ML**: Large ML dependencies (`torch`, `transformers`) are NOT imported at top-level in `app.py`. They are imported inside `ml_organizer.py` or only when the "Smart AI" toggle is enabled. **Do not break this lazy loading**, or startup time will suffer.
+1.  **Config First**: The app relies on configuration files stored in the `config/` directory. `DEFAULT_CONFIG_FILE` in `constants.py` points there. The `FileOrganizer` class loads this at startup.
+2.  **Lazy ML**: Large ML dependencies (`torch`, `transformers`) are NOT imported at top-level in the UI. They are imported inside `ml_organizer.py` or only when strictly needed by `FileOrganizer`. **Do not break this lazy loading**.
 3.  **Threading**: File operations and ML inference happen in background threads (`threading.Thread`). The GUI uses callbacks (`log_callback`, `progress_callback`) to update.
 4.  **Dry Run**: The `organize_files` method supports `dry_run=True`. This is used for the "Preview" feature.
 5.  **Undo Stack**: Operations are pushed to an undo stack. Ensure any new file operation logic supports this.
