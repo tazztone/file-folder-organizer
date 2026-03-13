@@ -181,7 +181,7 @@ class FileOrganizer:
             category, confidence, method = self.ml_categorizer.smart_categorize(file_path, threshold=self.ml_confidence)
 
             # If ML returned a valid result (not 'extension' fallback or error)
-            if method not in ["extension", "ml-not-loaded"]:
+            if category is not None and method not in ["extension", "ml-not-loaded"]:
                 return category, confidence, method
 
         # 2. Fallback to Extension
@@ -363,9 +363,12 @@ class FileOrganizer:
 
                     d = os.path.join(root_dir, name)
                     try:
-                        os.rmdir(d)  # Only works if empty
-                        deleted_folders += 1
-                    except OSError:
+                        # Convert to absolute path to be safe
+                        d_path = Path(d).resolve()
+                        if d_path.is_dir() and not any(d_path.iterdir()):
+                            os.rmdir(d)
+                            deleted_folders += 1
+                    except Exception:
                         pass
             if deleted_folders > 0 and log_callback:
                 log_callback(f"Removed {deleted_folders} empty folders.")

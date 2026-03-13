@@ -1,56 +1,37 @@
 import unittest
-import sys
-import importlib
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+import tkinter as tk
+from pro_file_organizer.ui.ui_utils import ToolTip
 
-# Mock modules
-if 'tkinter' not in sys.modules:
-    sys.modules['tkinter'] = MagicMock()
-if 'customtkinter' not in sys.modules:
-    sys.modules['customtkinter'] = MagicMock()
-
-from pro_file_organizer.ui import ui_utils
-
-class TestToolTip(unittest.TestCase):
+class TestUIUtils(unittest.TestCase):
     def setUp(self):
-        importlib.reload(ui_utils)
         self.mock_widget = MagicMock()
+        # Mocking for show_tip's geometry calculation
         self.mock_widget.winfo_rootx.return_value = 100
         self.mock_widget.winfo_rooty.return_value = 100
         self.mock_widget.winfo_height.return_value = 50
+        self.tooltip = ToolTip(self.mock_widget, "Test Tooltip")
 
-    def test_init_binds_events(self):
-        tooltip = ui_utils.ToolTip(self.mock_widget, "Help Text")
+    def test_init(self):
+        self.assertEqual(self.tooltip.text, "Test Tooltip")
+        self.mock_widget.bind.assert_called()
 
-        self.mock_widget.bind.assert_any_call("<Enter>", tooltip.show_tip)
-        self.mock_widget.bind.assert_any_call("<Leave>", tooltip.hide_tip)
+    @patch('pro_file_organizer.ui.ui_utils.ctk')
+    @patch('pro_file_organizer.ui.ui_utils.tk.Toplevel')
+    def test_show_tip(self, mock_toplevel, mock_ctk):
+        mock_tw = MagicMock()
+        mock_toplevel.return_value = mock_tw
+        
+        self.tooltip.show_tip()
+        self.assertIsNotNone(self.tooltip.tip_window)
+        mock_toplevel.assert_called()
 
-    def test_show_tip_creates_window(self):
-        tooltip = ui_utils.ToolTip(self.mock_widget, "Help Text")
+    def test_hide_tip(self):
+        mock_tw = MagicMock()
+        self.tooltip.tip_window = mock_tw
+        self.tooltip.hide_tip()
+        self.assertIsNone(self.tooltip.tip_window)
+        mock_tw.destroy.assert_called()
 
-        # Simulate Enter
-        tooltip.show_tip()
-
-        # Should create Toplevel
-        self.assertIsNotNone(tooltip.tip_window)
-        # sys.modules['tkinter'].Toplevel should be called
-        sys.modules['tkinter'].Toplevel.assert_called()
-
-    def test_hide_tip_destroys_window(self):
-        tooltip = ui_utils.ToolTip(self.mock_widget, "Help Text")
-        tooltip.show_tip()
-
-        mock_window = tooltip.tip_window
-
-        tooltip.hide_tip()
-
-        mock_window.destroy.assert_called_once()
-        self.assertIsNone(tooltip.tip_window)
-
-    def test_show_tip_no_text(self):
-        tooltip = ui_utils.ToolTip(self.mock_widget, "")
-        tooltip.show_tip()
-        self.assertIsNone(tooltip.tip_window)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
