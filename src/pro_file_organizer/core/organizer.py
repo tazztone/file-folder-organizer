@@ -86,9 +86,13 @@ class FileOrganizer:
 
     def save_config(self, config_path=DEFAULT_CONFIG_FILE):
         """Saves current configuration to a JSON file."""
-        if self.validate_config():
+        # Block save if config is invalid (validate_config returns a non-empty error list)
+        errors = self.validate_config()
+        if errors:
+            logger.error(f"Config validation failed, not saving: {errors}")
             return False
         try:
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
             with open(config_path, 'w') as f:
                 json.dump({
                     "directories": self.directories,
@@ -221,23 +225,20 @@ class FileOrganizer:
         if log_callback:
             log_callback(f"--- Starting {'Dry Run ' if dry_run else ''}Organization ---")
 
-        # 1. Count files first (to allow large dirs without full list in memory)
-        total_files = 0
+        # Collect files into a list once — avoids double directory scan
         try:
-             # Just count first
-             for _ in self.scan_files(source_path, recursive):
-                 total_files += 1
+            all_files = list(self.scan_files(source_path, recursive))
         except Exception as e:
-             if log_callback:
-                 log_callback(f"Error scanning files: {e}")
-             return {"moved": 0, "errors": 1}
+            if log_callback:
+                log_callback(f"Error scanning files: {e}")
+            return {"moved": 0, "errors": 1}
 
+        total_files = len(all_files)
         moved_count = 0
         renamed_count = 0
         errors = 0
 
-        # 2. Iterate again to process
-        for i, item in enumerate(self.scan_files(source_path, recursive), 1):
+        for i, item in enumerate(all_files, 1):
             if check_stop and check_stop():
                 if log_callback:
                     log_callback("Operation stopped by user.")
