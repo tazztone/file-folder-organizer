@@ -162,7 +162,7 @@ class MainWindowController:
                 return
 
             self.watcher = FolderWatcher(self.selected_path, lambda: self.view.after_main(0, self._on_watch_trigger))
-            if self.watcher.start():
+            if self.watcher.start(recursive=self.view.get_recursive_val()):
                 self.view.show_status(f"Watching: {self.selected_path.name}")
             else:
                 self.view.show_error("Feature Not Installed",

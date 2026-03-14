@@ -48,8 +48,10 @@ class TestWatcher(unittest.TestCase):
 
             # Case: Folder exists
             with patch('pathlib.Path.exists', return_value=True):
-                self.assertTrue(watcher.start())
-                mock_observer_class.return_value.schedule.assert_called()
+                self.assertTrue(watcher.start(recursive=True))
+                mock_observer_class.return_value.schedule.assert_called_with(
+                    watcher.handler, str(folder), recursive=True
+                )
                 mock_observer_class.return_value.start.assert_called()
 
             watcher.stop()

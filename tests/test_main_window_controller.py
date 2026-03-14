@@ -208,12 +208,13 @@ class TestMainWindowController(unittest.TestCase):
         self.view.show_error.assert_called_with("No Folder", "Select a folder to watch first.")
         self.view.set_watch_switch_state.assert_called_with(False)
 
-        # Case 2: Path selected, start watcher
+        # Case: Path selected, start watcher
         self.controller.selected_path = Path("/tmp")
+        self.view.get_recursive_val.return_value = True
         with patch('pro_file_organizer.ui.main_window_controller.FolderWatcher') as mock_watcher_class:
             mock_watcher = mock_watcher_class.return_value
             self.controller.toggle_watch(True)
-            mock_watcher.start.assert_called()
+            mock_watcher.start.assert_called_with(recursive=True)
             self.assertEqual(self.controller.watcher, mock_watcher)
 
             # Case 3: Stop watcher

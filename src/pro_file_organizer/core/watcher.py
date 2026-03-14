@@ -30,7 +30,7 @@ class FolderWatcher:
         self.observer = None
         self.handler = None
 
-    def start(self):
+    def start(self, recursive=False):
         try:
             from watchdog.events import FileSystemEventHandler
             from watchdog.observers import Observer
@@ -48,9 +48,9 @@ class FolderWatcher:
 
             self.handler = BridgeHandler()
             self.observer = Observer()
-            self.observer.schedule(self.handler, str(self.folder_path), recursive=False)
+            self.observer.schedule(self.handler, str(self.folder_path), recursive=recursive)
             self.observer.start()
-            logger.info(f"Started watching folder: {self.folder_path}")
+            logger.info(f"Started watching folder: {self.folder_path} (recursive={recursive})")
             return True
         except ImportError:
             logger.error("Watchdog library not installed. Install with 'pip install pro-file-organizer[watch]'")
