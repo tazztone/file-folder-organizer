@@ -8,7 +8,9 @@ from pro_file_organizer.core.organizer import FileOrganizer, OrganizationOptions
 
 def main():
     parser = argparse.ArgumentParser(description="Pro File Organizer CLI (Headless Sandbox Mode)")
-    parser.add_argument("source", nargs="?", default="/sandbox", help="Path to the directory to organize (default: /sandbox)")
+    parser.add_argument(
+        "source", nargs="?", default="/sandbox", help="Path to the directory to organize (default: /sandbox)"
+    )
     parser.add_argument("--recursive", "-r", action="store_true", help="Organize subdirectories")
     parser.add_argument("--ml", action="store_true", help="Enable AI-powered categorization")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without moving files")
