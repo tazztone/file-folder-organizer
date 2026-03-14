@@ -6,58 +6,64 @@ from pro_file_organizer.core.watcher import FolderWatcher, FolderWatcherHandler
 
 
 class TestWatcher(unittest.TestCase):
-    def test_handler_trigger(self):
+    def test_handler_dispatch(self):
         import time
         callback = MagicMock()
         handler = FolderWatcherHandler(callback, debounce=0.01)
 
         event = MagicMock()
         event.is_directory = False
+        event.event_type = "created"
 
-        # Test on_created
-        handler.on_created(event)
+        # Test dispatch
+        handler.dispatch(event)
         callback.assert_called_once()
 
-        # Test on_modified
-        time.sleep(0.02)
+        # Test debounce
         callback.reset_mock()
-        handler.on_modified(event)
+        handler.dispatch(event)
+        callback.assert_not_called()
+
+        time.sleep(0.02)
+        handler.dispatch(event)
         callback.assert_called_once()
-
-    def test_handler_debounce(self):
-        callback = MagicMock()
-        handler = FolderWatcherHandler(callback, debounce=100) # Long debounce
-
-        event = MagicMock()
-        event.is_directory = False
-
-        handler._trigger()
-        handler._trigger()
-
-        self.assertEqual(callback.call_count, 1)
 
     def test_watcher_start_stop(self):
         callback = MagicMock()
         folder = Path("/tmp/fake_watch_dir")
 
-        with patch('pro_file_organizer.core.watcher.Observer') as mock_observer_class:
-            mock_observer = mock_observer_class.return_value
+        # Mock watchdog
+        mock_observer_class = MagicMock()
+        mock_handler_class = MagicMock()
+
+        with patch.dict('sys.modules', {
+            'watchdog.observers': MagicMock(Observer=mock_observer_class),
+            'watchdog.events': MagicMock(FileSystemEventHandler=mock_handler_class)
+        }):
             watcher = FolderWatcher(folder, callback)
 
             # Case: Folder doesn't exist
             with patch('pathlib.Path.exists', return_value=False):
-                watcher.start()
-                mock_observer.schedule.assert_not_called()
+                self.assertFalse(watcher.start())
 
             # Case: Folder exists
             with patch('pathlib.Path.exists', return_value=True):
-                watcher.start()
-                mock_observer.schedule.assert_called()
-                mock_observer.start.assert_called()
+                self.assertTrue(watcher.start())
+                mock_observer_class.return_value.schedule.assert_called()
+                mock_observer_class.return_value.start.assert_called()
 
             watcher.stop()
-            mock_observer.stop.assert_called()
-            mock_observer.join.assert_called()
+            mock_observer_class.return_value.stop.assert_called()
+            mock_observer_class.return_value.join.assert_called()
+
+    def test_watcher_import_error(self):
+        callback = MagicMock()
+        folder = Path("/tmp/fake_watch_dir")
+
+        with patch('pro_file_organizer.core.watcher.Path.exists', return_value=True):
+            with patch('builtins.__import__', side_effect=ImportError):
+                watcher = FolderWatcher(folder, callback)
+                self.assertFalse(watcher.start())
 
 if __name__ == '__main__':
     unittest.main()

@@ -162,14 +162,19 @@ class MainWindowController:
                 return
 
             self.watcher = FolderWatcher(self.selected_path, lambda: self.view.after_main(0, self._on_watch_trigger))
-            self.watcher.start()
-            self.view.show_status(f"Watching: {self.selected_path.name}")
+            if self.watcher.start():
+                self.view.show_status(f"Watching: {self.selected_path.name}")
+            else:
+                self.view.show_error("Feature Not Installed",
+                                   "The 'watchdog' library is required for this feature.\n"
+                                   "Install it with: pip install pro-file-organizer[watch]")
+                self.view.set_watch_switch_state(False)
+                self.watcher = None
         else:
             if self.watcher:
                 self.watcher.stop()
                 self.watcher = None
             self.view.show_status("Watcher disabled")
-
     def _on_watch_trigger(self):
         if not self.is_running:
             self.run_organization(dry_run=False, from_watcher=True)

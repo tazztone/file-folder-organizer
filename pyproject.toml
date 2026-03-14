@@ -16,10 +16,12 @@ dependencies = [
     "customtkinter>=5.2.2",
     "tkinterdnd2>=0.3.0",
     "platformdirs>=4.0.0",
-    "watchdog>=4.0.0",
 ]
 
 [project.optional-dependencies]
+watch = [
+    "watchdog>=4.0.0",
+]
 ml = [
     "transformers>=4.40.0",
     "torch>=2.0.0",

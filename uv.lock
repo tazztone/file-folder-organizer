@@ -1789,7 +1789,6 @@ dependencies = [
     { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "platformdirs", version = "4.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "tkinterdnd2" },
-    { name = "watchdog" },
 ]
 
 [package.optional-dependencies]
@@ -1813,6 +1812,9 @@ ml = [
     { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "transformers", version = "4.57.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "transformers", version = "5.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+watch = [
+    { name = "watchdog" },
 ]
 
 [package.dev-dependencies]
@@ -1839,9 +1841,9 @@ requires-dist = [
     { name = "tkinterdnd2", specifier = ">=0.3.0" },
     { name = "torch", marker = "extra == 'ml'", specifier = ">=2.0.0" },
     { name = "transformers", marker = "extra == 'ml'", specifier = ">=4.40.0" },
-    { name = "watchdog", specifier = ">=4.0.0" },
+    { name = "watchdog", marker = "extra == 'watch'", specifier = ">=4.0.0" },
 ]
-provides-extras = ["ml"]
+provides-extras = ["watch", "ml"]
 
 [package.metadata.requires-dev]
 dev = [
