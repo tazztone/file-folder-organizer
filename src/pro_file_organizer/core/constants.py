@@ -23,6 +23,7 @@ DEFAULT_CONFIG_FILE = str(CONFIG_DIR / "config.json")
 DEFAULT_BATCH_CONFIG_FILE = str(CONFIG_DIR / "batch_config.json")
 DEFAULT_STATS_FILE = str(DATA_DIR / "stats.json")
 DEFAULT_RECENT_FILE = str(DATA_DIR / "recent.json")
+DEFAULT_UNDO_STACK_FILE = str(DATA_DIR / "undo_stack.json")
 
 DEFAULT_DIRECTORIES = {
     "Images": [
@@ -47,14 +48,18 @@ DEFAULT_DIRECTORIES = {
     "Executables": [".exe", ".msi", ".bat", ".sh"]
 }
 
+DEFAULT_CATEGORY = "Others"
+
 DEFAULT_ML_CATEGORIES = {
     "Images/Personal": {
         "text": "personal photos family vacation memories selfies",
-        "visual": ["a photograph of people", "family photos", "vacation pictures", "selfie"]
+        "visual": ["a photograph of people", "family photos", "vacation pictures", "selfie"],
+        "threshold": 0.4
     },
     "Images/Screenshots": {
         "text": "screenshot application software interface UI",
-        "visual": ["a screenshot of software", "computer interface", "app screen"]
+        "visual": ["a screenshot of software", "computer interface", "app screen"],
+        "threshold": 0.5
     },
     "Images/Diagrams": {
         "text": "diagram flowchart technical drawing architecture",

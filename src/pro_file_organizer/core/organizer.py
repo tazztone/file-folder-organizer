@@ -4,17 +4,26 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, Iterable, Optional, TypedDict, Union
 
 from .constants import (
+    DEFAULT_CATEGORY,
     DEFAULT_CONFIG_FILE,
     DEFAULT_DIRECTORIES,
     DEFAULT_ML_CATEGORIES,
+    DEFAULT_UNDO_STACK_FILE,
     EXCLUDED_NAMES,
     MAX_UNDO_STACK,
     init_app_dirs,
 )
 from .logger import logger
+
+
+class OrganizationResult(TypedDict, total=False):
+    moved: int
+    errors: int
+    renamed: int
+    rolled_back: bool
 
 
 @dataclass
@@ -53,11 +62,44 @@ class FileOrganizer:
 
         # Ensure app directories exist on init
         init_app_dirs()
+        self._load_undo_stack()
 
     def _build_extension_map(self) -> dict[str, str]:
         return {ext: category for category, exts in self.directories.items() for ext in exts}
 
-    def validate_config(self) -> list[str]:
+    def _load_undo_stack(self):
+        """Loads the undo stack from a JSON file."""
+        if os.path.exists(DEFAULT_UNDO_STACK_FILE):
+            try:
+                with open(DEFAULT_UNDO_STACK_FILE, 'r') as f:
+                    data = json.load(f)
+                    self.undo_stack = []
+                    for item in data:
+                        history = [(Path(p1), Path(p2)) for p1, p2 in item["history"]]
+                        self.undo_stack.append({
+                            "history": history,
+                            "source_path": Path(item["source_path"])
+                        })
+            except Exception as e:
+                logger.error(f"Error loading undo stack: {e}")
+                self.undo_stack = []
+
+    def _save_undo_stack(self):
+        """Saves the undo stack to a JSON file."""
+        try:
+            data = []
+            for item in self.undo_stack:
+                history = [(str(p1), str(p2)) for p1, p2 in item["history"]]
+                data.append({
+                    "history": history,
+                    "source_path": str(item["source_path"])
+                })
+            with open(DEFAULT_UNDO_STACK_FILE, 'w') as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            logger.error(f"Error saving undo stack: {e}")
+
+    def validate_config(self) -> list[str] :
         """
         Validates the current configuration.
         Returns a list of error messages. If list is empty, config is valid.
@@ -95,11 +137,11 @@ class FileOrganizer:
                     data = json.load(f)
 
                     if "directories" in data:
-                        self.directories = data.get("directories", DEFAULT_DIRECTORIES)
-                        self.ml_categories = data.get("ml_categories", DEFAULT_ML_CATEGORIES)
-                        self.excluded_names = set(data.get("excluded_names", self.excluded_names))
+                        self.directories = data.get("directories", DEFAULT_DIRECTORIES.copy())
+                        self.ml_categories = data.get("ml_categories", DEFAULT_ML_CATEGORIES.copy())
+                        self.excluded_names = set(data.get("excluded_names", EXCLUDED_NAMES.copy()))
                         self.excluded_extensions = set(data.get("excluded_extensions", []))
-                        self.excluded_folders = set(data.get("excluded_folders", []))
+                        self.excluded_folders = set(data.get("excluded_folders", EXCLUDED_NAMES.copy()))
                         self.theme_mode = data.get("theme_mode", "System")
                         self.ml_confidence = data.get("ml_confidence", 0.3)
                         self.max_undo_stack = data.get("max_undo_stack", MAX_UNDO_STACK)
@@ -110,7 +152,14 @@ class FileOrganizer:
                 self.extension_map = self._build_extension_map()
                 return True
             except Exception as e:
-                logger.error(f"Error loading config: {e}")
+                logger.error(f"Error loading config (resetting to defaults): {e}")
+                # Reset to defaults on corruption
+                self.directories = DEFAULT_DIRECTORIES.copy()
+                self.ml_categories = DEFAULT_ML_CATEGORIES.copy()
+                self.excluded_names = EXCLUDED_NAMES.copy()
+                self.excluded_extensions = set()
+                self.excluded_folders = EXCLUDED_NAMES.copy()
+                self.extension_map = self._build_extension_map()
                 return False
         return False
 
@@ -122,8 +171,9 @@ class FileOrganizer:
             logger.error(f"Config validation failed, not saving: {errors}")
             return False
         try:
-            os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            with open(config_path, 'w') as f:
+            p = Path(config_path)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            with open(p, 'w') as f:
                 json.dump({
                     "directories": self.directories,
                     "ml_categories": self.ml_categories,
@@ -165,7 +215,7 @@ class FileOrganizer:
                 return new_path
             counter += 1
 
-    def scan_files(self, source_path: Path, recursive: bool = False):
+    def scan_files(self, source_path: Path, recursive: bool = False) -> Iterable[Path]:
         """Scans for files to process, respecting exclusions."""
         # Check if source_path itself is excluded (though unlikely to be passed if selected by user, good safety)
         if source_path.name in self.excluded_folders:
@@ -217,11 +267,11 @@ class FileOrganizer:
 
         # 2. Fallback to Extension
         ext = file_path.suffix.lower()
-        category = self.extension_map.get(ext, "Others")
+        category = self.extension_map.get(ext, DEFAULT_CATEGORY)
         return category, 1.0, "extension"
 
 
-    def organize_files(self, options: OrganizationOptions) -> dict:
+    def organize_files(self, options: OrganizationOptions) -> OrganizationResult:
         """
         Organizes files based on provided options.
         """
@@ -367,16 +417,59 @@ class FileOrganizer:
 
                 moved_count += 1
 
+            except PermissionError as e:
+                errors += 1
+                msg = f"PERMISSION ERROR: Cannot move {item.name} (file may be in use): {e}"
+                if log_callback:
+                    log_callback(msg)
+                logger.error(msg)
+                if event_callback:
+                    event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "PermissionError"})
+
+                if rollback_on_error and not dry_run:
+                     if log_callback:
+                         log_callback("Critical error encountered. Rolling back changes...")
+                     self._undo_history(current_history, source_path, log_callback)
+                     return {
+                        "moved": moved_count,
+                        "errors": errors,
+                        "renamed": renamed_count,
+                        "rolled_back": True
+                    }
+
+            except OSError as e:
+                errors += 1
+                msg = f"OS ERROR moving {item.name}: {e}"
+                if log_callback:
+                    log_callback(msg)
+                logger.error(msg)
+                if event_callback:
+                    event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "OSError"})
+
+                if rollback_on_error and not dry_run:
+                     if log_callback:
+                         log_callback("Critical error encountered. Rolling back changes...")
+                     self._undo_history(current_history, source_path, log_callback)
+                     return {
+                        "moved": moved_count,
+                        "errors": errors,
+                        "renamed": renamed_count,
+                        "rolled_back": True
+                    }
+
             except Exception as e:
                 errors += 1
+                msg = f"UNEXPECTED ERROR moving {item.name}: {type(e).__name__}: {e}"
                 if log_callback:
-                    log_callback(f"ERROR moving {item.name}: {e}")
+                    log_callback(msg)
+                logger.error(msg)
 
                 if event_callback:
                     event_callback({
                         "type": "error",
                         "file": item.name,
-                        "error": str(e)
+                        "error": str(e),
+                        "error_type": type(e).__name__
                     })
 
                 if rollback_on_error and not dry_run:
@@ -429,6 +522,7 @@ class FileOrganizer:
             # Enforce max undo stack size
             if len(self.undo_stack) > self.max_undo_stack:
                 self.undo_stack.pop(0)
+            self._save_undo_stack()
 
         return {"moved": moved_count, "errors": errors, "renamed": renamed_count}
 
@@ -441,7 +535,9 @@ class FileOrganizer:
 
         # Pop the last operation
         last_op = self.undo_stack.pop()
-        return self._undo_history(last_op["history"], last_op["source_path"], log_callback)
+        result = self._undo_history(last_op["history"], last_op["source_path"], log_callback)
+        self._save_undo_stack()
+        return result
 
     def _undo_history(self, history: list, source_path: Path, log_callback: Optional[Callable] = None) -> int:
         """Internal helper to reverse a list of file operations."""

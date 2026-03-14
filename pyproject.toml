@@ -53,4 +53,17 @@ dev = [
     "coverage>=7.6.1",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "pytest>=8.0.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90

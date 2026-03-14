@@ -283,15 +283,23 @@ class MultimodalFileOrganizer:
         # Image files
         if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
             category, confidence = self.categorize_image(file_path)
-            if confidence > threshold:
-                return category, confidence, "image-ml"
+            if category:
+                # Use category-specific threshold if available
+                cat_config = self.categories_config.get(category, {})
+                cat_threshold = cat_config.get("threshold", threshold)
+                if confidence >= cat_threshold:
+                    return category, confidence, "image-ml"
 
         # Text-extractable files
         elif file_ext in ['.txt', '.md', '.py', '.js', '.html', '.pdf', '.docx', '.css', '.json']:
             content = self.extract_text(file_path)
             if content:
                 category, confidence = self.categorize_text_file(file_path, content)
-                if confidence > threshold:
-                    return category, confidence, "text-ml"
+                if category:
+                    # Use category-specific threshold if available
+                    cat_config = self.categories_config.get(category, {})
+                    cat_threshold = cat_config.get("threshold", threshold)
+                    if confidence >= cat_threshold:
+                        return category, confidence, "text-ml"
 
         return None, 0.0, "extension"
