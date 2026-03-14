@@ -75,7 +75,7 @@ class TestBatchDialog(unittest.TestCase):
     def test_run_batch_execution(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
         mock_qtwidgets.QMessageBox.question.return_value = 1 # QMessageBox.Yes
-        
+
         with patch("threading.Thread") as mock_thread:
             self.dialog.run_batch()
             mock_thread.assert_called_once()

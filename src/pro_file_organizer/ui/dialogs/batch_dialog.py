@@ -1,17 +1,26 @@
 import json
 import threading
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QFrame,
-    QLabel, QScrollArea, QProgressBar, QFileDialog, QWidget,
-    QMessageBox, QCheckBox
+    QCheckBox,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
-from ..themes.themes import COLORS, RADII, get_font_style
+from ..themes.themes import COLORS, RADII
 
 
 class BatchSignals(QObject):
@@ -28,12 +37,12 @@ class BatchDialog(QDialog):
         self.organizer = organizer
         self.on_complete_callback = on_complete_callback
 
-        self.batch_folders = []
+        self.batch_folders: list[dict] = []
         self._load_batch_config()
 
         self.signals = BatchSignals()
         self._setup_ui()
-        
+
         self.signals.status_updated.connect(self._update_row_status)
         self.signals.progress_updated.connect(self.progress.setValue)
         self.signals.finished.connect(self._on_batch_finished)
@@ -93,13 +102,13 @@ class BatchDialog(QDialog):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
-        
+
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setContentsMargins(5, 5, 5, 5)
         self.list_layout.setSpacing(2)
         self.list_layout.addStretch()
-        
+
         self.scroll_area.setWidget(self.list_container)
         layout.addWidget(self.scroll_area)
 
@@ -217,7 +226,7 @@ class BatchDialog(QDialog):
             self._refresh_list()
 
     def clear_all(self):
-        res = QMessageBox.question(self, "Confirm", "Clear all folders from batch list?", 
+        res = QMessageBox.question(self, "Confirm", "Clear all folders from batch list?",
                                  QMessageBox.Yes | QMessageBox.No)
         if res == QMessageBox.Yes:
             self.batch_folders = []
@@ -272,7 +281,7 @@ class BatchDialog(QDialog):
         btn_save.clicked.connect(save)
         d_layout.addStretch()
         d_layout.addWidget(btn_save)
-        
+
         d.exec()
 
     def run_batch(self):
@@ -288,7 +297,7 @@ class BatchDialog(QDialog):
         self.btn_run.setEnabled(False)
         self.btn_add.setEnabled(False)
         self.btn_clear.setEnabled(False)
-        
+
         threading.Thread(target=self._process_batch, daemon=True).start()
 
     def _process_batch(self):

@@ -52,7 +52,7 @@ class TestMainWindow(unittest.TestCase):
         mock_widget = MagicMock()
         mock_item.widget.return_value = mock_widget
         self.app.results_layout.takeAt.return_value = mock_item
-        
+
         self.app.clear_results()
         # Should be called count-1 times
         self.assertEqual(self.app.results_layout.takeAt.call_count, 2)

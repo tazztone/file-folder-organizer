@@ -2,14 +2,27 @@ import os
 import sys
 from typing import List, Optional
 
-from PySide6.QtCore import Qt, QTimer, Signal, QSize, QPoint, QPropertyAnimation, QEasingCurve, Property
+from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QColor, QDragEnterEvent, QDropEvent, QPainter, QPalette, QPen
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QFrame, QLabel, QPushButton, QCheckBox, QComboBox, QSlider, 
-    QProgressBar, QScrollArea, QFileDialog, QMessageBox, QGridLayout,
-    QAbstractButton
+    QAbstractButton,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QPainter, QPen, QColor, QDragEnterEvent, QDropEvent, QIcon, QPalette, QBrush
 
 from ..core.ml_organizer import MultimodalFileOrganizer
 from ..core.organizer import FileOrganizer
@@ -17,7 +30,7 @@ from .components.ui_components import FileCard, ModelDownloadModal
 from .dialogs.batch_dialog import BatchDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .main_window_controller import MainWindowController
-from .themes.themes import COLORS, FONTS, RADII, build_stylesheet, LIGHT_COLORS, DARK_COLORS, get_font_style
+from .themes.themes import COLORS, DARK_COLORS, LIGHT_COLORS, RADII, build_stylesheet, get_font_style
 
 
 class ToggleSwitch(QAbstractButton):
@@ -40,14 +53,14 @@ class ToggleSwitch(QAbstractButton):
 
         self.setFixedSize(self._base_width, self._base_height)
 
-    @Property(float)
-    def thumb_pos(self):
+    def get_thumb_pos(self):
         return self._thumb_pos
 
-    @thumb_pos.setter
-    def thumb_pos(self, pos):
+    def set_thumb_pos(self, pos):
         self._thumb_pos = pos
         self.update()
+
+    thumb_pos = Property(float, get_thumb_pos, set_thumb_pos)
 
     def sizeHint(self):
         return QSize(self._base_width, self._base_height)
@@ -64,7 +77,9 @@ class ToggleSwitch(QAbstractButton):
 
         # Draw thumb
         painter.setBrush(QBrush(Qt.white))
-        painter.drawEllipse(self._thumb_pos, self._margin, self.height() - 2 * self._margin, self.height() - 2 * self._margin)
+        painter.drawEllipse(
+            self._thumb_pos, self._margin, self.height() - 2 * self._margin, self.height() - 2 * self._margin
+        )
 
     def nextCheckState(self):
         super().nextCheckState()
@@ -87,23 +102,23 @@ class DropZoneWidget(QFrame):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.hovered = False
         self.setObjectName("drop_zone")
         self.setFixedHeight(160)
         self.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_icon = QLabel("📤")
         self.lbl_icon.setStyleSheet("font-size: 48px; background: transparent;")
-        self.lbl_icon.setAlignment(Qt.AlignCenter)
+        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_icon)
 
         self.lbl_text = QLabel("Drag & Drop Folder Here")
         self.lbl_text.setStyleSheet(f"{get_font_style('subtitle')} background: transparent;")
-        self.lbl_text.setAlignment(Qt.AlignCenter)
+        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_text)
 
         self.actions_layout = QHBoxLayout()
@@ -114,13 +129,13 @@ class DropZoneWidget(QFrame):
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        
+
         color = COLORS["accent"] if self.hovered else COLORS["border"]
         pen = QPen(QColor(color))
         pen.setWidth(2)
         pen.setStyle(Qt.DashLine)
         pen.setDashPattern([10, 5])
-        
+
         painter.setPen(pen)
         painter.drawRoundedRect(self.rect().adjusted(5, 5, -5, -5), RADII["standard"], RADII["standard"])
 
@@ -159,30 +174,32 @@ class OrganizerApp(QMainWindow):
 
         self.organizer = FileOrganizer()
         self.ml_organizer = MultimodalFileOrganizer()
-        
+
         # Apply theme before UI setup
         theme_mode = self.organizer.get_theme_mode() or "Dark"
         self._apply_theme(theme_mode)
 
         self._setup_ui()
-        
+
         self.controller = MainWindowController(self, self.organizer, self.ml_organizer)
 
         # Load initial state into UI
         self.update_recent_menu(self.controller.recent_folders)
         self.update_stats_display(self.controller.stats)
-        
+
         if theme_mode and hasattr(self, "appearance_mode_menu"):
             self.appearance_mode_menu.setCurrentText(theme_mode)
 
     def _apply_theme(self, mode: str):
         if mode == "System":
-            is_dark = QApplication.palette().color(QPalette.Window).lightness() < 128
+            is_dark = QApplication.palette().color(QPalette.ColorRole.Window).lightness() < 128
             colors = DARK_COLORS if is_dark else LIGHT_COLORS
         else:
             colors = LIGHT_COLORS if mode == "Light" else DARK_COLORS
-        
-        QApplication.instance().setStyleSheet(build_stylesheet(colors))
+
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            app.setStyleSheet(build_stylesheet(colors))
 
     def _setup_ui(self):
         central_widget = QWidget()
@@ -203,11 +220,11 @@ class OrganizerApp(QMainWindow):
         # Logo Area
         logo_layout = QHBoxLayout()
         sidebar_layout.addLayout(logo_layout)
-        
+
         lbl_logo_icon = QLabel("📁")
         lbl_logo_icon.setStyleSheet("font-size: 24px;")
         logo_layout.addWidget(lbl_logo_icon)
-        
+
         lbl_logo_text = QLabel("PRO ORGANIZER")
         lbl_logo_text.setStyleSheet(get_font_style("title"))
         logo_layout.addWidget(lbl_logo_text)
@@ -218,13 +235,13 @@ class OrganizerApp(QMainWindow):
         # AI Toggle
         ai_layout = QHBoxLayout()
         sidebar_layout.addLayout(ai_layout)
-        
+
         self.lbl_ai = QLabel("✨ Smart AI")
         self.lbl_ai.setStyleSheet(get_font_style("label"))
         ai_layout.addWidget(self.lbl_ai)
-        
+
         ai_layout.addStretch()
-        
+
         self.switch_ai = ToggleSwitch()
         self.switch_ai.clicked.connect(lambda: self.controller.toggle_ai(self.switch_ai.isChecked()))
         ai_layout.addWidget(self.switch_ai)
@@ -245,12 +262,12 @@ class OrganizerApp(QMainWindow):
         # Stats Bar
         self.stats_container = QVBoxLayout()
         sidebar_layout.addLayout(self.stats_container)
-        
+
         self.lbl_stats_total = QLabel("Files: 0")
         self.lbl_stats_total.setObjectName("dimmed")
         self.lbl_stats_total.setStyleSheet(get_font_style("small"))
         self.stats_container.addWidget(self.lbl_stats_total)
-        
+
         self.lbl_stats_last = QLabel("Last: Never")
         self.lbl_stats_last.setObjectName("dimmed")
         self.lbl_stats_last.setStyleSheet(get_font_style("small"))
@@ -283,7 +300,7 @@ class OrganizerApp(QMainWindow):
         self.btn_browse.clicked.connect(self.browse_folder)
         self.drop_zone.actions_layout.addStretch()
         self.drop_zone.actions_layout.addWidget(self.btn_browse)
-        
+
         self.option_recent = QComboBox()
         self.option_recent.setFixedWidth(160)
         self.option_recent.addItem("Recent...")
@@ -351,14 +368,16 @@ class OrganizerApp(QMainWindow):
         self.results_scroll = QScrollArea()
         self.results_scroll.setWidgetResizable(True)
         self.results_scroll.setObjectName("card")
-        self.results_scroll.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
-        
+        self.results_scroll.setStyleSheet(
+            f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;"
+        )
+
         self.results_container = QWidget()
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(10, 10, 10, 10)
         self.results_layout.setSpacing(5)
         self.results_layout.addStretch()
-        
+
         self.results_scroll.setWidget(self.results_container)
         main_area_layout.addWidget(self.results_scroll, 1)
 

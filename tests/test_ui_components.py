@@ -81,7 +81,7 @@ class TestUIComponents(unittest.TestCase):
         modal.reject()
         on_complete.assert_not_called() # reject doesn't call on_complete(False) in my new impl, it's just destroy
         # Actually I should check my impl of on_download_finished
-        
+
         # Start
         with patch("threading.Thread"):
             modal.start_download()

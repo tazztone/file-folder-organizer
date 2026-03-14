@@ -5,14 +5,20 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
-    QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, 
-    QDialog, QProgressBar, QTextEdit, QPushButton, QFileDialog
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QFont, QColor
 
-from ..themes.themes import COLORS, FONTS, RADII, get_font_style
+from ..themes.themes import COLORS, RADII, get_font_style
 
 
 class FileCard(QFrame):
@@ -23,15 +29,15 @@ class FileCard(QFrame):
     def __init__(self, event_data: dict, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setObjectName("card")
-        self.event = event_data
+        self.event_data = event_data
 
         # Initial state (dimmed)
         self.executed = False
 
         # Layout
-        self.layout = QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 10, 0)
-        self.layout.setSpacing(10)
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 10, 0)
+        self.main_layout.setSpacing(10)
 
         # Left Accent Stripe & Badge Logic
         method = event_data.get("method", "extension")
@@ -56,13 +62,13 @@ class FileCard(QFrame):
         self.stripe = QFrame(self)
         self.stripe.setFixedWidth(4)
         self.stripe.setStyleSheet(f"background-color: {accent_color}; border-radius: 0px;")
-        self.layout.addWidget(self.stripe)
+        self.main_layout.addWidget(self.stripe)
 
         # Content Layout
         self.content_layout = QVBoxLayout()
         self.content_layout.setContentsMargins(0, 5, 0, 5)
         self.content_layout.setSpacing(2)
-        self.layout.addLayout(self.content_layout, 1)
+        self.main_layout.addLayout(self.content_layout, 1)
 
         # Filename
         filename = event_data.get("file", "Unknown")
@@ -96,14 +102,14 @@ class FileCard(QFrame):
         # Badge
         self.lbl_badge = QLabel(badge_text)
         self.lbl_badge.setFixedSize(65, 22)
-        self.lbl_badge.setAlignment(Qt.AlignCenter)
+        self.lbl_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_badge.setStyleSheet(f"""
             background-color: {accent_color};
             color: white;
             border-radius: {RADII['badge']}px;
             {get_font_style('small')}
         """)
-        self.layout.addWidget(self.lbl_badge)
+        self.main_layout.addWidget(self.lbl_badge)
 
         self.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['card']}px;")
         self._apply_appearance()
@@ -147,10 +153,10 @@ class ModelDownloadModal(QDialog):
         self.setFixedSize(500, 450)
         self.on_complete = on_complete
         self.download_started = False
-        
+
         self.signals = DownloadSignals()
         self._setup_ui()
-        
+
         self.signals.log_emitted.connect(self._append_log)
         self.signals.progress_updated.connect(self.progress_bar.setValue)
         self.signals.finished.connect(self._on_download_finished)
@@ -169,7 +175,7 @@ class ModelDownloadModal(QDialog):
 
         # Title
         self.lbl_title = QLabel("Download AI Models")
-        self.lbl_title.setAlignment(Qt.AlignCenter)
+        self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_title.setStyleSheet(get_font_style("subtitle"))
         frame_layout.addWidget(self.lbl_title)
 
@@ -179,7 +185,7 @@ class ModelDownloadModal(QDialog):
             "This involves a ~3GB one-time download."
         )
         self.lbl_desc = QLabel(desc_text)
-        self.lbl_desc.setAlignment(Qt.AlignCenter)
+        self.lbl_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_desc.setWordWrap(True)
         self.lbl_desc.setStyleSheet(get_font_style("main"))
         frame_layout.addWidget(self.lbl_desc)
@@ -230,24 +236,24 @@ class ModelDownloadModal(QDialog):
         if free_space_gb < 4:
             self.lbl_warn = QLabel("⚠️ Low Disk Space")
             self.lbl_warn.setStyleSheet(f"color: {COLORS['danger']}; {get_font_style('small')}")
-            self.lbl_warn.setAlignment(Qt.AlignCenter)
+            self.lbl_warn.setAlignment(Qt.AlignmentFlag.AlignCenter)
             frame_layout.addWidget(self.lbl_warn)
 
     def _add_detail_row(self, layout, label, value, value_color=None):
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 2, 0, 2)
-        
+
         lbl = QLabel(label)
         lbl.setStyleSheet("font-weight: bold;")
         lbl.setFixedWidth(120)
         row_layout.addWidget(lbl)
-        
+
         val = QLabel(value)
         if value_color:
             val.setStyleSheet(f"color: {value_color};")
         row_layout.addWidget(val)
-        
+
         layout.addWidget(row)
 
     def _get_free_space_gb(self):

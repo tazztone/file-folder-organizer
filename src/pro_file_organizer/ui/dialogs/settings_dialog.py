@@ -1,13 +1,23 @@
-from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTabWidget,
-    QWidget, QFrame, QLabel, QTextEdit, QScrollArea, QSlider,
-    QMessageBox, QFileDialog, QInputDialog, QLineEdit
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
-from ..themes.themes import COLORS, RADII, get_font_style
+from ..themes.themes import COLORS, RADII
 
 
 class SettingsDialog(QDialog):
@@ -17,7 +27,7 @@ class SettingsDialog(QDialog):
         self.resize(700, 550)
         self.organizer = organizer
         self.last_selected_cat = None
-        self.cat_buttons = {}  # Map category name to button widget
+        self.cat_buttons: dict[str, QPushButton] = {}  # Map category name to button widget
         self.selected_cat_btn = None
 
         self._setup_ui()
@@ -55,13 +65,13 @@ class SettingsDialog(QDialog):
         self.scroll_list.setFixedWidth(200)
         self.scroll_list.setWidgetResizable(True)
         self.scroll_list.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['card']}px;")
-        
+
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setContentsMargins(5, 5, 5, 5)
         self.list_layout.setSpacing(2)
         self.list_layout.addStretch()
-        
+
         self.scroll_list.setWidget(self.list_container)
         tab_layout.addWidget(self.scroll_list)
 
@@ -113,13 +123,13 @@ class SettingsDialog(QDialog):
         tab_layout.addWidget(QLabel("AI Confidence Threshold (0.0 - 1.0):"))
         ml_layout = QHBoxLayout()
         tab_layout.addLayout(ml_layout)
-        
+
         self.slider_ml = QSlider(Qt.Horizontal)
         self.slider_ml.setRange(0, 100)
         current_threshold = getattr(self.organizer, "ml_confidence", 0.3)
         self.slider_ml.setValue(int(current_threshold * 100))
         ml_layout.addWidget(self.slider_ml)
-        
+
         self.lbl_ml_val = QLabel(f"{current_threshold:.2f}")
         ml_layout.addWidget(self.lbl_ml_val)
         self.slider_ml.valueChanged.connect(lambda v: self.lbl_ml_val.setText(f"{v/100:.2f}"))
@@ -128,13 +138,13 @@ class SettingsDialog(QDialog):
         tab_layout.addWidget(QLabel("Max Undo Stack Size:"))
         undo_layout = QHBoxLayout()
         tab_layout.addLayout(undo_layout)
-        
+
         self.slider_undo = QSlider(Qt.Horizontal)
         self.slider_undo.setRange(1, 50)
         current_undo = getattr(self.organizer, "max_undo_stack", 5)
         self.slider_undo.setValue(int(current_undo))
         undo_layout.addWidget(self.slider_undo)
-        
+
         self.lbl_undo_val = QLabel(str(int(current_undo)))
         undo_layout.addWidget(self.lbl_undo_val)
         self.slider_undo.valueChanged.connect(lambda v: self.lbl_undo_val.setText(str(v)))
@@ -226,7 +236,7 @@ class SettingsDialog(QDialog):
             return
 
         cat = self.last_selected_cat
-        res = QMessageBox.question(self, "Confirm", f"Delete category '{cat}'?", 
+        res = QMessageBox.question(self, "Confirm", f"Delete category '{cat}'?",
                                  QMessageBox.Yes | QMessageBox.No)
         if res == QMessageBox.Yes:
             del self.organizer.directories[cat]

@@ -69,13 +69,16 @@ class MockBase(object):
 
     def __getattr__(self, name):
         # Fallback for signals like stateChanged, etc.
-        if name in ["stateChanged", "clicked", "currentTextChanged", "valueChanged", "dropped", "finished", "status_updated", "progress_updated", "log_emitted"]:
+        if name in [
+            "stateChanged", "clicked", "currentTextChanged", "valueChanged",
+            "dropped", "finished", "status_updated", "progress_updated", "log_emitted"
+        ]:
             sig = MagicMock()
             sig.connect = MagicMock()
             sig.emit = MagicMock()
             setattr(self, name, sig)
             return sig
-        
+
         # Auto-mock layout/widget helper methods
         if name.startswith("add") or name.startswith("set") or name.startswith("insert"):
             m = MagicMock()
@@ -91,15 +94,23 @@ class MockModule(object):
 
 def get_pyside_mocks():
     mock_qtwidgets = MockModule()
-    mock_qtwidgets.QApplication = MagicMock()
+
+    class MockQApplication(MockBase):
+        @staticmethod
+        def instance():
+            return mock_app_instance
+
+        @staticmethod
+        def palette():
+            return mock_palette
+
     mock_app_instance = MockBase()
-    # Mock palette().color().lightness() < 128
     mock_palette = MagicMock()
     mock_color = MagicMock()
-    mock_color.lightness.return_value = 100 # Dark by default
+    mock_color.lightness.return_value = 100  # Dark by default
     mock_palette.color.return_value = mock_color
-    mock_qtwidgets.QApplication.palette.return_value = mock_palette
-    mock_qtwidgets.QApplication.instance = MagicMock(return_value=mock_app_instance)
+
+    mock_qtwidgets.QApplication = MockQApplication
     mock_qtwidgets.QMainWindow = MockBase
     mock_qtwidgets.QWidget = MockBase
     mock_qtwidgets.QFrame = MockBase
@@ -108,7 +119,7 @@ def get_pyside_mocks():
     mock_qtwidgets.QGridLayout = MockBase
     mock_qtwidgets.QGridLayout.Policy = MockModule()
     mock_qtwidgets.QGridLayout.Policy.Fixed = 1
-    
+
     def mock_qlabel(text="", parent=None):
         m = MockBase(parent)
         m.text.return_value = text
@@ -142,6 +153,11 @@ def get_pyside_mocks():
 
     mock_qtcore = MockModule()
     mock_qtcore.Qt = MockModule()
+    mock_qtcore.Qt.AlignmentFlag = MockModule()
+    mock_qtcore.Qt.AlignmentFlag.AlignCenter = 1
+    mock_qtcore.Qt.CursorShape = MockModule()
+    mock_qtcore.Qt.CursorShape.PointingHandCursor = 1
+
     mock_qtcore.Qt.AlignCenter = 1
     mock_qtcore.Qt.Horizontal = 1
     mock_qtcore.Qt.Checked = 2
@@ -169,6 +185,8 @@ def get_pyside_mocks():
     mock_qtgui.QDragEnterEvent = MagicMock()
     mock_qtgui.QDropEvent = MagicMock()
     mock_qtgui.QPalette = MockModule()
+    mock_qtgui.QPalette.ColorRole = MockModule()
+    mock_qtgui.QPalette.ColorRole.Window = 1
     mock_qtgui.QPalette.Window = 1
     mock_qtgui.QBrush = MagicMock
 

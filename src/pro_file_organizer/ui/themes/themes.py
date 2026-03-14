@@ -3,7 +3,7 @@ Centralized UI constants for Pro File Organizer.
 Adapts to PySide6 with QSS support.
 """
 
-from typing import Dict, Tuple
+from typing import Dict
 
 # Palette Definitions
 LIGHT_COLORS = {

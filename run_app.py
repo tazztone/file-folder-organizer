@@ -1,6 +1,8 @@
 import argparse
 import sys
+
 from PySide6.QtWidgets import QApplication
+
 from pro_file_organizer.ui.main_window import OrganizerApp
 
 if __name__ == "__main__":
