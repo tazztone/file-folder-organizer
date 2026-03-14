@@ -24,6 +24,9 @@ class MockBase(object):
         self.winfo_toplevel = MagicMock(return_value=self)
         self.lift = MagicMock()
         self.focus_force = MagicMock()
+        # select/deselect should be mocked only if they don't exist
+        if not hasattr(self, 'select'): self.select = MagicMock()
+        if not hasattr(self, 'deselect'): self.deselect = MagicMock()
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -41,60 +44,136 @@ class MockBase(object):
         if func and callable(func):
             func()
 
-    def grid_columnconfigure(self, *args, **kwargs): pass
-    def grid_rowconfigure(self, *args, **kwargs): pass
-    def pack_propagate(self, *args): pass
-    def grid_propagate(self, *args): pass
-    def bind(self, *args, **kwargs): pass
-    def unbind(self, *args, **kwargs): pass
-    def winfo_rootx(self): return 0
-    def winfo_rooty(self): return 0
-    def winfo_height(self): return 100
-    def winfo_width(self): return 100
-    def winfo_x(self): return 0
-    def winfo_y(self): return 0
-    def update_idletasks(self): pass
-    def update(self): pass
-    def see(self, *args, **kwargs): pass
-    def add(self, *args, **kwargs): return self
-    def tab(self, *args, **kwargs): return self
-    def select(self, *args, **kwargs): pass
-    def create_rectangle(self, *args, **kwargs): return 1
-    def create_text(self, *args, **kwargs): return 1
-    def itemconfig(self, *args, **kwargs): pass
-    def coords(self, *args, **kwargs): pass
-    def delete(self, *args, **kwargs): pass
+    def grid_columnconfigure(self, *args, **kwargs):
+        pass
+
+    def grid_rowconfigure(self, *args, **kwargs):
+        pass
+
+    def pack_propagate(self, *args):
+        pass
+
+    def grid_propagate(self, *args):
+        pass
+
+    def bind(self, *args, **kwargs):
+        pass
+
+    def unbind(self, *args, **kwargs):
+        pass
+
+    def winfo_rootx(self):
+        return 0
+
+    def winfo_rooty(self):
+        return 0
+
+    def winfo_height(self):
+        return 100
+
+    def winfo_width(self):
+        return 100
+
+    def winfo_x(self):
+        return 0
+
+    def winfo_y(self):
+        return 0
+
+    def update_idletasks(self):
+        pass
+
+    def update(self):
+        pass
+
+    def see(self, *args, **kwargs):
+        pass
+
+    def add(self, *args, **kwargs):
+        return self
+
+    def tab(self, *args, **kwargs):
+        return self
+
+    def create_rectangle(self, *args, **kwargs):
+        return 1
+
+    def create_text(self, *args, **kwargs):
+        return 1
+
+    def itemconfig(self, *args, **kwargs):
+        pass
+
+    def coords(self, *args, **kwargs):
+        pass
+
+    def delete(self, *args, **kwargs):
+        pass
+
 
 class MockCTk(MockBase):
-    def title(self, *args): pass
-    def geometry(self, *args): pass
-    def withdraw(self): pass
-    def deiconify(self): pass
-    def mainloop(self): pass
-    def quit(self): pass
-    def resizable(self, *args): pass
+    def title(self, *args):
+        pass
+
+    def geometry(self, *args):
+        pass
+
+    def withdraw(self):
+        pass
+
+    def deiconify(self):
+        pass
+
+    def mainloop(self):
+        pass
+
+    def quit(self):
+        pass
+
+    def resizable(self, *args):
+        pass
+
 
 class MockCTkToplevel(MockCTk):
     def __init__(self, master=None, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.master = master
-    def transient(self, *args): pass
-    def grab_set(self): pass
-    def lift(self): pass
-    def focus_force(self): pass
+
+    def transient(self, *args):
+        pass
+
+    def grab_set(self):
+        pass
+
+    def lift(self):
+        pass
+
+    def focus_force(self):
+        pass
+
 
 class MockDnDWrapper(object):
-    def drop_target_register(self, *args): pass
-    def dnd_bind(self, *args): pass
+    def drop_target_register(self, *args):
+        pass
+
+    def dnd_bind(self, *args):
+        pass
+
 
 class MockModule(object):
     pass
 
+
 class MockVar(object):
     def __init__(self, master=None, value=None, name=None):
         self._value = value
-    def get(self): return self._value
-    def set(self, value): self._value = value
+
+    def get(self):
+        return self._value
+
+    def set(self, value):
+        self._value = value
+
 
 def get_ui_mocks():
     mock_ctk = MockModule()
@@ -105,19 +184,13 @@ def get_ui_mocks():
     mock_ctk.CTkLabel = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkButton = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkSwitch = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkOptionMenu = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkCheckBox = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkSlider = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkProgressBar = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkCanvas = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkOptionMenu = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkCheckBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkSlider = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkProgressBar = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkCanvas = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkTextbox = MockBase
-    mock_ctk.CTkTabview = MagicMock(
-        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkTabview = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.BooleanVar = MockVar
     mock_ctk.StringVar = MockVar
     mock_ctk.set_appearance_mode = MagicMock()

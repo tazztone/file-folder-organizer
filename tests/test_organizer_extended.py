@@ -65,7 +65,7 @@ class TestOrganizerExtended(unittest.TestCase):
         f = self.tmp_dir / "old.txt"
         f.touch()
         mock_log = MagicMock()
-        with patch.object(Path, 'stat') as mock_stat:
+        with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_mtime = 1600000000
             self.organizer.organize_files(OrganizationOptions(self.tmp_dir, date_sort=True, log_callback=mock_log))
             # Verify logging was called
@@ -74,7 +74,7 @@ class TestOrganizerExtended(unittest.TestCase):
     def test_organize_files_rollback_on_error(self):
         f = self.tmp_dir / "test.txt"
         f.touch()
-        with patch('shutil.move', side_effect=Exception("Move Failed")):
+        with patch("shutil.move", side_effect=Exception("Move Failed")):
             result = self.organizer.organize_files(OrganizationOptions(self.tmp_dir, rollback_on_error=True))
             self.assertTrue(result.get("rolled_back", False))
 
@@ -93,7 +93,9 @@ class TestOrganizerExtended(unittest.TestCase):
         f = self.tmp_dir / "test.txt"
         f.touch()
         # Mock load_models to fail
-        with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer.load_models', side_effect=Exception("ML Fail")):
+        with patch(
+            "pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer.load_models", side_effect=Exception("ML Fail")
+        ):
             mock_log = MagicMock()
             self.organizer.organize_files(OrganizationOptions(self.tmp_dir, use_ml=True, log_callback=mock_log))
             # Should have logged the failure
@@ -116,5 +118,6 @@ class TestOrganizerExtended(unittest.TestCase):
         self.organizer.save_theme_mode("Dark")
         self.assertEqual(self.organizer.get_theme_mode(), "Dark")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

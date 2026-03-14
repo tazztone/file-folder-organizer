@@ -7,8 +7,8 @@ from tests.ui_test_utils import get_ui_mocks
 
 # Apply standardized mocks
 mock_ctk, mock_dnd = get_ui_mocks()
-sys.modules['customtkinter'] = mock_ctk
-sys.modules['tkinterdnd2'] = mock_dnd
+sys.modules["customtkinter"] = mock_ctk
+sys.modules["tkinterdnd2"] = mock_dnd
 
 # Reload main_window
 import pro_file_organizer.ui.main_window  # noqa: E402
@@ -20,13 +20,13 @@ from pro_file_organizer.ui.main_window import OrganizerApp  # noqa: E402
 class TestMainWindow(unittest.TestCase):
     def setUp(self):
         self.patchers = [
-            patch('pro_file_organizer.ui.main_window.FileOrganizer'),
-            patch('pro_file_organizer.ui.main_window.MultimodalFileOrganizer'),
-            patch('pro_file_organizer.ui.main_window.MainWindowController'),
-            patch('pro_file_organizer.ui.main_window.SettingsDialog'),
-            patch('pro_file_organizer.ui.main_window.BatchDialog'),
-            patch('pro_file_organizer.ui.main_window.messagebox'),
-            patch('pro_file_organizer.ui.main_window.filedialog')
+            patch("pro_file_organizer.ui.main_window.FileOrganizer"),
+            patch("pro_file_organizer.ui.main_window.MultimodalFileOrganizer"),
+            patch("pro_file_organizer.ui.main_window.MainWindowController"),
+            patch("pro_file_organizer.ui.main_window.SettingsDialog"),
+            patch("pro_file_organizer.ui.main_window.BatchDialog"),
+            patch("pro_file_organizer.ui.main_window.messagebox"),
+            patch("pro_file_organizer.ui.main_window.filedialog"),
         ]
         self.mocks = [p.start() for p in self.patchers]
         self.app = OrganizerApp()
@@ -82,7 +82,7 @@ class TestMainWindow(unittest.TestCase):
         self.app.controller.open_batch.assert_called()
 
     def test_change_appearance(self):
-        with patch('pro_file_organizer.ui.main_window.ctk.set_appearance_mode') as mock_set:
+        with patch("pro_file_organizer.ui.main_window.ctk.set_appearance_mode") as mock_set:
             self.app.change_appearance_mode_event("Dark")
             mock_set.assert_called_with("Dark")
             self.app.organizer.save_theme_mode.assert_called_with("Dark")
@@ -98,5 +98,79 @@ class TestMainWindow(unittest.TestCase):
         self.app.on_drop(event)
         self.app.controller.set_folder.assert_called_with("/tmp/spaced path")
 
-if __name__ == '__main__':
+    def test_show_error(self):
+        self.app.show_error("Title", "Message")
+        self.mocks[5].showerror.assert_called_with("Title", "Message")
+
+    def test_show_info(self):
+        self.app.show_info("Title", "Message")
+        self.mocks[5].showinfo.assert_called_with("Title", "Message")
+
+    def test_confirm_action(self):
+        self.app.confirm_action("Title", "Message")
+        self.mocks[5].askyesno.assert_called_with("Title", "Message")
+
+    def test_update_stats_display(self):
+        stats = {"total_files": 100, "last_run": "Today"}
+        self.app.update_stats_display(stats)
+        self.assertEqual(self.app.lbl_stats_total.cget("text"), "Files Organized: 100")
+        self.assertEqual(self.app.lbl_stats_last.cget("text"), "Last Run: Today")
+
+    def test_show_model_download(self):
+        with patch("pro_file_organizer.ui.main_window.ModelDownloadModal") as mock_modal:
+            callback = MagicMock()
+            self.app.show_model_download(callback)
+            mock_modal.assert_called_with(self.app, on_complete=callback)
+
+    def test_show_settings(self):
+        with patch("pro_file_organizer.ui.main_window.SettingsDialog") as mock_dialog:
+            self.app.show_settings(self.app.organizer)
+            mock_dialog.assert_called_with(self.app, self.app.organizer)
+
+    def test_show_batch(self):
+        with patch("pro_file_organizer.ui.main_window.BatchDialog") as mock_dialog:
+            self.app.show_batch(self.app.organizer)
+            mock_dialog.assert_called_with(self.app, self.app.organizer)
+
+    def test_set_ai_switch_state(self):
+        self.app.set_ai_switch_state(True)
+        self.app.switch_ai.select.assert_called()
+        self.app.set_ai_switch_state(False)
+        self.app.switch_ai.deselect.assert_called()
+
+    def test_set_watch_switch_state(self):
+        self.app.set_watch_switch_state(True)
+        self.app.chk_watch.select.assert_called()
+        self.app.set_watch_switch_state(False)
+        self.app.chk_watch.deselect.assert_called()
+
+    def test_getters(self):
+        self.app.slider_conf.get.return_value = 0.5
+        self.assertEqual(self.app.get_ai_confidence(), 0.5)
+
+        self.app.var_recursive.set(True)
+        self.assertEqual(self.app.get_recursive_val(), True)
+
+        self.app.var_date_sort.set(False)
+        self.assertEqual(self.app.get_date_sort_val(), False)
+
+        self.app.var_del_empty.set(True)
+        self.assertEqual(self.app.get_del_empty_val(), True)
+
+        self.app.var_detect_duplicates.set(False)
+        self.assertEqual(self.app.get_detect_duplicates_val(), False)
+
+    def test_add_result_card(self):
+        with patch("pro_file_organizer.ui.main_window.FileCard") as mock_card:
+            data = {"file": "test.txt", "category": "Docs"}
+            self.app.add_result_card(data)
+            self.assertEqual(len(self.app.result_cards), 1)
+            mock_card.assert_called()
+
+    def test_update_results_header(self):
+        self.app.update_results_header("New Header")
+        self.app.scroll_results.configure.assert_called_with(label_text="New Header")
+
+
+if __name__ == "__main__":
     unittest.main()

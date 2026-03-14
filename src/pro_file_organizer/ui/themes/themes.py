@@ -9,7 +9,7 @@ COLORS = {
     "bg_main": ("#F5F6F8", "#1A1B1E"),
     "bg_sidebar": ("#EAEBED", "#111214"),
     "bg_card": ("#FFFFFF", "#25262B"),
-    "bg_hover": ("#EBF5FF", "#1C2C3E"), # Subtle blue tint for hover
+    "bg_hover": ("#EBF5FF", "#1C2C3E"),  # Subtle blue tint for hover
     "text_main": ("#1A1B1E", "#C1C2C5"),
     "text_dimmed": ("#909296", "#5C5F66"),
     "success": ("#2DCC70", "#2DCC70"),
@@ -35,6 +35,7 @@ RADII = {
     "card": 10,
     "badge": 6,
 }
+
 
 def get_font(key):
     """Fallback font handling if Inter is not available."""

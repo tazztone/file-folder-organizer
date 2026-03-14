@@ -1,8 +1,10 @@
 import os
+
 try:
     from tkinter import filedialog, messagebox
 except ImportError:
     import tkinter.messagebox as messagebox
+
     filedialog = None  # type: ignore
 
 import customtkinter as ctk
@@ -10,15 +12,21 @@ import customtkinter as ctk
 try:
     import tkinterdnd2
     from tkinterdnd2 import DND_FILES, TkinterDnD
-    if hasattr(tkinterdnd2, 'DnDWrapper'):
+
+    if hasattr(tkinterdnd2, "DnDWrapper"):
         DnDWrapper = tkinterdnd2.DnDWrapper  # type: ignore
     else:
         DnDWrapper = TkinterDnD.DnDWrapper  # type: ignore
 except (ImportError, AttributeError):
+
     class DnDWrapper:  # type: ignore
-        def drop_target_register(self, *args): pass
-        def dnd_bind(self, *args): pass
-    DND_FILES = 'DND_Files'
+        def drop_target_register(self, *args):
+            pass
+
+        def dnd_bind(self, *args):
+            pass
+
+    DND_FILES = "DND_Files"
 
 from ..core.ml_organizer import MultimodalFileOrganizer
 from ..core.organizer import FileOrganizer
@@ -30,31 +38,31 @@ from .themes.themes import COLORS, FONTS, RADII
 
 # Set default appearance
 ctk.set_appearance_mode("System")
-ctk.set_default_color_theme("blue") # Keep blue as base for standard components
+ctk.set_default_color_theme("blue")  # Keep blue as base for standard components
 
-class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
+
+class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
     def __init__(self):
         super().__init__()
         # DnD Setup
-        if 'tkinterdnd2' in globals():
-             try:
-                 tkinterdnd2.TkinterDnD._require(self) # type: ignore
-             except Exception:
-                 pass
+        if "tkinterdnd2" in globals():
+            try:
+                tkinterdnd2.TkinterDnD._require(self)  # type: ignore
+            except Exception:
+                pass
 
         self.title("Pro File Organizer")
-        self.geometry("1100x750") # Slightly larger default
+        self.geometry("1100x750")  # Slightly larger default
         self.configure(fg_color=COLORS["bg_main"])
-
-        self.organizer = FileOrganizer()
-        self.ml_organizer = MultimodalFileOrganizer()
-
-        self.controller = MainWindowController(self, self.organizer, self.ml_organizer)
 
         # Track results for state updates
         self.result_cards = []
 
         self._setup_ui()
+
+        self.organizer = FileOrganizer()
+        self.ml_organizer = MultimodalFileOrganizer()
+        self.controller = MainWindowController(self, self.organizer, self.ml_organizer)
 
         # Load initial state into UI
         self.update_recent_menu(self.controller.recent_folders)
@@ -63,7 +71,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         theme = self.organizer.get_theme_mode()
         if theme:
             ctk.set_appearance_mode(theme)
-            if hasattr(self, 'appearance_mode_menu'):
+            if hasattr(self, "appearance_mode_menu"):
                 self.appearance_mode_menu.set(theme)
 
     def _setup_ui(self):
@@ -73,7 +81,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         # --- Sidebar ---
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=COLORS["bg_sidebar"])
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(5, weight=1) # Push footer down
+        self.sidebar.grid_rowconfigure(5, weight=1)  # Push footer down
 
         # Logo Area
         self.logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -93,24 +101,36 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.lbl_ai.pack(side="left", padx=10)
 
         self.switch_ai = ctk.CTkSwitch(
-            self.frame_ai_toggle, text="",
+            self.frame_ai_toggle,
+            text="",
             command=lambda: self.controller.toggle_ai(self.switch_ai.get() == 1),
-            width=40, progress_color=COLORS["accent"]
+            width=40,
+            progress_color=COLORS["accent"],
         )
         self.switch_ai.pack(side="right", padx=5)
 
         # Main Buttons
         self.btn_batch = ctk.CTkButton(
-            self.sidebar, text="Batch Mode", command=self.open_batch,
-            fg_color="transparent", border_width=2, border_color=COLORS["accent"],
-            hover_color=COLORS["bg_hover"], corner_radius=RADII["standard"]
+            self.sidebar,
+            text="Batch Mode",
+            command=lambda: self.open_batch(),
+            fg_color="transparent",
+            border_width=2,
+            border_color=COLORS["accent"],
+            hover_color=COLORS["bg_hover"],
+            corner_radius=RADII["standard"],
         )
         self.btn_batch.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
 
         self.btn_settings = ctk.CTkButton(
-            self.sidebar, text="Settings", command=self.open_settings,
-            fg_color="transparent", border_width=2, border_color=COLORS["accent"],
-            hover_color=COLORS["bg_hover"], corner_radius=RADII["standard"]
+            self.sidebar,
+            text="Settings",
+            command=lambda: self.open_settings(),
+            fg_color="transparent",
+            border_width=2,
+            border_color=COLORS["accent"],
+            hover_color=COLORS["bg_hover"],
+            corner_radius=RADII["standard"],
         )
         self.btn_settings.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
@@ -119,13 +139,11 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.stats_frame.grid(row=4, column=0, padx=20, pady=10, sticky="ew")
 
         self.lbl_stats_total = ctk.CTkLabel(
-            self.stats_frame, text="Files: 0", font=FONTS["small"],
-            text_color=COLORS["text_dimmed"]
+            self.stats_frame, text="Files: 0", font=FONTS["small"], text_color=COLORS["text_dimmed"]
         )
         self.lbl_stats_total.pack(anchor="w")
         self.lbl_stats_last = ctk.CTkLabel(
-            self.stats_frame, text="Last: Never", font=FONTS["small"],
-            text_color=COLORS["text_dimmed"]
+            self.stats_frame, text="Last: Never", font=FONTS["small"], text_color=COLORS["text_dimmed"]
         )
         self.lbl_stats_last.pack(anchor="w")
 
@@ -134,10 +152,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.sidebar_sep.grid(row=6, column=0, padx=20, pady=(10, 0), sticky="ew")
 
         self.appearance_mode_menu = ctk.CTkOptionMenu(
-            self.sidebar, values=["Light", "Dark", "System"],
+            self.sidebar,
+            values=["Light", "Dark", "System"],
             command=self.change_appearance_mode_event,
-            fg_color=COLORS["accent"], button_color=COLORS["accent"],
-            dropdown_hover_color=COLORS["accent"], corner_radius=RADII["card"]
+            fg_color=COLORS["accent"],
+            button_color=COLORS["accent"],
+            dropdown_hover_color=COLORS["accent"],
+            corner_radius=RADII["card"],
         )
         self.appearance_mode_menu.grid(row=7, column=0, padx=20, pady=20, sticky="s")
 
@@ -149,26 +170,24 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
 
         # Drop Zone Frame
         self.frame_top = ctk.CTkFrame(
-            self.main_area, height=160, corner_radius=RADII["standard"],
-            fg_color=COLORS["bg_card"]
+            self.main_area, height=160, corner_radius=RADII["standard"], fg_color=COLORS["bg_card"]
         )
         self.frame_top.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        self.frame_top.grid_propagate(False) # Correct from pack_propagate
+        self.frame_top.grid_propagate(False)  # Correct from pack_propagate
         self.frame_top.grid_columnconfigure(0, weight=1)
         self.frame_top.grid_rowconfigure(0, weight=1)
 
         # Canvas for Dashed Border
         self.drop_canvas = ctk.CTkCanvas(
-            self.frame_top, bg=self._get_canvas_bg(), highlightthickness=0,
-            bd=0, cursor="hand2"
+            self.frame_top, bg=self._get_canvas_bg(), highlightthickness=0, bd=0, cursor="hand2"
         )
         self.drop_canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         try:
             self.drop_canvas.drop_target_register(DND_FILES)
-            self.drop_canvas.dnd_bind('<<Drop>>', self.on_drop)
-            self.drop_canvas.dnd_bind('<<DragEnter>>', self._on_drag_enter)
-            self.drop_canvas.dnd_bind('<<DragLeave>>', self._on_drag_leave)
+            self.drop_canvas.dnd_bind("<<Drop>>", self.on_drop)
+            self.drop_canvas.dnd_bind("<<DragEnter>>", self._on_drag_enter)
+            self.drop_canvas.dnd_bind("<<DragLeave>>", self._on_drag_leave)
         except Exception:
             pass
 
@@ -176,33 +195,40 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.bind("<<AppearanceModeChanged>>", self._on_appearance_mode_changed)
 
         self.lbl_drop = ctk.CTkLabel(
-            self.frame_top, text="Drag & Drop Folder Here",
-            font=FONTS["subtitle"], text_color=COLORS["text_main"],
-            fg_color="transparent"
+            self.frame_top,
+            text="Drag & Drop Folder Here",
+            font=FONTS["subtitle"],
+            text_color=COLORS["text_main"],
+            fg_color="transparent",
         )
         self.lbl_drop.place(relx=0.5, rely=0.4, anchor="center")
 
-        self.lbl_drop_icon = ctk.CTkLabel(
-            self.frame_top, text="⬆", font=("Inter", 32), fg_color="transparent"
-        )
+        self.lbl_drop_icon = ctk.CTkLabel(self.frame_top, text="⬆", font=("Inter", 32), fg_color="transparent")
         self.lbl_drop_icon.place(relx=0.5, rely=0.2, anchor="center")
 
         self.drop_actions_frame = ctk.CTkFrame(self.frame_top, fg_color="transparent")
         self.drop_actions_frame.place(relx=0.5, rely=0.7, anchor="center")
 
         self.btn_browse = ctk.CTkButton(
-            self.drop_actions_frame, text="Browse Folder",
-            command=self.browse_folder, height=36, corner_radius=RADII["card"],
-            fg_color=COLORS["accent"]
+            self.drop_actions_frame,
+            text="Browse Folder",
+            command=self.browse_folder,
+            height=36,
+            corner_radius=RADII["card"],
+            fg_color=COLORS["accent"],
         )
         self.btn_browse.pack(side="left", padx=10)
 
         self.option_recent = ctk.CTkOptionMenu(
-            self.drop_actions_frame, values=["Recent..."],
-            command=self.controller.on_recent_select,
-            height=36, corner_radius=RADII["card"],
-            fg_color=COLORS["border"], text_color=COLORS["text_main"],
-            button_color=COLORS["border"], button_hover_color=COLORS["accent"]
+            self.drop_actions_frame,
+            values=["Recent..."],
+            command=lambda v: self.controller.on_recent_select(v),
+            height=36,
+            corner_radius=RADII["card"],
+            fg_color=COLORS["border"],
+            text_color=COLORS["text_main"],
+            button_color=COLORS["border"],
+            button_hover_color=COLORS["accent"],
         )
         self.option_recent.pack(side="left", padx=10)
 
@@ -215,37 +241,36 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
 
         self.var_recursive = ctk.BooleanVar(value=False)
         self.chk_rec = ctk.CTkCheckBox(
-            self.frame_options, text="Recursive", variable=self.var_recursive,
-            corner_radius=6, border_width=2
+            self.frame_options, text="Recursive", variable=self.var_recursive, corner_radius=6, border_width=2
         )
         self.chk_rec.pack(side="left", padx=(0, 15))
 
         self.var_del_empty = ctk.BooleanVar(value=False)
         self.chk_del = ctk.CTkCheckBox(
-            self.frame_options, text="Delete Empty", variable=self.var_del_empty,
-            corner_radius=6, border_width=2
+            self.frame_options, text="Delete Empty", variable=self.var_del_empty, corner_radius=6, border_width=2
         )
         self.chk_del.pack(side="left", padx=15)
 
         self.var_date_sort = ctk.BooleanVar(value=False)
         self.chk_date = ctk.CTkCheckBox(
-            self.frame_options, text="Sort by Date", variable=self.var_date_sort,
-            corner_radius=6, border_width=2
+            self.frame_options, text="Sort by Date", variable=self.var_date_sort, corner_radius=6, border_width=2
         )
         self.chk_date.pack(side="left", padx=15)
 
         self.var_detect_duplicates = ctk.BooleanVar(value=False)
         self.chk_duplicates = ctk.CTkCheckBox(
-            self.frame_options, text="Duplicates", variable=self.var_detect_duplicates,
-            corner_radius=6, border_width=2
+            self.frame_options, text="Duplicates", variable=self.var_detect_duplicates, corner_radius=6, border_width=2
         )
         self.chk_duplicates.pack(side="left", padx=15)
 
         self.var_watch_folder = ctk.BooleanVar(value=False)
         self.chk_watch = ctk.CTkCheckBox(
-            self.frame_options, text="Watch Folder", variable=self.var_watch_folder,
+            self.frame_options,
+            text="Watch Folder",
+            variable=self.var_watch_folder,
             command=lambda: self.controller.toggle_watch(self.var_watch_folder.get()),
-            corner_radius=6, border_width=2
+            corner_radius=6,
+            border_width=2,
         )
         self.chk_watch.pack(side="left", padx=15)
 
@@ -257,25 +282,39 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.slider_conf.pack(side="left", padx=5)
 
         self.btn_preview = ctk.CTkButton(
-            self.frame_controls, text="PREVIEW", width=120, height=40,
+            self.frame_controls,
+            text="PREVIEW",
+            width=120,
+            height=40,
             command=lambda: self.controller.run_organization(dry_run=True),
-            state="disabled", fg_color=COLORS["border"], text_color=COLORS["text_main"],
-            hover_color=COLORS["accent"], corner_radius=RADII["card"]
+            state="disabled",
+            fg_color=COLORS["border"],
+            text_color=COLORS["text_main"],
+            hover_color=COLORS["accent"],
+            corner_radius=RADII["card"],
         )
         self.btn_preview.pack(side="right", padx=5)
 
         self.btn_run = ctk.CTkButton(
-            self.frame_controls, text="ORGANIZE", width=120, height=40,
-            fg_color=COLORS["success"], hover_color="#27AE60",
-            command=self.controller.run_organization, state="disabled",
-            corner_radius=RADII["card"]
+            self.frame_controls,
+            text="ORGANIZE",
+            width=120,
+            height=40,
+            fg_color=COLORS["success"],
+            hover_color="#27AE60",
+            command=lambda: self.controller.run_organization(),
+            state="disabled",
+            corner_radius=RADII["card"],
         )
         self.btn_run.pack(side="right", padx=5)
 
         self.scroll_results = ctk.CTkScrollableFrame(
-            self.main_area, label_text="Waiting for action...",
-            label_font=FONTS["label"], label_text_color=COLORS["accent"],
-            corner_radius=RADII["standard"], fg_color=COLORS["bg_card"]
+            self.main_area,
+            label_text="Waiting for action...",
+            label_font=FONTS["label"],
+            label_text_color=COLORS["accent"],
+            corner_radius=RADII["standard"],
+            fg_color=COLORS["bg_card"],
         )
         self.scroll_results.grid(row=3, column=0, sticky="nsew")
 
@@ -338,7 +377,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
 
     def update_progress(self, current, total, filename):
         if total > 0:
-            if isinstance(total, float): # ML loading percentage
+            if isinstance(total, float):  # ML loading percentage
                 self.progress_bar.set(current)
                 self.lbl_status.configure(text=f"{filename}")
             else:
@@ -411,7 +450,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.frame_top.configure(border_width=0)
         if event.data:
             path = event.data
-            if path.startswith('{') and path.endswith('}'):
+            if path.startswith("{") and path.endswith("}"):
                 path = path[1:-1]
             self.controller.set_folder(path)
 
@@ -449,27 +488,26 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         return color_tuple[0] if mode == "Light" else color_tuple[1]
 
     def _draw_dashed_border(self, color=None):
-        if not hasattr(self, 'drop_canvas'):
+        if not hasattr(self, "drop_canvas"):
             return
         self.drop_canvas.delete("border")
         w = self.drop_canvas.winfo_width()
         h = self.drop_canvas.winfo_height()
         if w < 10 or h < 10:
-             self.after(100, self._draw_dashed_border)
-             return
+            self.after(100, self._draw_dashed_border)
+            return
 
         if color is None:
             color = self._get_color_str(COLORS["border"])
 
         # Draw rect with dash
-        self.drop_canvas.create_rectangle(
-            5, 5, w-5, h-5, outline=color, width=2,
-            dash=(10, 5), tags="border"
-        )
+        self.drop_canvas.create_rectangle(5, 5, w - 5, h - 5, outline=color, width=2, dash=(10, 5), tags="border")
+
 
 def main():
     app = OrganizerApp()
     app.mainloop()
+
 
 if __name__ == "__main__":
     main()

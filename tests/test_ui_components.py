@@ -7,7 +7,7 @@ from tests.ui_test_utils import get_ui_mocks
 
 # Apply standardized mocks
 mock_ctk, _ = get_ui_mocks()
-sys.modules['customtkinter'] = mock_ctk
+sys.modules["customtkinter"] = mock_ctk
 
 # Force reload of components
 import pro_file_organizer.ui.components.ui_components  # noqa: E402
@@ -26,12 +26,7 @@ class TestUIComponents(unittest.TestCase):
 
     def test_file_card_init_variations(self):
         # AI Method
-        data = {
-            "file": "test.png",
-            "method": "image-ml",
-            "confidence": 0.85,
-            "destination": "/tmp/dest/file.png"
-        }
+        data = {"file": "test.png", "method": "image-ml", "confidence": 0.85, "destination": "/tmp/dest/file.png"}
         card = FileCard(self.mock_parent, data)
         self.assertEqual(card.lbl_badge.cget("text"), "AI 85%")
 
@@ -66,21 +61,21 @@ class TestUIComponents(unittest.TestCase):
 
         # Test exception safety in append
         text_widget.insert.side_effect = Exception("Insert Error")
-        redirector._append("wont crash") # Should pass due to try-except
+        redirector._append("wont crash")  # Should pass due to try-except
 
         # Flush
         redirector.flush()
 
     def test_model_download_modal_space_checks(self):
         # High space
-        with patch("shutil.disk_usage", return_value=(100, 50, 10*1024**3)):
+        with patch("shutil.disk_usage", return_value=(100, 50, 10 * 1024**3)):
             modal = ModelDownloadModal(self.mock_parent)
-            self.assertFalse(hasattr(modal, 'lbl_warn'))
+            self.assertFalse(hasattr(modal, "lbl_warn"))
 
         # Low space
-        with patch("shutil.disk_usage", return_value=(100, 98, 2*1024**3)):
+        with patch("shutil.disk_usage", return_value=(100, 98, 2 * 1024**3)):
             modal = ModelDownloadModal(self.mock_parent)
-            self.assertTrue(hasattr(modal, 'lbl_warn'))
+            self.assertTrue(hasattr(modal, "lbl_warn"))
 
         # Exception in space check
         with patch("shutil.disk_usage", side_effect=Exception("Space check error")):
@@ -99,10 +94,10 @@ class TestUIComponents(unittest.TestCase):
         # Reset and Start
         on_complete.reset_mock()
         modal = ModelDownloadModal(self.mock_parent, on_complete)
-        with patch('threading.Thread'):
+        with patch("threading.Thread"):
             modal.start_download()
             self.assertTrue(modal.download_started)
-            modal.start_download() # Should return immediately
+            modal.start_download()  # Should return immediately
 
         # Mock _download_task completion - Success
         modal.after = MagicMock(side_effect=lambda t, f: f())
@@ -120,10 +115,10 @@ class TestUIComponents(unittest.TestCase):
         modal = ModelDownloadModal(self.mock_parent)
         modal.after = MagicMock()
         # Patch where it's imported
-        patch_ml = 'pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer'
+        patch_ml = "pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer"
         with patch(patch_ml) as mock_org_class:
             mock_org_instance = mock_org_class.return_value
-            with patch('pro_file_organizer.ui.components.ui_components.sys.stderr', MagicMock()):
+            with patch("pro_file_organizer.ui.components.ui_components.sys.stderr", MagicMock()):
                 # Success path
                 modal._download_task()
                 mock_org_instance.ensure_models.assert_called()
@@ -135,5 +130,6 @@ class TestUIComponents(unittest.TestCase):
                 modal._download_task()
                 modal.after.assert_called()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

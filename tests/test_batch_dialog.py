@@ -4,17 +4,17 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Mock modules
-if 'tkinter' not in sys.modules:
-    sys.modules['tkinter'] = MagicMock()
-if 'tkinter.messagebox' not in sys.modules:
-    sys.modules['tkinter.messagebox'] = MagicMock()
-if 'tkinter.filedialog' not in sys.modules:
-    sys.modules['tkinter.filedialog'] = MagicMock()
-if 'customtkinter' not in sys.modules:
-    sys.modules['customtkinter'] = MagicMock()
+if "tkinter" not in sys.modules:
+    sys.modules["tkinter"] = MagicMock()
+if "tkinter.messagebox" not in sys.modules:
+    sys.modules["tkinter.messagebox"] = MagicMock()
+if "tkinter.filedialog" not in sys.modules:
+    sys.modules["tkinter.filedialog"] = MagicMock()
+if "customtkinter" not in sys.modules:
+    sys.modules["customtkinter"] = MagicMock()
 
 # Setup CTk mocks
-mock_ctk = sys.modules['customtkinter']
+mock_ctk = sys.modules["customtkinter"]
 
 from pro_file_organizer.core import organizer
 from pro_file_organizer.ui.dialogs import batch_dialog_ctk as batch_dialog
@@ -37,12 +37,12 @@ class TestBatchDialog(unittest.TestCase):
         self.organizer = organizer.FileOrganizer()
 
         # Patch json load/dump to prevent reading/writing actual files
-        self.json_patch = patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.json')
+        self.json_patch = patch("pro_file_organizer.ui.dialogs.batch_dialog_ctk.json")
         self.mock_json = self.json_patch.start()
         self.mock_json.load.return_value = []
 
         # Patch exists
-        self.exists_patch = patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.Path.exists', return_value=True)
+        self.exists_patch = patch("pro_file_organizer.ui.dialogs.batch_dialog_ctk.Path.exists", return_value=True)
         self.mock_exists = self.exists_patch.start()
 
         self.dialog = batch_dialog.BatchDialog(self.mock_parent, self.organizer)
@@ -57,7 +57,9 @@ class TestBatchDialog(unittest.TestCase):
         self.assertEqual(self.dialog.batch_folders, [])
 
     def test_add_folder(self):
-        with patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.filedialog.askdirectory', return_value="/tmp/new_folder"):
+        with patch(
+            "pro_file_organizer.ui.dialogs.batch_dialog_ctk.filedialog.askdirectory", return_value="/tmp/new_folder"
+        ):
             self.dialog.add_folder()
 
         self.assertEqual(len(self.dialog.batch_folders), 1)
@@ -69,7 +71,9 @@ class TestBatchDialog(unittest.TestCase):
     def test_add_duplicate_folder(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.filedialog.askdirectory', return_value="/tmp/folder"):
+        with patch(
+            "pro_file_organizer.ui.dialogs.batch_dialog_ctk.filedialog.askdirectory", return_value="/tmp/folder"
+        ):
             self.dialog.add_folder()
 
         self.assertEqual(len(self.dialog.batch_folders), 1)
@@ -77,7 +81,7 @@ class TestBatchDialog(unittest.TestCase):
     def test_remove_folder(self):
         self.dialog.batch_folders = [
             {"path": "/tmp/folder1", "settings": None},
-            {"path": "/tmp/folder2", "settings": None}
+            {"path": "/tmp/folder2", "settings": None},
         ]
 
         self.dialog.remove_folder(0)
@@ -88,7 +92,7 @@ class TestBatchDialog(unittest.TestCase):
     def test_clear_all(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.askyesno', return_value=True):
+        with patch("pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.askyesno", return_value=True):
             self.dialog.clear_all()
 
         self.assertEqual(self.dialog.batch_folders, [])
@@ -110,24 +114,24 @@ class TestBatchDialog(unittest.TestCase):
 
         # Filter call args
         for call_args in mock_ctk.CTkButton.call_args_list:
-            if call_args[1].get('text') == "Save":
+            if call_args[1].get("text") == "Save":
                 save_btn_call = call_args
                 break
 
         self.assertIsNotNone(save_btn_call)
-        save_command = save_btn_call[1]['command']
+        save_command = save_btn_call[1]["command"]
 
         # To test values, we need to mock BooleanVar properly for this test
         # Since we reloaded module, it uses mock_ctk.BooleanVar
 
-        with patch('customtkinter.BooleanVar') as mock_bool:
+        with patch("customtkinter.BooleanVar") as mock_bool:
             mock_bool.return_value.get.return_value = True
 
             # Re-run configure to bind vars
             self.dialog.configure_folder(0)
 
-            save_btn_call = [c for c in mock_ctk.CTkButton.call_args_list if c[1].get('text') == "Save"][-1]
-            save_command = save_btn_call[1]['command']
+            save_btn_call = [c for c in mock_ctk.CTkButton.call_args_list if c[1].get("text") == "Save"][-1]
+            save_command = save_btn_call[1]["command"]
 
             save_command()
 
@@ -135,28 +139,31 @@ class TestBatchDialog(unittest.TestCase):
         self.assertTrue(self.dialog.batch_folders[0]["settings"]["recursive"])
 
     def test_run_batch_empty(self):
-        with patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.showwarning') as mock_warn:
+        with patch("pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.showwarning") as mock_warn:
             self.dialog.run_batch()
             mock_warn.assert_called_with("Warning", "No folders to process.")
 
     def test_run_batch_execution(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
 
-        with patch('pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.askyesno', return_value=True):
-            with patch('threading.Thread') as mock_thread:
+        with patch("pro_file_organizer.ui.dialogs.batch_dialog_ctk.messagebox.askyesno", return_value=True):
+            with patch("threading.Thread") as mock_thread:
                 self.dialog.run_batch()
                 mock_thread.assert_called_once()
 
-                target = mock_thread.call_args[1].get('target')
+                target = mock_thread.call_args[1].get("target")
 
                 self.dialog.window.after = MagicMock()
                 self.organizer.organize_files = MagicMock()
 
                 target()
 
-                self.organizer.organize_files.assert_called_with(Path("/tmp/folder"), recursive=False, date_sort=False, del_empty=False, dry_run=False)
+                self.organizer.organize_files.assert_called_with(
+                    Path("/tmp/folder"), recursive=False, date_sort=False, del_empty=False, dry_run=False
+                )
 
                 self.assertTrue(self.dialog.window.after.called)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,12 +5,15 @@ import threading
 from pathlib import Path
 
 import customtkinter as ctk
+
 from ..themes.themes import COLORS, FONTS, RADII
+
 
 class FileCard(ctk.CTkFrame):
     """
     A card representing a file operation (move, rename, error).
     """
+
     def __init__(self, master, event_data, **kwargs):
         super().__init__(master, **kwargs)
         self.event = event_data
@@ -35,8 +38,8 @@ class FileCard(ctk.CTkFrame):
         badge_text = "EXT"
 
         if method != "extension" and method != "ml-not-loaded":
-            accent_color = ("#9C27B0", "#9C27B0") # AI Purple
-            badge_text = f"AI {int(confidence*100)}%"
+            accent_color = ("#9C27B0", "#9C27B0")  # AI Purple
+            badge_text = f"AI {int(confidence * 100)}%"
 
         if etype == "error":
             accent_color = COLORS["danger"]
@@ -50,10 +53,16 @@ class FileCard(ctk.CTkFrame):
         self.stripe.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(0, 10))
 
         # Badge
-        self.lbl_badge = ctk.CTkLabel(self, text=badge_text, width=60, height=22,
-                                      fg_color=accent_color, text_color="white",
-                                      corner_radius=RADII["badge"],
-                                      font=FONTS["small"])
+        self.lbl_badge = ctk.CTkLabel(
+            self,
+            text=badge_text,
+            width=60,
+            height=22,
+            fg_color=accent_color,
+            text_color="white",
+            corner_radius=RADII["badge"],
+            font=FONTS["small"],
+        )
         self.lbl_badge.grid(row=0, column=2, rowspan=2, padx=10, pady=5)
 
         # Filename
@@ -64,10 +73,10 @@ class FileCard(ctk.CTkFrame):
         # Destination / Error Message
         dest = event_data.get("destination", "")
         try:
-             dest_path = Path(dest)
-             display_dest = f"→ {dest_path.parent.name}/{dest_path.name}"
+            dest_path = Path(dest)
+            display_dest = f"→ {dest_path.parent.name}/{dest_path.name}"
         except Exception:
-             display_dest = f"→ {dest}"
+            display_dest = f"→ {dest}"
 
         if etype == "error":
             display_dest = f"Error: {event_data.get('error')}"
@@ -80,8 +89,7 @@ class FileCard(ctk.CTkFrame):
                 display_dest = f"Duplicate of: {dup_of}"
 
         self.lbl_dest = ctk.CTkLabel(
-            self, text=display_dest, font=FONTS["small"],
-            text_color=COLORS["text_dimmed"], anchor="w"
+            self, text=display_dest, font=FONTS["small"], text_color=COLORS["text_dimmed"], anchor="w"
         )
         self.lbl_dest.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 5))
 
@@ -104,6 +112,7 @@ class FileCard(ctk.CTkFrame):
 
 class RedirectedStderr:
     """Redirects stderr to a Tkinter text widget."""
+
     def __init__(self, text_widget):
         self.text_widget = text_widget
         self.original_stderr = sys.stderr
@@ -116,7 +125,7 @@ class RedirectedStderr:
         try:
             self.text_widget.after(0, lambda: self._append(string))
         except Exception:
-            pass # Widget might be destroyed
+            pass  # Widget might be destroyed
 
     def _append(self, string):
         try:
@@ -124,7 +133,7 @@ class RedirectedStderr:
             # Handle carriage return for progress bars (replace last line if starts with \r)
             # Simplification: Just append for now, but if string contains \r, delete last line?
             # tqdm sends \r then the text.
-            if '\r' in string:
+            if "\r" in string:
                 # This is a bit complex to handle perfectly for multiple progress bars.
                 # Simple approach: Replace \r with \n for log view, or just append.
                 # Better approach for "log_": Just append.
@@ -138,6 +147,7 @@ class RedirectedStderr:
 
     def flush(self):
         pass
+
 
 class ModelDownloadModal(ctk.CTkToplevel):
     def __init__(self, master, on_complete=None):
@@ -179,7 +189,8 @@ class ModelDownloadModal(ctk.CTkToplevel):
         # Disk Space Check
         free_space_gb = self._get_free_space_gb()
         space_color = "green" if free_space_gb > 5 else "orange"
-        if free_space_gb < 4: space_color = "red"
+        if free_space_gb < 4:
+            space_color = "red"
 
         self._add_detail_row(self.frame_details, "Free Space:", f"{free_space_gb:.2f} GB", value_color=space_color)
 
@@ -200,22 +211,32 @@ class ModelDownloadModal(ctk.CTkToplevel):
         self.frame_btns.pack(fill="x", padx=20, pady=20, side="bottom")
 
         self.btn_cancel = ctk.CTkButton(
-            self.frame_btns, text="Cancel", fg_color="transparent",
-            border_width=2, border_color=COLORS["border"],
-            text_color=COLORS["text_main"], hover_color=COLORS["bg_hover"],
-            command=self.on_cancel, corner_radius=RADII["card"]
+            self.frame_btns,
+            text="Cancel",
+            fg_color="transparent",
+            border_width=2,
+            border_color=COLORS["border"],
+            text_color=COLORS["text_main"],
+            hover_color=COLORS["bg_hover"],
+            command=self.on_cancel,
+            corner_radius=RADII["card"],
         )
         self.btn_cancel.pack(side="left", expand=True, padx=5)
 
         self.btn_start = ctk.CTkButton(
-            self.frame_btns, text="Download Models", fg_color=COLORS["success"],
-            hover_color="#27AE60", command=self.start_download,
-            corner_radius=RADII["card"]
+            self.frame_btns,
+            text="Download Models",
+            fg_color=COLORS["success"],
+            hover_color="#27AE60",
+            command=self.start_download,
+            corner_radius=RADII["card"],
         )
         self.btn_start.pack(side="right", expand=True, padx=5)
 
         if free_space_gb < 4:
-            self.lbl_warn = ctk.CTkLabel(self.frame, text="⚠️ Low Disk Space", text_color=COLORS["danger"], font=FONTS["small"])
+            self.lbl_warn = ctk.CTkLabel(
+                self.frame, text="⚠️ Low Disk Space", text_color=COLORS["danger"], font=FONTS["small"]
+            )
             self.lbl_warn.pack(side="bottom", pady=5)
 
         # Center the window
@@ -261,7 +282,8 @@ class ModelDownloadModal(ctk.CTkToplevel):
             return 0.0
 
     def start_download(self):
-        if self.download_started: return
+        if self.download_started:
+            return
         self.download_started = True
 
         # Disable buttons
@@ -294,6 +316,7 @@ class ModelDownloadModal(ctk.CTkToplevel):
 
         try:
             from ...core.ml_organizer import MultimodalFileOrganizer
+
             # Mock organizer to reuse load_models logic
             ml_org = MultimodalFileOrganizer()
 

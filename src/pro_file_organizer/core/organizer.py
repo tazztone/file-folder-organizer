@@ -32,6 +32,7 @@ class OrganizationResult(TypedDict, total=False):
 @dataclass
 class OrganizationOptions:
     """Options for the organization process."""
+
     source_path: Path
     recursive: bool = False
     date_sort: bool = False
@@ -61,7 +62,7 @@ class FileOrganizer:
 
         # Exclusions
         self.excluded_names = EXCLUDED_NAMES.copy()
-        self.excluded_extensions = set() # e.g., {".tmp", ".log"}
+        self.excluded_extensions = set()  # e.g., {".tmp", ".log"}
         self.excluded_folders = EXCLUDED_NAMES.copy()
 
         # Ensure app directories exist on init
@@ -75,15 +76,12 @@ class FileOrganizer:
         """Loads the undo stack from a JSON file."""
         if os.path.exists(DEFAULT_UNDO_STACK_FILE):
             try:
-                with open(DEFAULT_UNDO_STACK_FILE, 'r') as f:
+                with open(DEFAULT_UNDO_STACK_FILE, "r") as f:
                     data = json.load(f)
                     self.undo_stack = []
                     for item in data:
                         history = [(Path(p1), Path(p2)) for p1, p2 in item["history"]]
-                        self.undo_stack.append({
-                            "history": history,
-                            "source_path": Path(item["source_path"])
-                        })
+                        self.undo_stack.append({"history": history, "source_path": Path(item["source_path"])})
             except Exception as e:
                 logger.error(f"Error loading undo stack: {e}")
                 self.undo_stack = []
@@ -94,11 +92,8 @@ class FileOrganizer:
             data = []
             for item in self.undo_stack:
                 history = [(str(p1), str(p2)) for p1, p2 in item["history"]]
-                data.append({
-                    "history": history,
-                    "source_path": str(item["source_path"])
-                })
-            with open(DEFAULT_UNDO_STACK_FILE, 'w') as f:
+                data.append({"history": history, "source_path": str(item["source_path"])})
+            with open(DEFAULT_UNDO_STACK_FILE, "w") as f:
                 json.dump(data, f, indent=4)
         except Exception as e:
             logger.error(f"Error saving undo stack: {e}")
@@ -116,7 +111,7 @@ class FileOrganizer:
             logger.error(f"Error hashing file {file_path}: {e}")
             return ""
 
-    def validate_config(self) -> list[str] :
+    def validate_config(self) -> list[str]:
         """
         Validates the current configuration.
         Returns a list of error messages. If list is empty, config is valid.
@@ -129,7 +124,7 @@ class FileOrganizer:
                 errors.append("Category name cannot be empty.")
             # Ensure category names do not contain path separators
             if os.sep in cat or (os.altsep and os.altsep in cat):
-                 errors.append(f"Category name '{cat}' cannot contain path separators.")
+                errors.append(f"Category name '{cat}' cannot contain path separators.")
 
         # Check for invalid extensions and duplicates
         all_exts: dict[str, str] = {}
@@ -150,7 +145,7 @@ class FileOrganizer:
         """Loads configuration from a JSON file."""
         if os.path.exists(config_path):
             try:
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     data = json.load(f)
 
                     if "directories" in data:
@@ -190,17 +185,21 @@ class FileOrganizer:
         try:
             p = Path(config_path)
             p.parent.mkdir(parents=True, exist_ok=True)
-            with open(p, 'w') as f:
-                json.dump({
-                    "directories": self.directories,
-                    "ml_categories": self.ml_categories,
-                    "excluded_names": list(self.excluded_names),
-                    "excluded_extensions": list(self.excluded_extensions),
-                    "excluded_folders": list(self.excluded_folders),
-                    "theme_mode": self.theme_mode,
-                    "ml_confidence": self.ml_confidence,
-                    "max_undo_stack": self.max_undo_stack
-                }, f, indent=4)
+            with open(p, "w") as f:
+                json.dump(
+                    {
+                        "directories": self.directories,
+                        "ml_categories": self.ml_categories,
+                        "excluded_names": list(self.excluded_names),
+                        "excluded_extensions": list(self.excluded_extensions),
+                        "excluded_folders": list(self.excluded_folders),
+                        "theme_mode": self.theme_mode,
+                        "ml_confidence": self.ml_confidence,
+                        "max_undo_stack": self.max_undo_stack,
+                    },
+                    f,
+                    indent=4,
+                )
             return True
         except Exception as e:
             logger.error(f"Error saving config: {e}")
@@ -270,11 +269,12 @@ class FileOrganizer:
         # 1. Try ML if enabled
         if use_ml:
             if not self.ml_categorizer:
-                 # Initialize if not already done (lazy loading mechanism in organize loop if needed,
-                 # but ideally done before)
+                # Initialize if not already done (lazy loading mechanism in organize loop if needed,
+                # but ideally done before)
                 from .ml_organizer import MultimodalFileOrganizer
+
                 self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
-                 # Note: models might not be loaded yet, which smart_categorize handles by returning status
+                # Note: models might not be loaded yet, which smart_categorize handles by returning status
 
             category, confidence, method = self.ml_categorizer.smart_categorize(file_path, threshold=self.ml_confidence)
 
@@ -286,7 +286,6 @@ class FileOrganizer:
         ext = file_path.suffix.lower()
         category = self.extension_map.get(ext, DEFAULT_CATEGORY)
         return category, 1.0, "extension"
-
 
     def organize_files(self, options: OrganizationOptions) -> OrganizationResult:
         """
@@ -338,25 +337,26 @@ class FileOrganizer:
 
         # Ensure ML is ready if requested
         if use_ml and not self.ml_categorizer:
-             # Lazy init
-             from .ml_organizer import MultimodalFileOrganizer
-             self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
-             if not self.ml_categorizer.models_loaded:
-                  if log_callback:
-                      log_callback("Initializing ML models (this may take a while)...")
+            # Lazy init
+            from .ml_organizer import MultimodalFileOrganizer
 
-                  def _ml_progress(msg, val=None):
-                      if log_callback:
-                          log_callback(f"[ML Init] {msg}")
-                      if progress_callback and val is not None:
-                           progress_callback(val, 1.0, f"Loading AI Models: {int(val*100)}%")
+            self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
+            if not self.ml_categorizer.models_loaded:
+                if log_callback:
+                    log_callback("Initializing ML models (this may take a while)...")
 
-                  try:
-                      self.ml_categorizer.load_models(progress_callback=_ml_progress)
-                  except Exception as e:
-                      if log_callback:
-                          log_callback(f"Failed to load ML models: {e}. Falling back to extension mode.")
-                      use_ml = False
+                def _ml_progress(msg, val=None):
+                    if log_callback:
+                        log_callback(f"[ML Init] {msg}")
+                    if progress_callback and val is not None:
+                        progress_callback(val, 1.0, f"Loading AI Models: {int(val * 100)}%")
+
+                try:
+                    self.ml_categorizer.load_models(progress_callback=_ml_progress)
+                except Exception as e:
+                    if log_callback:
+                        log_callback(f"Failed to load ML models: {e}. Falling back to extension mode.")
+                    use_ml = False
 
         if log_callback:
             log_callback(f"--- Starting {'Dry Run ' if dry_run else ''}Organization ---")
@@ -386,31 +386,35 @@ class FileOrganizer:
 
                 # DUPLICATE DETECTION
                 if detect_duplicates:
-                     file_hash = self._get_file_hash(item)
-                     if file_hash:
-                         if file_hash in known_hashes:
-                             duplicates_count += 1
-                             orig_path = known_hashes[file_hash]
-                             if log_callback:
-                                 log_callback(f"SKIP DUPLICATE: {item.name} (already at {orig_path.name})")
+                    file_hash = self._get_file_hash(item)
+                    if file_hash:
+                        if file_hash in known_hashes:
+                            duplicates_count += 1
+                            orig_path = known_hashes[file_hash]
+                            if log_callback:
+                                log_callback(f"SKIP DUPLICATE: {item.name} (already at {orig_path.name})")
 
-                             report.append({
-                                 "file": item.name,
-                                 "status": "duplicate",
-                                 "source": str(item),
-                                 "duplicate_of": str(orig_path)
-                             })
+                            report.append(
+                                {
+                                    "file": item.name,
+                                    "status": "duplicate",
+                                    "source": str(item),
+                                    "duplicate_of": str(orig_path),
+                                }
+                            )
 
-                             if event_callback:
-                                 event_callback({
-                                     "type": "duplicate",
-                                     "file": item.name,
-                                     "source": str(item),
-                                     "duplicate_of": str(orig_path)
-                                 })
-                             continue
-                         else:
-                             known_hashes[file_hash] = item
+                            if event_callback:
+                                event_callback(
+                                    {
+                                        "type": "duplicate",
+                                        "file": item.name,
+                                        "source": str(item),
+                                        "duplicate_of": str(orig_path),
+                                    }
+                                )
+                            continue
+                        else:
+                            known_hashes[file_hash] = item
 
                 # If ML is used, category might be a nested path string "Images/Personal"
                 target_dir = source_path / category
@@ -428,7 +432,7 @@ class FileOrganizer:
 
                 # SKIP ALREADY ORGANIZED FILES
                 if item.parent.resolve() == target_dir.resolve():
-                     continue
+                    continue
 
                 dest_path = target_dir / item.name
 
@@ -460,7 +464,7 @@ class FileOrganizer:
                     "method": method,
                     "confidence": confidence,
                     "dry_run": dry_run,
-                    "renamed": final_dest_path.name != item.name
+                    "renamed": final_dest_path.name != item.name,
                 }
 
                 if dry_run:
@@ -469,15 +473,17 @@ class FileOrganizer:
                     if event_callback:
                         event_callback(event_data)
 
-                    report.append({
-                        "file": item.name,
-                        "status": "dry_run",
-                        "source": str(item),
-                        "destination": str(final_dest_path),
-                        "category": category,
-                        "method": method,
-                        "confidence": confidence
-                    })
+                    report.append(
+                        {
+                            "file": item.name,
+                            "status": "dry_run",
+                            "source": str(item),
+                            "destination": str(final_dest_path),
+                            "category": category,
+                            "method": method,
+                            "confidence": confidence,
+                        }
+                    )
                 else:
                     shutil.move(str(item), final_dest_path)
                     current_history.append((final_dest_path, item))
@@ -489,25 +495,24 @@ class FileOrganizer:
                     if log_callback:
                         msg = f"Moved: {item.name} -> {rel_dest}{log_suffix}"
                         if final_dest_path.name != item.name:
-                             msg = (
-                                 f"Renamed & Moved: {item.name} -> {final_dest_path.name} "
-                                 f"(in {rel_dest}){log_suffix}"
-                             )
+                            msg = f"Renamed & Moved: {item.name} -> {final_dest_path.name} (in {rel_dest}){log_suffix}"
                         log_callback(msg)
 
                     if event_callback:
                         event_callback(event_data)
 
-                    report.append({
-                        "file": item.name,
-                        "status": "moved",
-                        "source": str(item),
-                        "destination": str(final_dest_path),
-                        "category": category,
-                        "method": method,
-                        "confidence": confidence,
-                        "renamed": final_dest_path.name != item.name
-                    })
+                    report.append(
+                        {
+                            "file": item.name,
+                            "status": "moved",
+                            "source": str(item),
+                            "destination": str(final_dest_path),
+                            "category": category,
+                            "method": method,
+                            "confidence": confidence,
+                            "renamed": final_dest_path.name != item.name,
+                        }
+                    )
 
                 moved_count += 1
 
@@ -518,32 +523,24 @@ class FileOrganizer:
                     log_callback(msg)
                 logger.error(msg)
 
-                report.append({
-                    "file": item.name,
-                    "status": "error",
-                    "error_type": "PermissionError",
-                    "error": str(e)
-                })
+                report.append({"file": item.name, "status": "error", "error_type": "PermissionError", "error": str(e)})
 
                 if event_callback:
-                    event_callback({
-                        "type": "error",
-                        "file": item.name,
-                        "error": str(e),
-                        "error_type": "PermissionError"
-                    })
+                    event_callback(
+                        {"type": "error", "file": item.name, "error": str(e), "error_type": "PermissionError"}
+                    )
 
                 if rollback_on_error and not dry_run:
-                     if log_callback:
-                         log_callback("Critical error encountered. Rolling back changes...")
-                     self._undo_history(current_history, source_path, log_callback)
-                     return {
+                    if log_callback:
+                        log_callback("Critical error encountered. Rolling back changes...")
+                    self._undo_history(current_history, source_path, log_callback)
+                    return {
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
                         "duplicates": duplicates_count,
                         "rolled_back": True,
-                        "report": report
+                        "report": report,
                     }
 
             except OSError as e:
@@ -553,27 +550,22 @@ class FileOrganizer:
                     log_callback(msg)
                 logger.error(msg)
 
-                report.append({
-                    "file": item.name,
-                    "status": "error",
-                    "error_type": "OSError",
-                    "error": str(e)
-                })
+                report.append({"file": item.name, "status": "error", "error_type": "OSError", "error": str(e)})
 
                 if event_callback:
                     event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "OSError"})
 
                 if rollback_on_error and not dry_run:
-                     if log_callback:
-                         log_callback("Critical error encountered. Rolling back changes...")
-                     self._undo_history(current_history, source_path, log_callback)
-                     return {
+                    if log_callback:
+                        log_callback("Critical error encountered. Rolling back changes...")
+                    self._undo_history(current_history, source_path, log_callback)
+                    return {
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
                         "duplicates": duplicates_count,
                         "rolled_back": True,
-                        "report": report
+                        "report": report,
                     }
 
             except Exception as e:
@@ -583,33 +575,25 @@ class FileOrganizer:
                     log_callback(msg)
                 logger.error(msg)
 
-                report.append({
-                    "file": item.name,
-                    "status": "error",
-                    "error_type": type(e).__name__,
-                    "error": str(e)
-                })
+                report.append({"file": item.name, "status": "error", "error_type": type(e).__name__, "error": str(e)})
 
                 if event_callback:
-                    event_callback({
-                        "type": "error",
-                        "file": item.name,
-                        "error": str(e),
-                        "error_type": type(e).__name__
-                    })
+                    event_callback(
+                        {"type": "error", "file": item.name, "error": str(e), "error_type": type(e).__name__}
+                    )
 
                 if rollback_on_error and not dry_run:
-                     if log_callback:
-                         log_callback("Critical error encountered. Rolling back changes...")
-                     # Rollback only current partial history
-                     self._undo_history(current_history, source_path, log_callback)
-                     return {
+                    if log_callback:
+                        log_callback("Critical error encountered. Rolling back changes...")
+                    # Rollback only current partial history
+                    self._undo_history(current_history, source_path, log_callback)
+                    return {
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
                         "duplicates": duplicates_count,
                         "rolled_back": True,
-                        "report": report
+                        "report": report,
                     }
 
         # Delete Empty Folders
@@ -643,10 +627,7 @@ class FileOrganizer:
             log_callback(summary)
 
         if not dry_run and moved_count > 0:
-            self.undo_stack.append({
-                "history": current_history,
-                "source_path": source_path
-            })
+            self.undo_stack.append({"history": current_history, "source_path": source_path})
             # Enforce max undo stack size
             if len(self.undo_stack) > self.max_undo_stack:
                 self.undo_stack.pop(0)
@@ -657,7 +638,7 @@ class FileOrganizer:
             "errors": errors,
             "renamed": renamed_count,
             "duplicates": duplicates_count,
-            "report": report
+            "report": report,
         }
 
     def undo_changes(self, log_callback: Optional[Callable] = None) -> int:
@@ -702,19 +683,19 @@ class FileOrganizer:
                 curr = folder
                 # Recursively delete empty parent folders, but stop at source_path
                 while curr.exists() and (not source_path or curr.resolve() != source_path.resolve()):
-                     if not any(curr.iterdir()):
-                         curr.rmdir()
-                         cleaned_folders += 1
-                         curr = curr.parent
-                     else:
-                         break
+                    if not any(curr.iterdir()):
+                        curr.rmdir()
+                        cleaned_folders += 1
+                        curr = curr.parent
+                    else:
+                        break
             except Exception as e:
                 if log_callback:
                     log_callback(f"Folder cleanup error for {folder}: {e}")
                 logger.error(f"Folder cleanup error for {folder}: {e}")
 
         if cleaned_folders > 0 and log_callback:
-             log_callback(f"Cleaned up {cleaned_folders} empty folders during undo.")
+            log_callback(f"Cleaned up {cleaned_folders} empty folders during undo.")
 
         if log_callback:
             log_callback(f"--- Undo Complete. Restored {count} files. ---")

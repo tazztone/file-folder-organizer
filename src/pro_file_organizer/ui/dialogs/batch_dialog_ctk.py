@@ -7,7 +7,6 @@ import customtkinter as ctk
 
 from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
 from ..themes.themes import COLORS, RADII
-from ..ui_utils import ToolTip
 
 
 class BatchDialog:
@@ -37,16 +36,25 @@ class BatchDialog:
         frame_toolbar.pack(fill="x", padx=20, pady=10)
 
         btn_add = ctk.CTkButton(
-            frame_toolbar, text="Add Folder", command=self.add_folder,
-            width=120, height=36, corner_radius=RADII["card"],
-            fg_color=COLORS["accent"]
+            frame_toolbar,
+            text="Add Folder",
+            command=self.add_folder,
+            width=120,
+            height=36,
+            corner_radius=RADII["card"],
+            fg_color=COLORS["accent"],
         )
         btn_add.pack(side="left", padx=5)
 
         btn_clear = ctk.CTkButton(
-            frame_toolbar, text="Clear All", command=self.clear_all,
-            width=120, height=36, corner_radius=RADII["card"],
-            fg_color=COLORS["danger"], hover_color="#C0392B"
+            frame_toolbar,
+            text="Clear All",
+            command=self.clear_all,
+            width=120,
+            height=36,
+            corner_radius=RADII["card"],
+            fg_color=COLORS["danger"],
+            hover_color="#C0392B",
         )
         btn_clear.pack(side="right", padx=5)
 
@@ -68,8 +76,7 @@ class BatchDialog:
 
         # List Area (Scrollable Frame)
         self.scroll_frame = ctk.CTkScrollableFrame(
-            self.window, corner_radius=RADII["standard"],
-            fg_color=COLORS["bg_card"]
+            self.window, corner_radius=RADII["standard"], fg_color=COLORS["bg_card"]
         )
         self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
@@ -82,9 +89,13 @@ class BatchDialog:
         self.progress.set(0)
 
         btn_run = ctk.CTkButton(
-            frame_actions, text="Run Batch", command=self.run_batch,
-            fg_color=COLORS["success"], hover_color="#27AE60",
-            height=44, corner_radius=RADII["card"]
+            frame_actions,
+            text="Run Batch",
+            command=self.run_batch,
+            fg_color=COLORS["success"],
+            hover_color="#27AE60",
+            height=44,
+            corner_radius=RADII["card"],
         )
         btn_run.pack(fill="x")
 
@@ -126,13 +137,17 @@ class BatchDialog:
         # Settings
         settings_str = "Default"
         if item.get("settings"):
-             s = item["settings"]
-             parts = []
-             if s.get("recursive"): parts.append("Rec")
-             if s.get("date_sort"): parts.append("Date")
-             if s.get("del_empty"): parts.append("Del")
-             if s.get("dry_run"): parts.append("Dry")
-             settings_str = ",".join(parts) if parts else "Custom"
+            s = item["settings"]
+            parts = []
+            if s.get("recursive"):
+                parts.append("Rec")
+            if s.get("date_sort"):
+                parts.append("Date")
+            if s.get("del_empty"):
+                parts.append("Del")
+            if s.get("dry_run"):
+                parts.append("Dry")
+            settings_str = ",".join(parts) if parts else "Custom"
 
         lbl_sets = ctk.CTkLabel(row_frame, text=settings_str, width=150, anchor="center")
         lbl_sets.pack(side="left", padx=5)
@@ -146,19 +161,28 @@ class BatchDialog:
 
         # Config Button
         btn_conf = ctk.CTkButton(
-            row_frame, text="⚙", width=30, height=30,
-            fg_color=COLORS["border"], text_color=COLORS["text_main"],
-            hover_color=COLORS["accent"], corner_radius=RADII["badge"],
-            command=lambda idx=index: self.configure_folder(idx)
+            row_frame,
+            text="⚙",
+            width=30,
+            height=30,
+            fg_color=COLORS["border"],
+            text_color=COLORS["text_main"],
+            hover_color=COLORS["accent"],
+            corner_radius=RADII["badge"],
+            command=lambda idx=index: self.configure_folder(idx),
         )
         btn_conf.pack(side="left", padx=2)
 
         # Remove Button
         btn_del = ctk.CTkButton(
-            row_frame, text="X", width=30, height=30,
-            fg_color=COLORS["danger"], hover_color="#C0392B",
+            row_frame,
+            text="X",
+            width=30,
+            height=30,
+            fg_color=COLORS["danger"],
+            hover_color="#C0392B",
             corner_radius=RADII["badge"],
-            command=lambda idx=index: self.remove_folder(idx)
+            command=lambda idx=index: self.remove_folder(idx),
         )
         btn_del.pack(side="left", padx=5)
 
@@ -185,7 +209,10 @@ class BatchDialog:
     def configure_folder(self, index):
         folder_item = self.batch_folders[index]
         current_settings = folder_item.get("settings") or {
-            "recursive": False, "date_sort": False, "del_empty": False, "dry_run": False
+            "recursive": False,
+            "date_sort": False,
+            "del_empty": False,
+            "dry_run": False,
         }
 
         d = ctk.CTkToplevel(self.window)
@@ -209,7 +236,7 @@ class BatchDialog:
                 "recursive": var_rec.get(),
                 "date_sort": var_date.get(),
                 "del_empty": var_del.get(),
-                "dry_run": var_dry.get()
+                "dry_run": var_dry.get(),
             }
             self._save_batch_config()
             self._refresh_list()
@@ -237,20 +264,16 @@ class BatchDialog:
             settings = folder_item.get("settings")
 
             # Update status to Running
-            self.window.after(0, lambda f=folder_item: f["status_label"].configure(
-                text="Running...") if "status_label" in f else None)
+            self.window.after(
+                0, lambda f=folder_item: f["status_label"].configure(text="Running...") if "status_label" in f else None
+            )
 
             p = Path(folder_path)
             status_msg = ""
 
             if p.exists():
                 try:
-                    kwargs = {
-                        "recursive": False,
-                        "date_sort": False,
-                        "del_empty": False,
-                        "dry_run": False
-                    }
+                    kwargs = {"recursive": False, "date_sort": False, "del_empty": False, "dry_run": False}
                     if settings:
                         kwargs.update(settings)
 

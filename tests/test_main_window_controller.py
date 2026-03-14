@@ -21,11 +21,11 @@ class TestMainWindowController(unittest.TestCase):
         self.view.get_del_empty_val.return_value = False
         self.view.get_ai_confidence.return_value = 0.3
 
-        def side_effect(path, mode='r', *args, **kwargs):
+        def side_effect(path, mode="r", *args, **kwargs):
             p_str = str(path)
-            if 'stats.json' in p_str:
+            if "stats.json" in p_str:
                 return mock_open(read_data='{"total_files": 10, "last_run": "2026-03-13"}')()
-            if 'recent.json' in p_str:
+            if "recent.json" in p_str:
                 return mock_open(read_data='["/tmp/recent1"]')()
             return mock_open()()
 
@@ -35,17 +35,17 @@ class TestMainWindowController(unittest.TestCase):
 
     def test_init_load_errors(self):
         # Test exception path for load_stats and load_recent
-        with patch('builtins.open', side_effect=Exception("IO Error")):
+        with patch("builtins.open", side_effect=Exception("IO Error")):
             c = MainWindowController(self.view, self.organizer, self.ml_organizer)
             self.assertEqual(c.recent_folders, [])
 
     def test_save_stats_error(self):
-        with patch('os.makedirs', side_effect=Exception("Disk full")):
-            self.controller.save_stats() # Should not raise
+        with patch("os.makedirs", side_effect=Exception("Disk full")):
+            self.controller.save_stats()  # Should not raise
 
     def test_save_recent_error(self):
-        with patch('os.makedirs', side_effect=Exception("Perm Error")):
-            self.controller.save_recent() # Should not raise
+        with patch("os.makedirs", side_effect=Exception("Perm Error")):
+            self.controller.save_recent()  # Should not raise
 
     def test_undo_action_logic(self):
         # Empty stack
@@ -84,12 +84,15 @@ class TestMainWindowController(unittest.TestCase):
         self.ml_organizer.models_exist.return_value = True
         self.ml_organizer.load_models.return_value = True
 
-        with patch('threading.Thread') as mock_thread_class:
+        with patch("threading.Thread") as mock_thread_class:
             mock_thread_instance = MagicMock()
             mock_thread_class.return_value = mock_thread_instance
+
             def side_effect():
-                target = mock_thread_class.call_args[1].get('target')
-                if target: target()
+                target = mock_thread_class.call_args[1].get("target")
+                if target:
+                    target()
+
             mock_thread_instance.start.side_effect = side_effect
 
             self.view.after_main.side_effect = lambda t, f: f()
@@ -102,12 +105,15 @@ class TestMainWindowController(unittest.TestCase):
         self.ml_organizer.models_exist.return_value = True
         self.ml_organizer.load_models.return_value = False
 
-        with patch('threading.Thread') as mock_thread_class:
+        with patch("threading.Thread") as mock_thread_class:
             mock_thread_instance = MagicMock()
             mock_thread_class.return_value = mock_thread_instance
+
             def side_effect():
-                target = mock_thread_class.call_args[1].get('target')
-                if target: target()
+                target = mock_thread_class.call_args[1].get("target")
+                if target:
+                    target()
+
             mock_thread_instance.start.side_effect = side_effect
 
             self.view.after_main.side_effect = lambda t, f: f()
@@ -151,13 +157,16 @@ class TestMainWindowController(unittest.TestCase):
         self.controller.ai_enabled = True
         self.view.get_ai_confidence.return_value = 0.5
 
-        with patch('threading.Thread') as mock_thread_class:
+        with patch("threading.Thread") as mock_thread_class:
             mock_thread_instance = MagicMock()
             mock_thread_class.return_value = mock_thread_instance
+
             def side_effect():
-                target = mock_thread_class.call_args[1].get('target')
-                args = mock_thread_class.call_args[1].get('args', ())
-                if target: target(*args)
+                target = mock_thread_class.call_args[1].get("target")
+                args = mock_thread_class.call_args[1].get("args", ())
+                if target:
+                    target(*args)
+
             mock_thread_instance.start.side_effect = side_effect
 
             self.view.after_main.side_effect = lambda t, f: f()
@@ -213,7 +222,7 @@ class TestMainWindowController(unittest.TestCase):
         # Case: Path selected, start watcher
         self.controller.selected_path = Path("/tmp")
         self.view.get_recursive_val.return_value = True
-        with patch('pro_file_organizer.ui.main_window_controller.FolderWatcher') as mock_watcher_class:
+        with patch("pro_file_organizer.ui.main_window_controller.FolderWatcher") as mock_watcher_class:
             mock_watcher = mock_watcher_class.return_value
             self.controller.toggle_watch(True)
             mock_watcher.start.assert_called_with(recursive=True)
@@ -228,7 +237,7 @@ class TestMainWindowController(unittest.TestCase):
         self.controller.selected_path = Path("/tmp")
         self.controller.is_running = False
 
-        with patch.object(self.controller, 'run_organization') as mock_run:
+        with patch.object(self.controller, "run_organization") as mock_run:
             self.controller._on_watch_trigger()
             mock_run.assert_called_with(dry_run=False, from_watcher=True)
 
@@ -238,5 +247,6 @@ class TestMainWindowController(unittest.TestCase):
             self.controller._on_watch_trigger()
             mock_run.assert_not_called()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

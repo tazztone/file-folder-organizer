@@ -59,7 +59,7 @@ class TestFileOrganizer(unittest.TestCase):
 
     def test_date_sort(self):
         f = self.create_file("photo.jpg")
-        ts = 1672574400 # 2023-01-01
+        ts = 1672574400  # 2023-01-01
         os.utime(f, (ts, ts))
 
         self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), date_sort=True))
@@ -101,6 +101,7 @@ class TestFileOrganizer(unittest.TestCase):
 
         # Stop after 1st file
         processed_count = 0
+
         def check_stop():
             nonlocal processed_count
             processed_count += 1
@@ -116,6 +117,7 @@ class TestFileOrganizer(unittest.TestCase):
 
         # Mock shutil.move to fail on the second file
         original_move = shutil.move
+
         def side_effect(src, dst):
             if "file2.txt" in str(src):
                 raise PermissionError("Access Denied")
@@ -144,7 +146,7 @@ class TestFileOrganizer(unittest.TestCase):
 
     def test_undo_nested(self):
         f = self.create_file("photo.jpg")
-        ts = 1672574400 # 2023-01-01
+        ts = 1672574400  # 2023-01-01
         os.utime(f, (ts, ts))
 
         self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), date_sort=True))
@@ -166,7 +168,7 @@ class TestFileOrganizer(unittest.TestCase):
         mock_ml.models_loaded = True
         mock_ml.smart_categorize.return_value = ("Images", 0.9, "image-ml")
 
-        with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
+        with patch("pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer", return_value=mock_ml):
             self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), use_ml=True))
             self.assertTrue((Path(self.test_dir) / "Images" / "unknown.ext").exists())
 
@@ -195,6 +197,7 @@ class TestFileOrganizer(unittest.TestCase):
 
         config_path = os.path.join(self.test_dir, "good.json")
         from pro_file_organizer.core.constants import DEFAULT_DIRECTORIES
+
         self.organizer.directories = DEFAULT_DIRECTORIES.copy()
         self.assertTrue(self.organizer.save_config(config_path))
         self.assertTrue(self.organizer.load_config(config_path))
@@ -208,24 +211,19 @@ class TestFileOrganizer(unittest.TestCase):
         log_cb = MagicMock()
         prog_cb = MagicMock()
 
-        with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
+        with patch("pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer", return_value=mock_ml):
             self.organizer.organize_files(
-                OrganizationOptions(
-                    Path(self.test_dir),
-                    use_ml=True,
-                    log_callback=log_cb,
-                    progress_callback=prog_cb
-                )
+                OrganizationOptions(Path(self.test_dir), use_ml=True, log_callback=log_cb, progress_callback=prog_cb)
             )
             _, kwargs = mock_ml.load_models.call_args
-            prog_func = kwargs['progress_callback']
+            prog_func = kwargs["progress_callback"]
             prog_func("Loading...", 0.5)
 
             prog_cb.assert_called_with(0.5, 1.0, "Loading AI Models: 50%")
             log_cb.assert_any_call("[ML Init] Loading...")
 
     def test_scan_files_error(self):
-        with patch.object(Path, 'iterdir', side_effect=Exception("Path Error")):
+        with patch.object(Path, "iterdir", side_effect=Exception("Path Error")):
             stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
             self.assertEqual(stats["moved"], 0)
 
@@ -308,6 +306,7 @@ class TestFileOrganizer(unittest.TestCase):
         with patch("pathlib.Path.mkdir", side_effect=Exception("Mkdir Error")):
             stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
             self.assertEqual(stats["errors"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

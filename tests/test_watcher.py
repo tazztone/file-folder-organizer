@@ -8,6 +8,7 @@ from pro_file_organizer.core.watcher import FolderWatcher, FolderWatcherHandler
 class TestWatcher(unittest.TestCase):
     def test_handler_dispatch(self):
         import time
+
         callback = MagicMock()
         handler = FolderWatcherHandler(callback, debounce=0.01)
 
@@ -36,18 +37,21 @@ class TestWatcher(unittest.TestCase):
         mock_observer_class = MagicMock()
         mock_handler_class = MagicMock()
 
-        with patch.dict('sys.modules', {
-            'watchdog.observers': MagicMock(Observer=mock_observer_class),
-            'watchdog.events': MagicMock(FileSystemEventHandler=mock_handler_class)
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "watchdog.observers": MagicMock(Observer=mock_observer_class),
+                "watchdog.events": MagicMock(FileSystemEventHandler=mock_handler_class),
+            },
+        ):
             watcher = FolderWatcher(folder, callback)
 
             # Case: Folder doesn't exist
-            with patch('pathlib.Path.exists', return_value=False):
+            with patch("pathlib.Path.exists", return_value=False):
                 self.assertFalse(watcher.start())
 
             # Case: Folder exists
-            with patch('pathlib.Path.exists', return_value=True):
+            with patch("pathlib.Path.exists", return_value=True):
                 self.assertTrue(watcher.start(recursive=True))
                 mock_observer_class.return_value.schedule.assert_called_with(
                     watcher.handler, str(folder), recursive=True
@@ -62,10 +66,11 @@ class TestWatcher(unittest.TestCase):
         callback = MagicMock()
         folder = Path("/tmp/fake_watch_dir")
 
-        with patch('pro_file_organizer.core.watcher.Path.exists', return_value=True):
-            with patch('builtins.__import__', side_effect=ImportError):
+        with patch("pro_file_organizer.core.watcher.Path.exists", return_value=True):
+            with patch("builtins.__import__", side_effect=ImportError):
                 watcher = FolderWatcher(folder, callback)
                 self.assertFalse(watcher.start())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

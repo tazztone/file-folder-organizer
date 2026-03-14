@@ -2,8 +2,8 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from ..themes.themes import COLORS, RADII
 from ..ui_utils import ToolTip
-from ..themes.themes import COLORS, FONTS, RADII
 
 
 class SettingsDialog:
@@ -34,9 +34,13 @@ class SettingsDialog:
 
         # Bottom Buttons
         self.btn_save = ctk.CTkButton(
-            self.window, text="Save & Close", command=self.save_config,
-            fg_color=COLORS["success"], hover_color="#27AE60",
-            corner_radius=RADII["card"], height=40
+            self.window,
+            text="Save & Close",
+            command=self.save_config,
+            fg_color=COLORS["success"],
+            hover_color="#27AE60",
+            corner_radius=RADII["card"],
+            height=40,
         )
         self.btn_save.pack(side="bottom", pady=20)
         ToolTip(self.btn_save, "Save changes to config.json and close")
@@ -52,8 +56,7 @@ class SettingsDialog:
         # For simplicity and robustness, I'll use CTkScrollableFrame.
 
         self.frame_list = ctk.CTkScrollableFrame(
-            tab, width=200, label_text="Categories",
-            corner_radius=RADII["card"], fg_color=COLORS["bg_card"]
+            tab, width=200, label_text="Categories", corner_radius=RADII["card"], fg_color=COLORS["bg_card"]
         )
         self.frame_list.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
@@ -71,17 +74,23 @@ class SettingsDialog:
         frame_btns = ctk.CTkFrame(self.frame_edit, fg_color="transparent")
         frame_btns.pack(fill="x", padx=10, pady=10)
 
-        self.btn_add = ctk.CTkButton(frame_btns, text="Add Category", command=self.add_category, width=100, corner_radius=RADII["card"])
+        self.btn_add = ctk.CTkButton(
+            frame_btns, text="Add Category", command=self.add_category, width=100, corner_radius=RADII["card"]
+        )
         self.btn_add.pack(side="left", padx=(0, 5))
 
         self.btn_del = ctk.CTkButton(
-            frame_btns, text="Delete Category", command=self.delete_category,
-            width=100, fg_color=COLORS["danger"], hover_color="#C0392B",
-            corner_radius=RADII["card"]
+            frame_btns,
+            text="Delete Category",
+            command=self.delete_category,
+            width=100,
+            fg_color=COLORS["danger"],
+            hover_color="#C0392B",
+            corner_radius=RADII["card"],
         )
         self.btn_del.pack(side="left", padx=(5, 0))
 
-        self.cat_buttons = {} # Map category name to button widget
+        self.cat_buttons = {}  # Map category name to button widget
         self.selected_cat_btn = None
 
         self._populate_cat_list()
@@ -155,11 +164,16 @@ class SettingsDialog:
 
         current_cats = list(self.organizer.directories.keys())
         for cat in current_cats:
-            btn = ctk.CTkButton(self.frame_list, text=cat, fg_color="transparent",
-                                border_width=1, border_color="gray",
-                                text_color=("black", "white"),
-                                anchor="w",
-                                command=lambda c=cat: self.on_cat_select(c))
+            btn = ctk.CTkButton(
+                self.frame_list,
+                text=cat,
+                fg_color="transparent",
+                border_width=1,
+                border_color="gray",
+                text_color=("black", "white"),
+                anchor="w",
+                command=lambda c=cat: self.on_cat_select(c),
+            )
             btn.pack(fill="x", pady=2)
             self.cat_buttons[cat] = btn
 
@@ -172,7 +186,7 @@ class SettingsDialog:
             cat = self.last_selected_cat
             if cat in self.organizer.directories:
                 raw_exts = self.txt_exts.get("1.0", "end").strip()
-                ext_list = [e.strip() for e in raw_exts.split(',') if e.strip()]
+                ext_list = [e.strip() for e in raw_exts.split(",") if e.strip()]
                 self.organizer.directories[cat] = ext_list
 
     def on_cat_select(self, cat_name):
@@ -199,11 +213,11 @@ class SettingsDialog:
         if new_cat:
             new_cat = new_cat.strip()
             if not new_cat:
-                 messagebox.showerror("Error", "Category name cannot be empty.")
-                 return
+                messagebox.showerror("Error", "Category name cannot be empty.")
+                return
             if new_cat in self.organizer.directories:
-                 messagebox.showerror("Error", "Category already exists.")
-                 return
+                messagebox.showerror("Error", "Category already exists.")
+                return
 
             self.organizer.directories[new_cat] = []
 
@@ -249,28 +263,28 @@ class SettingsDialog:
 
     def _apply_exclusions(self):
         raw_exts = self.txt_excl_exts.get("1.0", "end").strip()
-        self.organizer.excluded_extensions = {e.strip() for e in raw_exts.split(',') if e.strip()}
+        self.organizer.excluded_extensions = {e.strip() for e in raw_exts.split(",") if e.strip()}
 
         raw_folders = self.txt_excl_folders.get("1.0", "end").strip()
-        self.organizer.excluded_folders = {f.strip() for f in raw_folders.split(',') if f.strip()}
+        self.organizer.excluded_folders = {f.strip() for f in raw_folders.split(",") if f.strip()}
 
         # Save ML Threshold
-        if hasattr(self, 'slider_ml'):
-             try:
-                 val = self.slider_ml.get()
-                 if val != "":
-                     self.organizer.ml_confidence = float(val)
-             except (ValueError, TypeError):
-                 pass
+        if hasattr(self, "slider_ml"):
+            try:
+                val = self.slider_ml.get()
+                if val != "":
+                    self.organizer.ml_confidence = float(val)
+            except (ValueError, TypeError):
+                pass
 
         # Save Undo Stack Size
-        if hasattr(self, 'slider_undo'):
-             try:
-                 val = self.slider_undo.get()
-                 if val != "":
-                     self.organizer.max_undo_stack = int(float(val))
-             except (ValueError, TypeError):
-                 pass
+        if hasattr(self, "slider_undo"):
+            try:
+                val = self.slider_undo.get()
+                if val != "":
+                    self.organizer.max_undo_stack = int(float(val))
+            except (ValueError, TypeError):
+                pass
 
     def save_config(self):
         self.save_pending_cat_changes()

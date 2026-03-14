@@ -6,6 +6,7 @@ from .logger import logger
 
 class FolderWatcherHandler:
     """Logic for handling file system events."""
+
     def __init__(self, callback, debounce=2.0):
         self.callback = callback
         self.debounce = debounce
@@ -22,6 +23,7 @@ class FolderWatcherHandler:
         if current_time - self.last_triggered > self.debounce:
             self.last_triggered = current_time
             self.callback()
+
 
 class FolderWatcher:
     def __init__(self, folder_path, callback):

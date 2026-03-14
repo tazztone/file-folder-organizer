@@ -4,29 +4,28 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 # Mock dependencies before importing ml_organizer
-sys.modules['transformers'] = MagicMock()
-sys.modules['transformers'].AutoConfig = MagicMock()
-sys.modules['transformers'].AutoModel = MagicMock()
-sys.modules['transformers'].AutoProcessor = MagicMock()
-sys.modules['sentence_transformers'] = MagicMock()
-sys.modules['torch'] = MagicMock()
-sys.modules['PIL'] = MagicMock()
-sys.modules['PIL.Image'] = MagicMock()
-sys.modules['pypdf'] = MagicMock()
-sys.modules['docx'] = MagicMock()
-sys.modules['numpy'] = MagicMock()
-sys.modules['sklearn'] = MagicMock()
-sys.modules['sklearn.metrics'] = MagicMock()
-sys.modules['sklearn.metrics.pairwise'] = MagicMock()
-sys.modules['scipy'] = MagicMock()
-sys.modules['scipy.sparse'] = MagicMock()
+sys.modules["transformers"] = MagicMock()
+sys.modules["transformers"].AutoConfig = MagicMock()
+sys.modules["transformers"].AutoModel = MagicMock()
+sys.modules["transformers"].AutoProcessor = MagicMock()
+sys.modules["sentence_transformers"] = MagicMock()
+sys.modules["torch"] = MagicMock()
+sys.modules["PIL"] = MagicMock()
+sys.modules["PIL.Image"] = MagicMock()
+sys.modules["pypdf"] = MagicMock()
+sys.modules["docx"] = MagicMock()
+sys.modules["numpy"] = MagicMock()
+sys.modules["sklearn"] = MagicMock()
+sys.modules["sklearn.metrics"] = MagicMock()
+sys.modules["sklearn.metrics.pairwise"] = MagicMock()
+sys.modules["scipy"] = MagicMock()
+sys.modules["scipy.sparse"] = MagicMock()
 
 # Now import the module to test
 from pro_file_organizer.core.ml_organizer import MultimodalFileOrganizer
 
 
 class TestMultimodalFileOrganizer(unittest.TestCase):
-
     def setUp(self):
         try:
             import numpy as np
@@ -37,10 +36,12 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.mock_text_model.encode.return_value = np.ones(384)
 
         # Create organizer and manually populate mock modules as it would happen in load_models
-        self.organizer = MultimodalFileOrganizer(categories_config={
-            "Images/Personal": {"text": "desc", "visual": ["label"]},
-            "Documents/Code": {"text": "code", "visual": ["code"]}
-        })
+        self.organizer = MultimodalFileOrganizer(
+            categories_config={
+                "Images/Personal": {"text": "desc", "visual": ["label"]},
+                "Documents/Code": {"text": "code", "visual": ["code"]},
+            }
+        )
 
         # Populate the instance with mocks for most tests
         self.organizer.SentenceTransformer = MagicMock(return_value=self.mock_text_model)
@@ -79,7 +80,7 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.assertEqual(self.organizer._get_device(), "cpu")
 
     def test_models_exist(self):
-        with patch('transformers.AutoConfig.from_pretrained') as mock_conf:
+        with patch("transformers.AutoConfig.from_pretrained") as mock_conf:
             mock_conf.return_value = True
             self.assertTrue(self.organizer.models_exist())
             mock_conf.side_effect = Exception("Not found")
@@ -102,7 +103,7 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         # PDF Error
         self.organizer.pypdf.PdfReader.side_effect = Exception("PDF Error")
         self.assertEqual(self.organizer.extract_text(Path("test.pdf")), "")
-        self.organizer.pypdf.PdfReader.side_effect = None # Reset
+        self.organizer.pypdf.PdfReader.side_effect = None  # Reset
 
         # DOCX Success
         mock_doc = MagicMock()
@@ -170,13 +171,13 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         content = "This is a long enough content to pass the 10 char check."
         self.organizer.text_category_embeddings = {"Images/Personal": np.array([1.0, 0.0])}
 
-        with patch.object(self.mock_text_model, 'encode', return_value=np.array([1.0, 0.0])):
+        with patch.object(self.mock_text_model, "encode", return_value=np.array([1.0, 0.0])):
             cat, conf = self.organizer.categorize_text_file(Path("test.txt"), content)
             self.assertEqual(cat, "Images/Personal")
             self.assertAlmostEqual(conf, 1.0)
 
         # Exception
-        with patch.object(self.mock_text_model, 'encode', side_effect=Exception("Encode fail")):
+        with patch.object(self.mock_text_model, "encode", side_effect=Exception("Encode fail")):
             cat, conf = self.organizer.categorize_text_file(Path("test.txt"), content)
             self.assertIsNone(cat)
 
@@ -189,7 +190,7 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.organizer.models_loaded = True
 
         # Image success
-        with patch.object(self.organizer, 'categorize_image', return_value=("Images/Personal", 0.9)):
+        with patch.object(self.organizer, "categorize_image", return_value=("Images/Personal", 0.9)):
             cat, conf, method = self.organizer.smart_categorize(Path("photo.jpg"))
             self.assertEqual(method, "image-ml")
 
@@ -207,9 +208,9 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
     def test_load_models_full(self):
         self.organizer.models_loaded = False
         # Since we use local imports, we patch the modules themselves
-        with patch('sentence_transformers.SentenceTransformer', return_value=self.mock_text_model):
-            with patch('transformers.AutoModel'):
-                with patch('transformers.AutoProcessor'):
+        with patch("sentence_transformers.SentenceTransformer", return_value=self.mock_text_model):
+            with patch("transformers.AutoModel"):
+                with patch("transformers.AutoProcessor"):
                     success = self.organizer.load_models(progress_callback=MagicMock())
                     self.assertTrue(success)
                     self.assertTrue(self.organizer.models_loaded)
@@ -224,14 +225,15 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
     def test_load_models_error(self):
         self.organizer.models_loaded = False
         # Trigger an exception inside load_models
-        with patch.object(self.organizer, '_get_device', side_effect=Exception("Load Fail")):
-             success = self.organizer.load_models()
-             self.assertFalse(success)
+        with patch.object(self.organizer, "_get_device", side_effect=Exception("Load Fail")):
+            success = self.organizer.load_models()
+            self.assertFalse(success)
 
     def test_ensure_models(self):
-        with patch.object(self.organizer, 'load_models') as mock_load:
+        with patch.object(self.organizer, "load_models") as mock_load:
             self.organizer.ensure_models()
             mock_load.assert_called()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -1,12 +1,14 @@
 import unittest
+
 from pro_file_organizer.ui.themes import themes
+
 
 class TestThemes(unittest.TestCase):
     def test_colors_exist(self):
         self.assertIn("bg_main", themes.COLORS)
         self.assertIn("accent", themes.COLORS)
         self.assertIn("text_main", themes.COLORS)
-        
+
         # Verify color tuples
         self.assertIsInstance(themes.COLORS["bg_main"], tuple)
         self.assertEqual(len(themes.COLORS["bg_main"]), 2)
@@ -14,10 +16,11 @@ class TestThemes(unittest.TestCase):
     def test_fonts_exist(self):
         self.assertIn("title", themes.FONTS)
         self.assertIn("main", themes.FONTS)
-        
+
     def test_radii_exist(self):
         self.assertIn("standard", themes.RADII)
         self.assertIn("card", themes.RADII)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -17,8 +17,8 @@ class TestUIUtils(unittest.TestCase):
         self.assertEqual(self.tooltip.text, "Test Tooltip")
         self.mock_widget.bind.assert_called()
 
-    @patch('pro_file_organizer.ui.ui_utils.ctk')
-    @patch('pro_file_organizer.ui.ui_utils.tk.Toplevel')
+    @patch("pro_file_organizer.ui.ui_utils.ctk")
+    @patch("pro_file_organizer.ui.ui_utils.tk.Toplevel")
     def test_show_tip(self, mock_toplevel, mock_ctk):
         mock_tw = MagicMock()
         mock_toplevel.return_value = mock_tw
@@ -34,5 +34,6 @@ class TestUIUtils(unittest.TestCase):
         self.assertIsNone(self.tooltip.tip_window)
         mock_tw.destroy.assert_called()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

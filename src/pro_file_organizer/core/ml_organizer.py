@@ -51,6 +51,7 @@ class MultimodalFileOrganizer:
         """
         try:
             from transformers import AutoConfig
+
             # Check SigLIP 2
             AutoConfig.from_pretrained("google/siglip2-base-patch32-256", local_files_only=True)
             # Check Qwen Embedding
@@ -105,22 +106,22 @@ class MultimodalFileOrganizer:
 
             # Load Text Model
             self.text_model = self.SentenceTransformer(
-                "Qwen/Qwen3-Embedding-0.6B",
-                device=self.device,
-                trust_remote_code=True
+                "Qwen/Qwen3-Embedding-0.6B", device=self.device, trust_remote_code=True
             )
 
             if progress_callback:
                 progress_callback("Loading Image Model (SigLIP)...", 0.4)
 
             # Load Image Model
-            self.image_model = self.AutoModel.from_pretrained(
-                "google/siglip2-base-patch32-256",
-            ).to(self.device).eval()
-
-            self.image_processor = self.AutoProcessor.from_pretrained(
-                "google/siglip2-base-patch32-256"
+            self.image_model = (
+                self.AutoModel.from_pretrained(
+                    "google/siglip2-base-patch32-256",
+                )
+                .to(self.device)
+                .eval()
             )
+
+            self.image_processor = self.AutoProcessor.from_pretrained("google/siglip2-base-patch32-256")
 
             if progress_callback:
                 progress_callback("Precomputing embeddings...", 0.8)
@@ -148,11 +149,7 @@ class MultimodalFileOrganizer:
         for cat, desc in self.categories_config.items():
             if "text" in desc:
                 text_to_encode = f"{instruction}{desc['text']}"
-                emb = self.text_model.encode(
-                    text_to_encode,
-                    prompt_name="query",
-                    convert_to_numpy=True
-                )
+                emb = self.text_model.encode(text_to_encode, prompt_name="query", convert_to_numpy=True)
                 self.text_category_embeddings[cat] = emb
 
     def extract_text(self, file_path: Path):
@@ -161,11 +158,11 @@ class MultimodalFileOrganizer:
         content = ""
 
         try:
-            if ext in ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.xml']:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read(5000) # Limit to first 5KB
+            if ext in [".txt", ".md", ".py", ".js", ".html", ".css", ".json", ".xml"]:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read(5000)  # Limit to first 5KB
 
-            elif ext == '.pdf' and self.pypdf:
+            elif ext == ".pdf" and self.pypdf:
                 try:
                     reader = self.pypdf.PdfReader(file_path)
                     # Extract text from first few pages
@@ -176,7 +173,7 @@ class MultimodalFileOrganizer:
                 except Exception as e:
                     logger.error(f"PDF extraction error: {e}")
 
-            elif ext == '.docx' and self.docx:
+            elif ext == ".docx" and self.docx:
                 try:
                     doc = self.docx.Document(file_path)
                     # Limit paragraphs
@@ -203,8 +200,8 @@ class MultimodalFileOrganizer:
             label_to_category = {}
 
             for cat, desc in self.categories_config.items():
-                if 'visual' in desc:
-                    visual_descs = desc['visual']
+                if "visual" in desc:
+                    visual_descs = desc["visual"]
                     if isinstance(visual_descs, str):
                         visual_descs = [visual_descs]
 
@@ -216,12 +213,9 @@ class MultimodalFileOrganizer:
                 return None, 0.0
 
             # Prepare inputs
-            inputs = self.image_processor(
-                images=image,
-                text=all_labels,
-                return_tensors="pt",
-                padding="max_length"
-            ).to(self.device)
+            inputs = self.image_processor(images=image, text=all_labels, return_tensors="pt", padding="max_length").to(
+                self.device
+            )
 
             # Get predictions
             with self.torch.no_grad():
@@ -249,9 +243,7 @@ class MultimodalFileOrganizer:
             instruction = "Instruct: Classify this content into file categories\nQuery:"
             # Qwen embedding
             content_emb = self.text_model.encode(
-                f"{instruction}{content[:2000]}",
-                prompt_name="query",
-                convert_to_numpy=True
+                f"{instruction}{content[:2000]}", prompt_name="query", convert_to_numpy=True
             )
 
             # Compute similarities
@@ -281,7 +273,7 @@ class MultimodalFileOrganizer:
         file_ext = file_path.suffix.lower()
 
         # Image files
-        if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+        if file_ext in [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]:
             category, confidence = self.categorize_image(file_path)
             if category:
                 # Use category-specific threshold if available
@@ -291,7 +283,7 @@ class MultimodalFileOrganizer:
                     return category, confidence, "image-ml"
 
         # Text-extractable files
-        elif file_ext in ['.txt', '.md', '.py', '.js', '.html', '.pdf', '.docx', '.css', '.json']:
+        elif file_ext in [".txt", ".md", ".py", ".js", ".html", ".pdf", ".docx", ".css", ".json"]:
             content = self.extract_text(file_path)
             if content:
                 category, confidence = self.categorize_text_file(file_path, content)

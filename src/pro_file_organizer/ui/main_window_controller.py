@@ -13,6 +13,7 @@ class MainWindowController:
     Controller that handles the logic for the Pro File Organizer UI.
     Decoupled from customtkinter widgets for testability.
     """
+
     def __init__(self, view, organizer, ml_organizer):
         self.view = view
         self.organizer = organizer
@@ -68,6 +69,7 @@ class MainWindowController:
 
     def select_folder(self):
         from tkinter import filedialog
+
         folder = filedialog.askdirectory()
         if folder:
             self.set_folder(folder)
@@ -113,10 +115,9 @@ class MainWindowController:
         if enabled:
             # Check if models exist
             if not self.ml_organizer.models_exist():
-                if self.view.confirm_action("Download Models?",
-                                          "AI models (~2GB) need to be downloaded. Continue?"):
+                if self.view.confirm_action("Download Models?", "AI models (~2GB) need to be downloaded. Continue?"):
                     self.view.show_model_download(self._on_model_download_complete)
-                    return # Will enable after download
+                    return  # Will enable after download
                 else:
                     self.ai_enabled = False
                     self.view.set_ai_switch_state(False)
@@ -124,13 +125,12 @@ class MainWindowController:
 
             # Models exist, try to load
             self.view.show_status("Loading AI Models...")
+
             def load_task():
                 def thread_safe_progress(c, t, f):
                     self.view.after_main(0, lambda: self.view.update_progress(c, t, f))
 
-                success = self.ml_organizer.load_models(
-                    progress_callback=thread_safe_progress
-                )
+                success = self.ml_organizer.load_models(progress_callback=thread_safe_progress)
                 if success:
                     self.ai_enabled = True
                     self.view.after_main(0, self.view.enable_ai_ui)
@@ -165,9 +165,11 @@ class MainWindowController:
             if self.watcher.start(recursive=self.view.get_recursive_val()):
                 self.view.show_status(f"Watching: {self.selected_path.name}")
             else:
-                self.view.show_error("Feature Not Installed",
-                                   "The 'watchdog' library is required for this feature.\n"
-                                   "Install it with: pip install pro-file-organizer[watch]")
+                self.view.show_error(
+                    "Feature Not Installed",
+                    "The 'watchdog' library is required for this feature.\n"
+                    "Install it with: pip install pro-file-organizer[watch]",
+                )
                 self.view.set_watch_switch_state(False)
                 self.watcher = None
         else:
@@ -175,6 +177,7 @@ class MainWindowController:
                 self.watcher.stop()
                 self.watcher = None
             self.view.show_status("Watcher disabled")
+
     def _on_watch_trigger(self):
         if not self.is_running:
             self.run_organization(dry_run=False, from_watcher=True)
@@ -187,8 +190,11 @@ class MainWindowController:
         if self.is_running:
             return
 
-        if not dry_run and not from_watcher and not self.view.confirm_action("Confirm",
-                                                      f"Organize files in {self.selected_path}?"):
+        if (
+            not dry_run
+            and not from_watcher
+            and not self.view.confirm_action("Confirm", f"Organize files in {self.selected_path}?")
+        ):
             return
 
         self.is_running = True
@@ -207,7 +213,7 @@ class MainWindowController:
             self.view.after_main(0, lambda: self.view.add_result_card(data))
 
         def on_progress(current, total, filename):
-             self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
+            self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
 
         options = OrganizationOptions(
             source_path=self.selected_path,
@@ -219,7 +225,7 @@ class MainWindowController:
             use_ml=self.ai_enabled,
             progress_callback=on_progress,
             event_callback=on_event,
-            check_stop=lambda: not self.is_running
+            check_stop=lambda: not self.is_running,
         )
         stats = self.organizer.organize_files(options)
 
@@ -231,11 +237,11 @@ class MainWindowController:
         self.view.update_progress(1, 1, "Complete")
 
         msg = f"Done! {'Would move' if dry_run else 'Moved'} {stats['moved']} files."
-        if stats.get('renamed', 0) > 0:
+        if stats.get("renamed", 0) > 0:
             msg += f" ({stats['renamed']} renamed)"
-        if stats.get('duplicates', 0) > 0:
+        if stats.get("duplicates", 0) > 0:
             msg += f" ({stats['duplicates']} duplicates skipped)"
-        if stats.get('errors', 0) > 0:
+        if stats.get("errors", 0) > 0:
             msg += f" ({stats['errors']} errors)"
 
         self.view.show_status(msg)
