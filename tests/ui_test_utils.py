@@ -64,14 +64,27 @@ class MockBase(object):
         self.connect = MagicMock()
         self.emit = MagicMock()
 
+        self.style = MagicMock()
+        self._mock_style_obj = MagicMock()
+        self._mock_style_obj.unpolish = MagicMock()
+        self._mock_style_obj.polish = MagicMock()
+        self.style.return_value = self._mock_style_obj
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def __getattr__(self, name):
         # Fallback for signals like stateChanged, etc.
         if name in [
-            "stateChanged", "clicked", "currentTextChanged", "valueChanged",
-            "dropped", "finished", "status_updated", "progress_updated", "log_emitted"
+            "stateChanged",
+            "clicked",
+            "currentTextChanged",
+            "valueChanged",
+            "dropped",
+            "finished",
+            "status_updated",
+            "progress_updated",
+            "log_emitted",
         ]:
             sig = MagicMock()
             sig.connect = MagicMock()

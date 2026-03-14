@@ -81,6 +81,7 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
 
     def test_models_exist(self):
         import sys
+
         with patch("sys.modules", dict(sys.modules)):
             mock_hf = MagicMock()
             sys.modules["huggingface_hub"] = mock_hf

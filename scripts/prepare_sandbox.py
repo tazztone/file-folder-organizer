@@ -9,6 +9,7 @@ def create_dummy_file(path, size_kb=1):
     with open(path, "wb") as f:
         f.write(os.urandom(size_kb * 1024))
 
+
 def setup_sandbox(sandbox_path: Path):
     if sandbox_path.exists():
         print(f"Cleaning existing sandbox at {sandbox_path}...")
@@ -33,7 +34,7 @@ def setup_sandbox(sandbox_path: Path):
         "todo.txt",
         "music/song1.mp3",
         "videos/movie.mp4",
-        "nested/deep/folder/screenshot.png"
+        "nested/deep/folder/screenshot.png",
     ]
 
     for f in files:
@@ -47,6 +48,7 @@ def setup_sandbox(sandbox_path: Path):
     print("3. Try 'Dry Run' first to see what it would do.")
     print("4. Try 'Organize' and check the results.")
     print("5. Try 'Undo' to restore the messy state.")
+
 
 if __name__ == "__main__":
     sandbox_dir = Path.cwd() / "test_sandbox"

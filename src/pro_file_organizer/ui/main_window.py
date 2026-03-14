@@ -30,7 +30,7 @@ from .components.ui_components import FileCard, ModelDownloadModal
 from .dialogs.batch_dialog import BatchDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .main_window_controller import MainWindowController
-from .themes.themes import COLORS, DARK_COLORS, LIGHT_COLORS, RADII, build_stylesheet, get_font_style
+from .themes.themes import COLORS, RADII, apply_theme, build_stylesheet, get_font_style
 
 
 class ToggleSwitch(QAbstractButton):
@@ -106,7 +106,6 @@ class DropZoneWidget(QFrame):
         self.hovered = False
         self.setObjectName("drop_zone")
         self.setFixedHeight(160)
-        self.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -193,13 +192,13 @@ class OrganizerApp(QMainWindow):
     def _apply_theme(self, mode: str):
         if mode == "System":
             is_dark = QApplication.palette().color(QPalette.ColorRole.Window).lightness() < 128
-            colors = DARK_COLORS if is_dark else LIGHT_COLORS
+            apply_theme("Dark" if is_dark else "Light")
         else:
-            colors = LIGHT_COLORS if mode == "Light" else DARK_COLORS
+            apply_theme(mode)
 
         app = QApplication.instance()
         if isinstance(app, QApplication):
-            app.setStyleSheet(build_stylesheet(colors))
+            app.setStyleSheet(build_stylesheet(COLORS))
 
     def _setup_ui(self):
         central_widget = QWidget()
@@ -295,6 +294,7 @@ class OrganizerApp(QMainWindow):
 
         # --- Main Dashboard ---
         self.main_area = QWidget()
+        self.main_area.setObjectName("main_dashboard")
         main_area_layout = QVBoxLayout(self.main_area)
         main_area_layout.setContentsMargins(30, 30, 30, 30)
         main_area_layout.setSpacing(20)
@@ -382,7 +382,7 @@ class OrganizerApp(QMainWindow):
         self.btn_stop.setObjectName("danger")
         self.btn_stop.setFixedSize(120, 40)
         self.btn_stop.hide()
-        self.btn_stop.clicked.connect(lambda: setattr(self.controller, 'is_running', False))
+        self.btn_stop.clicked.connect(lambda: setattr(self.controller, "is_running", False))
         controls_layout.addWidget(self.btn_stop)
 
         # Results Area
@@ -393,9 +393,6 @@ class OrganizerApp(QMainWindow):
         self.results_scroll = QScrollArea()
         self.results_scroll.setWidgetResizable(True)
         self.results_scroll.setObjectName("card")
-        self.results_scroll.setStyleSheet(
-            f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;"
-        )
 
         self.results_container = QWidget()
         self.results_layout = QVBoxLayout(self.results_container)
@@ -433,7 +430,7 @@ class OrganizerApp(QMainWindow):
     def clear_results(self):
         # Safely clear widgets from the layout without risking infinite loops
         count = self.results_layout.count()
-        for _ in range(count - 1): # keep the last stretch
+        for _ in range(count - 1):  # keep the last stretch
             item = self.results_layout.takeAt(0)
             if item:
                 w = item.widget()

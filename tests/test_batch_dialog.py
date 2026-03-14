@@ -63,7 +63,7 @@ class TestBatchDialog(unittest.TestCase):
 
     def test_clear_all(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
-        mock_qtwidgets.QMessageBox.question.return_value = 1 # QMessageBox.Yes
+        mock_qtwidgets.QMessageBox.question.return_value = 1  # QMessageBox.Yes
         self.dialog.clear_all()
         self.assertEqual(self.dialog.batch_folders, [])
 
@@ -74,7 +74,7 @@ class TestBatchDialog(unittest.TestCase):
 
     def test_run_batch_execution(self):
         self.dialog.batch_folders = [{"path": "/tmp/folder", "settings": None}]
-        mock_qtwidgets.QMessageBox.question.return_value = 1 # QMessageBox.Yes
+        mock_qtwidgets.QMessageBox.question.return_value = 1  # QMessageBox.Yes
 
         with patch("threading.Thread") as mock_thread:
             self.dialog.run_batch()

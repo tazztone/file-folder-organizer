@@ -85,7 +85,7 @@ class MultimodalFileOrganizer:
             import torch as torch_mod
             from PIL import Image as Image_mod
             from sentence_transformers import SentenceTransformer as SentenceTransformer_cls
-            from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
+            from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func  # type: ignore
             from transformers import AutoModel as AutoModel_cls
             from transformers import AutoProcessor as AutoProcessor_cls
             from transformers import AutoTokenizer as AutoTokenizer_cls

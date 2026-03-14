@@ -1,4 +1,3 @@
-
 from typing import Optional
 
 from PySide6.QtCore import Qt
@@ -18,8 +17,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from ..themes.themes import COLORS, RADII
 
 
 class SettingsDialog(QDialog):
@@ -66,7 +63,7 @@ class SettingsDialog(QDialog):
         self.scroll_list = QScrollArea()
         self.scroll_list.setFixedWidth(200)
         self.scroll_list.setWidgetResizable(True)
-        self.scroll_list.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['card']}px;")
+        self.scroll_list.setObjectName("card")
 
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout(self.list_container)
@@ -80,7 +77,6 @@ class SettingsDialog(QDialog):
         # Right: Edit area
         self.edit_frame = QFrame()
         self.edit_frame.setObjectName("card")
-        self.edit_frame.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['card']}px;")
         edit_layout = QVBoxLayout(self.edit_frame)
         tab_layout.addWidget(self.edit_frame, 1)
 
@@ -134,7 +130,7 @@ class SettingsDialog(QDialog):
 
         self.lbl_ml_val = QLabel(f"{current_threshold:.2f}")
         ml_layout.addWidget(self.lbl_ml_val)
-        self.slider_ml.valueChanged.connect(lambda v: self.lbl_ml_val.setText(f"{v/100:.2f}"))
+        self.slider_ml.valueChanged.connect(lambda v: self.lbl_ml_val.setText(f"{v / 100:.2f}"))
 
         # Undo Stack Size
         tab_layout.addWidget(QLabel("Max Undo Stack Size:"))
@@ -207,15 +203,15 @@ class SettingsDialog(QDialog):
         self.save_pending_cat_changes()
 
         if self.selected_cat_btn:
-            self.selected_cat_btn.setStyleSheet("text-align: left; padding-left: 10px;")
+            self.selected_cat_btn.setProperty("active", False)
+            self.selected_cat_btn.style().unpolish(self.selected_cat_btn)
+            self.selected_cat_btn.style().polish(self.selected_cat_btn)
 
         if cat_name in self.cat_buttons:
             self.selected_cat_btn = self.cat_buttons[cat_name]
-            self.selected_cat_btn.setStyleSheet(f"""
-                text-align: left; padding-left: 10px;
-                background-color: {COLORS['accent']};
-                color: white;
-            """)
+            self.selected_cat_btn.setProperty("active", True)
+            self.selected_cat_btn.style().unpolish(self.selected_cat_btn)
+            self.selected_cat_btn.style().polish(self.selected_cat_btn)
 
         self.last_selected_cat = cat_name
         exts = self.organizer.directories.get(cat_name, [])
@@ -238,8 +234,9 @@ class SettingsDialog(QDialog):
             return
 
         cat = self.last_selected_cat
-        res = QMessageBox.question(self, "Confirm", f"Delete category '{cat}'?",
-                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        res = QMessageBox.question(
+            self, "Confirm", f"Delete category '{cat}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
         if res == QMessageBox.StandardButton.Yes:
             del self.organizer.directories[cat]
             self.last_selected_cat = None
@@ -260,8 +257,12 @@ class SettingsDialog(QDialog):
     def import_profile(self):
         path, _ = QFileDialog.getOpenFileName(self, "Import Configuration", "", "JSON Files (*.json)")
         if path:
-            res = QMessageBox.question(self, "Confirm", "Importing will overwrite current settings. Continue?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            res = QMessageBox.question(
+                self,
+                "Confirm",
+                "Importing will overwrite current settings. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
             if res == QMessageBox.StandardButton.Yes:
                 if self.organizer.import_config_file(path):
                     self._populate_cat_list()

@@ -106,12 +106,11 @@ class FileCard(QFrame):
         self.lbl_badge.setStyleSheet(f"""
             background-color: {accent_color};
             color: white;
-            border-radius: {RADII['badge']}px;
-            {get_font_style('small')}
+            border-radius: {RADII["badge"]}px;
+            {get_font_style("small")}
         """)
         self.main_layout.addWidget(self.lbl_badge)
 
-        self.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['card']}px;")
         self._apply_appearance()
 
     def set_executed(self):
@@ -121,9 +120,11 @@ class FileCard(QFrame):
 
     def _apply_appearance(self):
         if not self.executed:
-            self.lbl_name.setStyleSheet(f"{get_font_style('label')} color: {COLORS['text_dimmed']};")
+            self.lbl_name.setObjectName("dimmed")
         else:
-            self.lbl_name.setStyleSheet(f"{get_font_style('label')} color: {COLORS['text_main']};")
+            self.lbl_name.setObjectName("")
+        self.lbl_name.style().unpolish(self.lbl_name)
+        self.lbl_name.style().polish(self.lbl_name)
 
 
 class DownloadSignals(QObject):
@@ -168,7 +169,7 @@ class ModelDownloadModal(QDialog):
 
         self.frame = QFrame()
         self.frame.setObjectName("card")
-        self.frame.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
+        self.frame.setObjectName("card")
         frame_layout = QVBoxLayout(self.frame)
         frame_layout.setContentsMargins(20, 20, 20, 20)
         layout.addWidget(self.frame)
@@ -215,7 +216,8 @@ class ModelDownloadModal(QDialog):
 
         self.txt_log = QTextEdit()
         self.txt_log.setReadOnly(True)
-        self.txt_log.setStyleSheet(f"font-family: 'Consolas'; font-size: 10px; background-color: {COLORS['bg_main']};")
+        self.txt_log.setObjectName("dimmed")
+        self.txt_log.setStyleSheet("font-family: 'Consolas'; font-size: 10px;")
         self.txt_log.hide()
         frame_layout.addWidget(self.txt_log)
 
@@ -299,6 +301,7 @@ class ModelDownloadModal(QDialog):
 
         try:
             from ...core.ml_organizer import MultimodalFileOrganizer
+
             ml_org = MultimodalFileOrganizer()
 
             def cb(msg, val):

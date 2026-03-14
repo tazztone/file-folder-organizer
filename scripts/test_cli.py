@@ -28,6 +28,7 @@ def main():
     # Allow overriding the undo stack path for Docker persistence
     if "UNDO_STACK_PATH" in os.environ:
         from pro_file_organizer.core import constants
+
         constants.DEFAULT_UNDO_STACK_FILE = Path(os.environ["UNDO_STACK_PATH"])
         # Re-load to ensure we pick up the mounted file
         organizer._load_undo_stack()
@@ -44,7 +45,7 @@ def main():
         use_ml=args.ml,
         dry_run=args.dry_run,
         log_callback=print,
-        progress_callback=lambda curr, total, name: print(f"[{curr}/{total}] Processing: {name}", end="\r")
+        progress_callback=lambda curr, total, name: print(f"[{curr}/{total}] Processing: {name}", end="\r"),
     )
 
     print(f"Starting organization of: {source_path}")
@@ -61,6 +62,7 @@ def main():
 
     if result.get("errors", 0) > 0:
         print("\nReview the logs for error details.")
+
 
 if __name__ == "__main__":
     main()

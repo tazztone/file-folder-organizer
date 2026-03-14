@@ -36,8 +36,18 @@ DARK_COLORS = {
     "separator": "#2C2E33",
 }
 
-# Default to DARK_COLORS for backwards compatibility where tuple-less COLORS is needed
-COLORS = DARK_COLORS
+# Global COLORS dictionary that will be updated in place
+COLORS = DARK_COLORS.copy()
+
+
+def apply_theme(mode: str) -> None:
+    """Updates the global COLORS dictionary and returns the new stylesheet."""
+    global COLORS
+    if mode == "Light":
+        COLORS.update(LIGHT_COLORS)
+    else:
+        COLORS.update(DARK_COLORS)
+
 
 # Typography
 FONTS = {
@@ -61,8 +71,13 @@ def build_stylesheet(colors: Dict[str, str]) -> str:
     """Generates a QSS stylesheet based on the color palette."""
     return f"""
     QMainWindow, QDialog {{
-        background-color: {colors['bg_main']};
-        color: {colors['text_main']};
+        background-color: {colors["bg_main"]};
+        color: {colors["text_main"]};
+    }}
+
+    /* Specific containers to override defaults */
+    QWidget#main_dashboard {{
+        background-color: {colors["bg_main"]};
     }}
 
     QFrame {{
@@ -70,56 +85,78 @@ def build_stylesheet(colors: Dict[str, str]) -> str:
     }}
 
     QFrame#sidebar {{
-        background-color: {colors['bg_sidebar']};
-        border-right: 1px solid {colors['separator']};
+        background-color: {colors["bg_sidebar"]};
+        border-right: 1px solid {colors["separator"]};
     }}
 
-    QFrame#card {{
-        background-color: {colors['bg_card']};
-        border-radius: {RADII['card']}px;
+    QFrame#card, QFrame#drop_zone {{
+        background-color: {colors["bg_card"]};
+        border-radius: {RADII["card"]}px;
+    }}
+
+    QFrame#row {{
+        background-color: {colors["bg_card"]};
+        border-radius: {RADII["card"]}px;
+        border: 1px solid {colors["border"]};
     }}
 
     QLabel {{
-        color: {colors['text_main']};
+        color: {colors["text_main"]};
+        background: transparent;
     }}
 
     QLabel#dimmed {{
-        color: {colors['text_dimmed']};
+        color: {colors["text_dimmed"]};
+    }}
+
+    QLabel#success {{
+        color: {colors["success"]};
+        font-weight: bold;
+    }}
+
+    QLabel#danger {{
+        color: {colors["danger"]};
+        font-weight: bold;
     }}
 
     QPushButton {{
-        background-color: {colors['accent']};
+        background-color: {colors["accent"]};
         color: white;
-        border-radius: {RADII['card']}px;
+        border-radius: {RADII["card"]}px;
         padding: 8px 16px;
         font-weight: bold;
     }}
 
     QPushButton:hover {{
-        background-color: {colors['bg_hover']};
-        color: {colors['accent']};
-        border: 1px solid {colors['accent']};
+        background-color: {colors["bg_hover"]};
+        color: {colors["accent"]};
+        border: 1px solid {colors["accent"]};
     }}
 
     QPushButton#secondary {{
         background-color: transparent;
-        border: 1px solid {colors['border']};
-        color: {colors['text_main']};
+        border: 1px solid {colors["border"]};
+        color: {colors["text_main"]};
+    }}
+
+    QPushButton[active="true"] {{
+        background-color: {colors["accent"]};
+        color: white;
     }}
 
     QPushButton#danger {{
-        background-color: {colors['danger']};
+        background-color: {colors["danger"]};
     }}
 
     QPushButton#success {{
-        background-color: {colors['success']};
+        background-color: {colors["success"]};
     }}
 
     QLineEdit, QTextEdit, QPlainTextEdit {{
-        background-color: {colors['bg_card']};
-        border: 1px solid {colors['border']};
-        border-radius: {RADII['badge']}px;
-        color: {colors['text_main']};
+        background-color: {colors["bg_card"]};
+        border: 1px solid {colors["border"]};
+        border-radius: {RADII["badge"]}px;
+        color: {colors["text_main"]};
         padding: 5px;
     }}
 
@@ -128,60 +165,73 @@ def build_stylesheet(colors: Dict[str, str]) -> str:
         background-color: transparent;
     }}
 
+    QScrollArea#card {{
+        background-color: {colors["bg_card"]};
+        border-radius: {RADII["standard"]}px;
+    }}
+
     QScrollBar:vertical {{
         border: none;
-        background: {colors['bg_main']};
+        background: {colors["bg_main"]};
         width: 10px;
         margin: 0px;
     }}
 
     QScrollBar::handle:vertical {{
-        background: {colors['border']};
+        background: {colors["border"]};
         min-height: 20px;
         border-radius: 5px;
     }}
 
     QProgressBar {{
-        border: 1px solid {colors['border']};
-        border-radius: {RADII['badge']}px;
+        border: 1px solid {colors["border"]};
+        border-radius: {RADII["badge"]}px;
         text-align: center;
-        background-color: {colors['bg_card']};
+        background-color: {colors["bg_card"]};
     }}
 
     QProgressBar::chunk {{
-        background-color: {colors['accent']};
-        border-radius: {RADII['badge']}px;
+        background-color: {colors["accent"]};
+        border-radius: {RADII["badge"]}px;
     }}
 
     QCheckBox {{
-        color: {colors['text_main']};
+        color: {colors["text_main"]};
     }}
 
     QComboBox {{
-        background-color: {colors['bg_card']};
-        border: 1px solid {colors['border']};
-        border-radius: {RADII['badge']}px;
+        background-color: {colors["bg_card"]};
+        border: 1px solid {colors["border"]};
+        border-radius: {RADII["badge"]}px;
         padding: 5px;
-        color: {colors['text_main']};
+        color: {colors["text_main"]};
+    }}
+
+    QComboBox QAbstractItemView {{
+        background-color: {colors["bg_card"]};
+        color: {colors["text_main"]};
+        border: 1px solid {colors["border"]};
+        selection-background-color: {colors["bg_hover"]};
+        selection-color: {colors["accent"]};
     }}
 
     QTabWidget::pane {{
-        border: 1px solid {colors['separator']};
-        background-color: {colors['bg_main']};
-        border-radius: {RADII['standard']}px;
+        border: 1px solid {colors["separator"]};
+        background-color: {colors["bg_main"]};
+        border-radius: {RADII["standard"]}px;
     }}
 
     QTabBar::tab {{
-        background-color: {colors['bg_sidebar']};
+        background-color: {colors["bg_sidebar"]};
         padding: 8px 20px;
         margin-right: 2px;
-        border-top-left-radius: {RADII['badge']}px;
-        border-top-right-radius: {RADII['badge']}px;
-        color: {colors['text_dimmed']};
+        border-top-left-radius: {RADII["badge"]}px;
+        border-top-right-radius: {RADII["badge"]}px;
+        color: {colors["text_dimmed"]};
     }}
 
     QTabBar::tab:selected {{
-        background-color: {colors['accent']};
+        background-color: {colors["accent"]};
         color: white;
     }}
     """

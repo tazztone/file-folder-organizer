@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 )
 
 from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
-from ..themes.themes import COLORS, RADII
 
 
 class BatchSignals(QObject):
@@ -71,7 +70,7 @@ class BatchDialog(QDialog):
         # Header
         header_frame = QFrame()
         header_frame.setFixedHeight(40)
-        header_frame.setStyleSheet(f"background-color: {COLORS['bg_sidebar']}; border-radius: 0px;")
+        header_frame.setObjectName("sidebar")
         header_layout = QHBoxLayout(header_frame)
         header_layout.setContentsMargins(10, 0, 10, 0)
         layout.addWidget(header_frame)
@@ -101,7 +100,7 @@ class BatchDialog(QDialog):
         # List Area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
+        self.scroll_area.setObjectName("card")
 
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout(self.list_container)
@@ -162,7 +161,7 @@ class BatchDialog(QDialog):
     def _create_row(self, index, item):
         row_frame = QFrame()
         row_frame.setFixedHeight(50)
-        row_frame.setStyleSheet(f"background-color: {COLORS['bg_main']}; border-radius: {RADII['card']}px;")
+        row_frame.setObjectName("row")
         row_layout = QHBoxLayout(row_frame)
         row_layout.setContentsMargins(10, 5, 10, 5)
 
@@ -176,10 +175,14 @@ class BatchDialog(QDialog):
         if item.get("settings"):
             s = item["settings"]
             parts = []
-            if s.get("recursive"): parts.append("Rec")
-            if s.get("date_sort"): parts.append("Date")
-            if s.get("del_empty"): parts.append("Del")
-            if s.get("dry_run"): parts.append("Dry")
+            if s.get("recursive"):
+                parts.append("Rec")
+            if s.get("date_sort"):
+                parts.append("Date")
+            if s.get("del_empty"):
+                parts.append("Del")
+            if s.get("dry_run"):
+                parts.append("Dry")
             settings_str = ",".join(parts) if parts else "Custom"
 
         lbl_sets = QLabel(settings_str)
@@ -226,8 +229,12 @@ class BatchDialog(QDialog):
             self._refresh_list()
 
     def clear_all(self):
-        res = QMessageBox.question(self, "Confirm", "Clear all folders from batch list?",
-                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        res = QMessageBox.question(
+            self,
+            "Confirm",
+            "Clear all folders from batch list?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if res == QMessageBox.StandardButton.Yes:
             self.batch_folders = []
             self._save_batch_config()
@@ -338,9 +345,13 @@ class BatchDialog(QDialog):
             if "status_label" in item:
                 item["status_label"].setText(status)
                 if status == "Done":
-                    item["status_label"].setStyleSheet(f"color: {COLORS['success']};")
+                    item["status_label"].setObjectName("success")
                 elif status == "Error" or status == "Not Found":
-                    item["status_label"].setStyleSheet(f"color: {COLORS['danger']};")
+                    item["status_label"].setObjectName("danger")
+                else:
+                    item["status_label"].setObjectName("")
+                item["status_label"].style().unpolish(item["status_label"])
+                item["status_label"].style().polish(item["status_label"])
 
     def _on_batch_finished(self):
         QMessageBox.information(self, "Batch Complete", "Batch organization finished.")

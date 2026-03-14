@@ -47,7 +47,7 @@ class TestMainWindow(unittest.TestCase):
         self.app.btn_run.setEnabled.assert_called_with(True)
 
     def test_clear_results(self):
-        self.app.results_layout.count.return_value = 3 # 2 items to clear + 1 stretch
+        self.app.results_layout.count.return_value = 3  # 2 items to clear + 1 stretch
         mock_item = MagicMock()
         mock_widget = MagicMock()
         mock_item.widget.return_value = mock_widget
@@ -114,8 +114,7 @@ class TestMainWindow(unittest.TestCase):
         res = self.app.confirm_action("Title", "Message")
         self.assertTrue(res)
         self.mocks[5].question.assert_called_with(
-            self.app, "Title", "Message",
-            self.mocks[5].StandardButton.Yes | self.mocks[5].StandardButton.No
+            self.app, "Title", "Message", self.mocks[5].StandardButton.Yes | self.mocks[5].StandardButton.No
         )
 
     def test_update_stats_display(self):

@@ -51,7 +51,7 @@ class TestSettingsDialog(unittest.TestCase):
     def test_exclusion_logic(self):
         self.dialog.txt_excl_exts.toPlainText.return_value = ".log, .tmp"
         self.dialog.txt_excl_folders.toPlainText.return_value = "dist, build"
-        self.dialog.slider_ml.value.return_value = 80 # 0.8 * 100
+        self.dialog.slider_ml.value.return_value = 80  # 0.8 * 100
 
         self.dialog._apply_exclusions()
 
