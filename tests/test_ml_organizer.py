@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-import numpy as np
+# numpy will be imported inside methods or mocked
 
 # Mock dependencies before importing ml_organizer
 sys.modules['transformers'] = MagicMock()
@@ -30,6 +30,11 @@ from pro_file_organizer.core.ml_organizer import MultimodalFileOrganizer
 class TestMultimodalFileOrganizer(unittest.TestCase):
 
     def setUp(self):
+        try:
+            import numpy as np
+        except ImportError:
+            np = MagicMock()
+
         self.mock_text_model = MagicMock()
         self.mock_text_model.encode.return_value = np.ones(384)
 
@@ -157,6 +162,11 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
             self.assertIsNone(cat)
 
     def test_categorize_text_file_logic_extended(self):
+        try:
+            import numpy as np
+        except ImportError:
+            np = MagicMock()
+
         content = "This is a long enough content to pass the 10 char check."
         self.organizer.text_category_embeddings = {"Images/Personal": np.array([1.0, 0.0])}
         with patch('pro_file_organizer.core.ml_organizer.np') as mock_np:
