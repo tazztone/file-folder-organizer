@@ -78,12 +78,12 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.organizer.torch.backends.mps.is_available.return_value = False
         self.assertEqual(self.organizer._get_device(), "cpu")
 
-    def test_are_models_present(self):
+    def test_models_exist(self):
         with patch('transformers.AutoConfig.from_pretrained') as mock_conf:
             mock_conf.return_value = True
-            self.assertTrue(self.organizer.are_models_present())
+            self.assertTrue(self.organizer.models_exist())
             mock_conf.side_effect = Exception("Not found")
-            self.assertFalse(self.organizer.are_models_present())
+            self.assertFalse(self.organizer.models_exist())
 
     def test_extract_text_variations(self):
         # JSON

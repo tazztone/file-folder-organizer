@@ -3,14 +3,16 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 # Logic only tests, no need for UI mocks here
+from pro_file_organizer.core.ml_organizer import MultimodalFileOrganizer
+from pro_file_organizer.core.organizer import FileOrganizer
 from pro_file_organizer.ui.main_window_controller import MainWindowController
 
 
 class TestMainWindowController(unittest.TestCase):
     def setUp(self):
         self.view = MagicMock()
-        self.organizer = MagicMock()
-        self.ml_organizer = MagicMock()
+        self.organizer = MagicMock(spec=FileOrganizer)
+        self.ml_organizer = MagicMock(spec=MultimodalFileOrganizer)
 
         # Default return values for view getters
         self.view.confirm_action.return_value = True

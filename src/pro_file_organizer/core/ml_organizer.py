@@ -45,7 +45,7 @@ class MultimodalFileOrganizer:
             pass
         return "cpu"
 
-    def are_models_present(self):
+    def models_exist(self):
         """
         Checks if both required models are likely present in the cache.
         """
