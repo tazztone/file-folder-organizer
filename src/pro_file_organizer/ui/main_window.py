@@ -246,6 +246,11 @@ class OrganizerApp(QMainWindow):
         self.switch_ai.clicked.connect(lambda: self.controller.toggle_ai(self.switch_ai.isChecked()))
         ai_layout.addWidget(self.switch_ai)
 
+        self.lbl_ai_warn = QLabel("~3GB download on first use")
+        self.lbl_ai_warn.setObjectName("dimmed")
+        self.lbl_ai_warn.setStyleSheet(get_font_style("small"))
+        sidebar_layout.addWidget(self.lbl_ai_warn)
+
         # Main Buttons
         self.btn_batch = QPushButton("Batch Mode")
         self.btn_batch.setFixedHeight(40)
@@ -256,6 +261,12 @@ class OrganizerApp(QMainWindow):
         self.btn_settings.setFixedHeight(40)
         self.btn_settings.clicked.connect(self.open_settings)
         sidebar_layout.addWidget(self.btn_settings)
+
+        self.btn_undo = QPushButton("Undo Last")
+        self.btn_undo.setFixedHeight(40)
+        self.btn_undo.setObjectName("secondary")
+        self.btn_undo.clicked.connect(lambda: self.controller.undo_action())
+        sidebar_layout.addWidget(self.btn_undo)
 
         sidebar_layout.addSpacing(10)
 
@@ -316,18 +327,23 @@ class OrganizerApp(QMainWindow):
         controls_layout.addLayout(options_layout)
 
         self.chk_rec = QCheckBox("Recursive")
+        self.chk_rec.setToolTip("Process all subfolders recursively.")
         options_layout.addWidget(self.chk_rec)
 
         self.chk_del = QCheckBox("Delete Empty")
+        self.chk_del.setToolTip("Delete empty folders after organizing. Warning: Destructive.")
         options_layout.addWidget(self.chk_del)
 
         self.chk_date = QCheckBox("Sort by Date")
+        self.chk_date.setToolTip("Sort files into Year/Month subfolders.")
         options_layout.addWidget(self.chk_date)
 
         self.chk_duplicates = QCheckBox("Duplicates")
+        self.chk_duplicates.setToolTip("Detect and handle duplicate files automatically.")
         options_layout.addWidget(self.chk_duplicates)
 
         self.chk_watch = QCheckBox("Watch Folder")
+        self.chk_watch.setToolTip("Continuously monitor and organize files as they arrive.")
         self.chk_watch.stateChanged.connect(lambda s: self.controller.toggle_watch(s == Qt.CheckState.Checked))
         options_layout.addWidget(self.chk_watch)
 
@@ -337,11 +353,13 @@ class OrganizerApp(QMainWindow):
         self.ai_conf_container = QWidget()
         ai_conf_layout = QHBoxLayout(self.ai_conf_container)
         ai_conf_layout.setContentsMargins(0, 0, 0, 0)
-        ai_conf_layout.addWidget(QLabel("AI Confidence:"))
+        self.lbl_ai_conf = QLabel("AI Confidence: 30%")
+        ai_conf_layout.addWidget(self.lbl_ai_conf)
         self.slider_conf = QSlider(Qt.Orientation.Horizontal)
         self.slider_conf.setRange(1, 9)
         self.slider_conf.setValue(3)
         self.slider_conf.setFixedWidth(100)
+        self.slider_conf.valueChanged.connect(lambda v: self.lbl_ai_conf.setText(f"AI Confidence: {v * 10}%"))
         ai_conf_layout.addWidget(self.slider_conf)
         self.ai_conf_container.hide()
         controls_layout.addWidget(self.ai_conf_container)
@@ -359,6 +377,13 @@ class OrganizerApp(QMainWindow):
         self.btn_run.setEnabled(False)
         self.btn_run.clicked.connect(lambda: self.controller.run_organization())
         controls_layout.addWidget(self.btn_run)
+
+        self.btn_stop = QPushButton("STOP")
+        self.btn_stop.setObjectName("danger")
+        self.btn_stop.setFixedSize(120, 40)
+        self.btn_stop.hide()
+        self.btn_stop.clicked.connect(lambda: setattr(self.controller, 'is_running', False))
+        controls_layout.addWidget(self.btn_stop)
 
         # Results Area
         self.results_header = QLabel("Waiting for action...")
@@ -400,6 +425,7 @@ class OrganizerApp(QMainWindow):
     # --- View Interface for Controller ---
 
     def update_folder_display(self, path_str):
+        self.drop_zone.lbl_icon.hide()
         self.drop_zone.lbl_text.setText(f"Selected: {os.path.basename(path_str)}")
         self.btn_preview.setEnabled(True)
         self.btn_run.setEnabled(True)
@@ -435,8 +461,12 @@ class OrganizerApp(QMainWindow):
     def update_stats_display(self, stats):
         total = stats.get("total_files", 0)
         last = stats.get("last_run", "Never")
-        self.lbl_stats_total.setText(f"Files Organized: {total}")
-        self.lbl_stats_last.setText(f"Last Run: {last}")
+        if total == 0:
+            self.lbl_stats_total.setText("Organize your first folder!")
+            self.lbl_stats_last.setText("")
+        else:
+            self.lbl_stats_total.setText(f"Files Organized: {total}")
+            self.lbl_stats_last.setText(f"Last Run: {last}")
 
     def show_model_download(self, callback):
         modal = ModelDownloadModal(self, on_complete=callback)
@@ -484,7 +514,12 @@ class OrganizerApp(QMainWindow):
     def set_running_state(self, is_running):
         self.btn_run.setEnabled(not is_running)
         self.btn_preview.setEnabled(not is_running)
-        if not is_running:
+        if is_running:
+            self.btn_run.hide()
+            self.btn_stop.show()
+        else:
+            self.btn_stop.hide()
+            self.btn_run.show()
             for card in self.result_cards:
                 card.set_executed()
 

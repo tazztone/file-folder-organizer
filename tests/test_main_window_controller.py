@@ -190,7 +190,7 @@ class TestMainWindowController(unittest.TestCase):
         # Case 1: Success path
         stats = {"moved": 5}
         self.controller._on_complete(stats, dry_run=False)
-        self.view.show_info.assert_called()
+        self.view.show_status.assert_called_with("Done! Moved 5 files.")
 
         # Case 2: Success with error count
         stats = {"moved": 5, "errors": 2}
