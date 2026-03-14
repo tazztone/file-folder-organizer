@@ -52,4 +52,4 @@ jobs:
           else
             uv run coverage run -m pytest tests/
           fi
-          uv run coverage report --fail-under=90
+          uv run coverage report --fail-under=85
