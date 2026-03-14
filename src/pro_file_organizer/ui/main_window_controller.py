@@ -68,13 +68,6 @@ class MainWindowController:
         except Exception:
             pass
 
-    def select_folder(self):
-        from tkinter import filedialog
-
-        folder = filedialog.askdirectory()
-        if folder:
-            self.set_folder(folder)
-
     def on_recent_select(self, folder):
         if folder != "Recent...":
             self.set_folder(folder)
@@ -258,4 +251,3 @@ class MainWindowController:
             self.stats["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             self.save_stats()
             self.view.update_stats_display(self.stats)
-            self.view.show_info("Complete", msg)

@@ -2,7 +2,7 @@
 
 A powerful, modern file organizer application built with Python and PySide6. It uses intelligent rules and AI to organize your messy folders into a clean, structured hierarchy.
 
-![Dashboard Placeholder](https://via.placeholder.com/800x500?text=Pro+File+Organizer+Dashboard)
+![Dashboard](assets/screenshot.png)
 
 ## Features ✨
 
@@ -180,7 +180,7 @@ If you are an AI agent working on this codebase, please refer to [AGENTS.md](AGE
 
 ## Screenshots 📸
 
-*(Add screenshots of the Main Dashboard, Organizer View, and Settings Dialog here)*
+![Dashboard](assets/screenshot.png)
 
 ## License 📄
 
