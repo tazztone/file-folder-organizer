@@ -1,9 +1,9 @@
-import threading
-import os
 import json
-from pathlib import Path
+import os
+import threading
 from datetime import datetime
-from PIL import Image, ImageTk
+from pathlib import Path
+
 
 class MainWindowController:
     """
@@ -14,13 +14,13 @@ class MainWindowController:
         self.view = view
         self.organizer = organizer
         self.ml_organizer = ml_organizer
-        
+
         self.selected_path = None
         self.is_running = False
         self.ai_enabled = False
         self.recent_folders = []
         self.stats = {"total_files": 0, "last_run": "Never"}
-        
+
         self.load_stats()
         self.load_recent()
 
@@ -109,7 +109,7 @@ class MainWindowController:
         if enabled:
             # Check if models exist
             if not self.ml_organizer.models_exist():
-                if self.view.confirm_action("Download Models?", 
+                if self.view.confirm_action("Download Models?",
                                           "AI models (~2GB) need to be downloaded. Continue?"):
                     self.view.show_model_download(self._on_model_download_complete)
                     return # Will enable after download
@@ -155,7 +155,7 @@ class MainWindowController:
         if self.is_running:
             return
 
-        if not dry_run and not self.view.confirm_action("Confirm", 
+        if not dry_run and not self.view.confirm_action("Confirm",
                                                       f"Organize files in {self.selected_path}?"):
             return
 

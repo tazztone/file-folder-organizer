@@ -1,8 +1,8 @@
+import importlib
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
-import importlib
-import os
+
 from tests.ui_test_utils import get_ui_mocks
 
 # Apply standardized mocks
@@ -11,9 +11,11 @@ sys.modules['customtkinter'] = mock_ctk
 sys.modules['tkinterdnd2'] = mock_dnd
 
 # Reload main_window
-import pro_file_organizer.ui.main_window
+import pro_file_organizer.ui.main_window  # noqa: E402
+
 importlib.reload(pro_file_organizer.ui.main_window)
-from pro_file_organizer.ui.main_window import OrganizerApp
+from pro_file_organizer.ui.main_window import OrganizerApp  # noqa: E402
+
 
 class TestMainWindow(unittest.TestCase):
     def setUp(self):
@@ -55,7 +57,7 @@ class TestMainWindow(unittest.TestCase):
         # Numeric progress
         self.app.update_progress(5, 10, "file.txt")
         self.app.progress_bar.set.assert_called_with(0.5)
-        
+
         # Float progress (ML loading)
         self.app.update_progress(0.7, 1.0, "Model Loading")
         self.app.progress_bar.set.assert_called_with(0.7)
@@ -63,7 +65,7 @@ class TestMainWindow(unittest.TestCase):
     def test_ui_toggles(self):
         self.app.enable_ai_ui()
         self.app.frame_ai_conf.pack.assert_called()
-        
+
         self.app.disable_ai_ui()
         self.app.frame_ai_conf.pack_forget.assert_called()
 
@@ -75,7 +77,7 @@ class TestMainWindow(unittest.TestCase):
     def test_open_dialogs(self):
         self.app.open_settings()
         self.app.controller.open_settings.assert_called()
-        
+
         self.app.open_batch()
         self.app.controller.open_batch.assert_called()
 
@@ -90,7 +92,7 @@ class TestMainWindow(unittest.TestCase):
         event.data = "/tmp/drop"
         self.app.on_drop(event)
         self.app.controller.set_folder.assert_called_with("/tmp/drop")
-        
+
         # Braced path
         event.data = "{/tmp/spaced path}"
         self.app.on_drop(event)

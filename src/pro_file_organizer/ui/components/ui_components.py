@@ -1,10 +1,11 @@
-import customtkinter as ctk
-import tkinter as tk
-from pathlib import Path
-import threading
-import sys
-import shutil
 import os
+import shutil
+import sys
+import threading
+from pathlib import Path
+
+import customtkinter as ctk
+
 
 class FileCard(ctk.CTkFrame):
     """

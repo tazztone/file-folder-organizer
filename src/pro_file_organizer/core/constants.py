@@ -1,4 +1,25 @@
-import os
+from pathlib import Path
+
+from platformdirs import user_config_dir, user_data_dir
+
+# Application Metadata
+APP_NAME = "pro-file-organizer"
+APP_AUTHOR = "Tazztone"
+
+# Resolve platform-specific paths
+CONFIG_DIR = Path(user_config_dir(APP_NAME, APP_AUTHOR))
+DATA_DIR = Path(user_data_dir(APP_NAME, APP_AUTHOR))
+LOG_DIR = DATA_DIR / "logs"
+
+# Ensure directories exist
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_CONFIG_FILE = str(CONFIG_DIR / "config.json")
+DEFAULT_BATCH_CONFIG_FILE = str(CONFIG_DIR / "batch_config.json")
+DEFAULT_STATS_FILE = str(DATA_DIR / "stats.json")
+DEFAULT_RECENT_FILE = str(DATA_DIR / "recent.json")
 
 DEFAULT_DIRECTORIES = {
     "Images": [".jpeg", ".jpg", ".tiff", ".gif", ".bmp", ".png", ".bpg", ".svg", ".heif", ".psd"],
@@ -41,16 +62,7 @@ DEFAULT_ML_CATEGORIES = {
     }
 }
 
-# Application defaults
-DEFAULT_CONFIG_FILE = "config/config.json"
-DEFAULT_BATCH_CONFIG_FILE = "config/batch_config.json"
-DEFAULT_STATS_FILE = "config/stats.json"
-DEFAULT_RECENT_FILE = "config/recent.json"
-
 # Names of files/folders that should never be moved by the organizer.
-# Note: only actual app-specific runtime files are listed here.
-# Legacy filenames (app.py, organizer.py, themes.py) have been removed
-# as they could accidentally protect user files with those names.
 EXCLUDED_NAMES = {
     "config.json", "recent.json",
     "batch_config.json", "venv", ".git", "__pycache__", "src", "config", "logs", "scripts"

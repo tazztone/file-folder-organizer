@@ -1,11 +1,13 @@
-import unittest
-from unittest.mock import MagicMock, patch
+import json
+import os
 import shutil
 import tempfile
-import os
-import json
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from pro_file_organizer.core.organizer import FileOrganizer
+
 
 class TestFileOrganizer(unittest.TestCase):
     def setUp(self):
@@ -111,14 +113,14 @@ class TestFileOrganizer(unittest.TestCase):
     def test_rollback_on_error(self):
         self.create_file("file1.txt")
         self.create_file("file2.txt")
-        
+
         # Mock shutil.move to fail on the second file
         original_move = shutil.move
         def side_effect(src, dst):
             if "file2.txt" in str(src):
                 raise PermissionError("Access Denied")
             return original_move(src, dst)
-        
+
         with patch("shutil.move", side_effect=side_effect):
             stats = self.organizer.organize_files(Path(self.test_dir), rollback_on_error=True)
             self.assertTrue(stats.get("rolled_back", False))
@@ -144,17 +146,16 @@ class TestFileOrganizer(unittest.TestCase):
         f = self.create_file("photo.jpg")
         ts = 1672574400 # 2023-01-01
         os.utime(f, (ts, ts))
-        
+
         self.organizer.organize_files(Path(self.test_dir), date_sort=True)
         self.assertTrue((Path(self.test_dir) / "Images" / "2023" / "January" / "photo.jpg").exists())
-        
+
         self.organizer.undo_changes()
         self.assertTrue((Path(self.test_dir) / "photo.jpg").exists())
         self.assertFalse((Path(self.test_dir) / "Images").exists())
 
     def test_validate_config_errors(self):
-        self.organizer.directories[""] = [".ext"] 
-        self.organizer.directories["Bad/Cat"] = [".ext2"] 
+        self.organizer.directories = {"": [".ext"], "Bad/Cat": [".ext2"]}
         errors = self.organizer.validate_config()
         self.assertTrue(any("empty" in e.lower() for e in errors))
         self.assertTrue(any("separator" in e.lower() for e in errors))
@@ -164,7 +165,7 @@ class TestFileOrganizer(unittest.TestCase):
         mock_ml = MagicMock()
         mock_ml.models_loaded = True
         mock_ml.smart_categorize.return_value = ("Images", 0.9, "image-ml")
-        
+
         with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
             self.organizer.organize_files(Path(self.test_dir), use_ml=True)
             self.assertTrue((Path(self.test_dir) / "Images" / "unknown.ext").exists())
@@ -173,7 +174,7 @@ class TestFileOrganizer(unittest.TestCase):
         self.create_file(".git/config")
         self.create_file("venv/activate")
         self.create_file("source.txt")
-        
+
         files = list(self.organizer.scan_files(Path(self.test_dir), recursive=True))
         filenames = [f.name for f in files]
         self.assertIn("source.txt", filenames)
@@ -191,7 +192,7 @@ class TestFileOrganizer(unittest.TestCase):
         with open(config_path, "w") as f:
             f.write("{ invalid json }")
         self.assertFalse(self.organizer.load_config(config_path))
-        
+
         config_path = os.path.join(self.test_dir, "good.json")
         from pro_file_organizer.core.constants import DEFAULT_DIRECTORIES
         self.organizer.directories = DEFAULT_DIRECTORIES.copy()
@@ -203,21 +204,21 @@ class TestFileOrganizer(unittest.TestCase):
         mock_ml = MagicMock()
         mock_ml.models_loaded = False
         mock_ml.smart_categorize.return_value = ("Images", 0.9, "image-ml")
-        
+
         log_cb = MagicMock()
         prog_cb = MagicMock()
-        
+
         with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
             self.organizer.organize_files(
-                Path(self.test_dir), 
-                use_ml=True, 
+                Path(self.test_dir),
+                use_ml=True,
                 log_callback=log_cb,
                 progress_callback=prog_cb
             )
             _, kwargs = mock_ml.load_models.call_args
             prog_func = kwargs['progress_callback']
             prog_func("Loading...", 0.5)
-            
+
             prog_cb.assert_called_with(0.5, 1.0, "Loading AI Models: 50%")
             log_cb.assert_any_call("[ML Init] Loading...")
 

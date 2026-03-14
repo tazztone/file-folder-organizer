@@ -1,6 +1,7 @@
 import unittest
-from unittest.mock import MagicMock
+
 from pro_file_organizer.core import organizer
+
 
 class TestSettingsValidation(unittest.TestCase):
     def setUp(self):

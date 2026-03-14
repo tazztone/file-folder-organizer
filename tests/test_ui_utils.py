@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
-import tkinter as tk
+
 from pro_file_organizer.ui.ui_utils import ToolTip
+
 
 class TestUIUtils(unittest.TestCase):
     def setUp(self):
@@ -21,7 +22,7 @@ class TestUIUtils(unittest.TestCase):
     def test_show_tip(self, mock_toplevel, mock_ctk):
         mock_tw = MagicMock()
         mock_toplevel.return_value = mock_tw
-        
+
         self.tooltip.show_tip()
         self.assertIsNotNone(self.tooltip.tip_window)
         mock_toplevel.assert_called()

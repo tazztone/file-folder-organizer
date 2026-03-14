@@ -1,9 +1,10 @@
-import unittest
-from unittest.mock import MagicMock, patch, mock_open
-from pathlib import Path
-import os
 import shutil
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
 from pro_file_organizer.core.organizer import FileOrganizer
+
 
 class TestOrganizerExtended(unittest.TestCase):
     def setUp(self):
@@ -23,7 +24,7 @@ class TestOrganizerExtended(unittest.TestCase):
         self.organizer.directories["Dup1"] = [".pdf"]
         self.organizer.directories["Dup2"] = [".pdf"]
         self.organizer.directories["NoDot"] = ["txt"]
-        
+
         errors = self.organizer.validate_config()
         self.assertTrue(any("empty" in e.lower() for e in errors))
         self.assertTrue(any("separator" in e.lower() for e in errors))
@@ -45,7 +46,7 @@ class TestOrganizerExtended(unittest.TestCase):
         p1.touch()
         unique = self.organizer.get_unique_path(p1)
         self.assertEqual(unique.name, "test_1.txt")
-        
+
         unique.touch()
         unique2 = self.organizer.get_unique_path(p1)
         self.assertEqual(unique2.name, "test_2.txt")
@@ -54,7 +55,7 @@ class TestOrganizerExtended(unittest.TestCase):
         (self.tmp_dir / ".git").mkdir()
         (self.tmp_dir / ".git" / "config").touch()
         (self.tmp_dir / "test.txt").touch()
-        
+
         files = list(self.organizer.scan_files(self.tmp_dir, recursive=True))
         filenames = [f.name for f in files]
         self.assertIn("test.txt", filenames)
@@ -82,7 +83,7 @@ class TestOrganizerExtended(unittest.TestCase):
         src.mkdir()
         f = src / "test.txt"
         f.touch()
-        
+
         self.organizer.organize_files(src)
         self.organizer.undo_changes(log_callback=MagicMock())
         self.assertTrue(f.exists())
@@ -96,7 +97,8 @@ class TestOrganizerExtended(unittest.TestCase):
             mock_log = MagicMock()
             self.organizer.organize_files(self.tmp_dir, use_ml=True, log_callback=mock_log)
             # Should have logged the failure
-            self.assertTrue(any("Failed to load ML models" in str(args) for args in mock_log.call_args_list))
+            log_output = [str(args) for args in mock_log.call_args_list]
+            self.assertTrue(any("Failed to load ML models" in s for s in log_output))
 
     def test_del_empty_folders(self):
         folder = self.tmp_dir / "empty_dir"

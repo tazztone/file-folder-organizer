@@ -1,5 +1,7 @@
 import tkinter as tk
+
 import customtkinter as ctk
+
 
 class ToolTip:
     def __init__(self, widget, text):

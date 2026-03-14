@@ -1,6 +1,11 @@
+try:
+    from tkinter import filedialog, messagebox
+except ImportError:
+    import tkinter.messagebox as messagebox
+    filedialog = None
+
 import customtkinter as ctk
-import tkinter as tk
-from tkinter import filedialog, messagebox
+
 try:
     import tkinterdnd2
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -15,19 +20,12 @@ except (ImportError, AttributeError):
     DND_FILES = 'DND_Files'
 
 import os
-import threading
-import json
-import time
-from datetime import datetime
-from pathlib import Path
 
-from ..core.organizer import FileOrganizer
 from ..core.ml_organizer import MultimodalFileOrganizer
-from ..core.logger import logger
-from .dialogs.settings_dialog_ctk import SettingsDialog
-from .dialogs.batch_dialog_ctk import BatchDialog
-from .ui_utils import ToolTip
+from ..core.organizer import FileOrganizer
 from .components.ui_components import FileCard, ModelDownloadModal
+from .dialogs.batch_dialog_ctk import BatchDialog
+from .dialogs.settings_dialog_ctk import SettingsDialog
 from .main_window_controller import MainWindowController
 
 # Set default theme
@@ -41,7 +39,7 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         if 'tkinterdnd2' in globals():
              try:
                  tkinterdnd2.TkinterDnD._require(self)
-             except:
+             except Exception:
                  pass
 
         self.title("Pro File Organizer")
@@ -49,15 +47,15 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
 
         self.organizer = FileOrganizer()
         self.ml_organizer = MultimodalFileOrganizer()
-        
+
         self.controller = MainWindowController(self, self.organizer, self.ml_organizer)
 
         self._setup_ui()
-        
+
         # Load initial state into UI
         self.update_recent_menu(self.controller.recent_folders)
         self.update_stats_display(self.controller.stats)
-        
+
         theme = self.organizer.get_theme_mode()
         if theme:
             ctk.set_appearance_mode(theme)
@@ -110,7 +108,8 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
             self.frame_top.dnd_bind('<<Drop>>', self.on_drop)
             self.frame_top.dnd_bind('<<DragEnter>>', lambda e: self.frame_top.configure(border_width=2, border_color="#3B8ED0"))
             self.frame_top.dnd_bind('<<DragLeave>>', lambda e: self.frame_top.configure(border_width=0))
-        except: pass
+        except Exception:
+            pass
 
         self.lbl_drop = ctk.CTkLabel(self.frame_top, text="Drag & Drop Folder Here", font=ctk.CTkFont(size=18))
         self.lbl_drop.pack(expand=True, side="left", padx=30)
@@ -229,8 +228,10 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.lbl_ai.configure(text_color="white" if ctk.get_appearance_mode()=="Dark" else "black")
 
     def set_ai_switch_state(self, state):
-        if state: self.switch_ai.select()
-        else: self.switch_ai.deselect()
+        if state:
+            self.switch_ai.select()
+        else:
+            self.switch_ai.deselect()
 
     def set_running_state(self, is_running):
         state = "disabled" if is_running else "normal"

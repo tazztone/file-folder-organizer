@@ -1,6 +1,5 @@
-import sys
 from unittest.mock import MagicMock
-import tkinter as tk
+
 
 class MockBase(object):
     def __init__(self, master=None, *args, **kwargs):
@@ -23,23 +22,23 @@ class MockBase(object):
         self.after_main = MagicMock(side_effect=self._mock_after)
         self.winfo_children = MagicMock(return_value=[])
         self.winfo_toplevel = MagicMock(return_value=self)
-        
+
         for k, v in kwargs.items():
             setattr(self, k, v)
             self._config[k] = v
-    
+
     def _mock_configure(self, **kwargs):
         self._config.update(kwargs)
         for k, v in kwargs.items():
             setattr(self, k, v)
-    
+
     def _mock_cget(self, attr):
         return self._config.get(attr, "")
-    
+
     def _mock_after(self, ms, func=None, *args):
         if func and callable(func):
             func()
-            
+
     def grid_columnconfigure(self, *args, **kwargs): pass
     def grid_rowconfigure(self, *args, **kwargs): pass
     def pack_propagate(self, *args): pass
@@ -96,12 +95,17 @@ def get_ui_mocks():
     mock_ctk.CTkLabel = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkButton = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkSwitch = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkOptionMenu = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkCheckBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkSlider = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkProgressBar = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkOptionMenu = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkCheckBox = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkSlider = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkProgressBar = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkTextbox = MockBase
-    mock_ctk.CTkTabview = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkTabview = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.BooleanVar = MockVar
     mock_ctk.StringVar = MockVar
     mock_ctk.set_appearance_mode = MagicMock()
@@ -109,10 +113,10 @@ def get_ui_mocks():
     mock_ctk.set_default_color_theme = MagicMock()
     mock_ctk.CTkFont = MagicMock()
     mock_ctk.CTkInputDialog = MagicMock()
-    
+
     mock_dnd = MockModule()
     mock_dnd.TkinterDnD = MagicMock()
     mock_dnd.DnDWrapper = MockDnDWrapper
     mock_dnd.DND_FILES = "DND_FILES"
-    
+
     return mock_ctk, mock_dnd

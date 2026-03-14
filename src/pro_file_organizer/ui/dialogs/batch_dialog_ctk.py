@@ -1,10 +1,12 @@
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 import json
 import threading
 from pathlib import Path
+from tkinter import filedialog, messagebox
+
+import customtkinter as ctk
+
 from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
+
 
 class BatchDialog:
     def __init__(self, parent, organizer, theme_name=None, on_complete_callback=None):
@@ -225,7 +227,7 @@ class BatchDialog:
 
                     self.organizer.organize_files(p, **kwargs)
                     status_msg = "Done"
-                except Exception as e:
+                except Exception:
                     status_msg = "Error"
             else:
                 status_msg = "Not Found"

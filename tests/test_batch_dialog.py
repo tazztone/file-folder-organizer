@@ -1,9 +1,7 @@
-import unittest
 import sys
-import threading
-import importlib
-from unittest.mock import MagicMock, patch, call
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Mock modules
 if 'tkinter' not in sys.modules:
@@ -18,8 +16,9 @@ if 'customtkinter' not in sys.modules:
 # Setup CTk mocks
 mock_ctk = sys.modules['customtkinter']
 
-from pro_file_organizer.ui.dialogs import batch_dialog_ctk as batch_dialog
 from pro_file_organizer.core import organizer
+from pro_file_organizer.ui.dialogs import batch_dialog_ctk as batch_dialog
+
 
 class TestBatchDialog(unittest.TestCase):
     def setUp(self):
@@ -33,7 +32,7 @@ class TestBatchDialog(unittest.TestCase):
         mock_ctk.CTkToplevel.reset_mock()
         mock_ctk.CTkButton.reset_mock()
         mock_ctk.CTkLabel.reset_mock()
-        
+
         self.mock_parent = MagicMock()
         self.organizer = organizer.FileOrganizer()
 

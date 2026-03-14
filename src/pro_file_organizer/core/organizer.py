@@ -1,11 +1,17 @@
+import json
 import os
 import shutil
-import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from .constants import DEFAULT_DIRECTORIES, DEFAULT_ML_CATEGORIES, DEFAULT_CONFIG_FILE, EXCLUDED_NAMES
+from .constants import (
+    DEFAULT_CONFIG_FILE,
+    DEFAULT_DIRECTORIES,
+    DEFAULT_ML_CATEGORIES,
+    EXCLUDED_NAMES,
+)
 from .logger import logger
+
 
 class FileOrganizer:
     def __init__(self):

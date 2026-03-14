@@ -1,19 +1,30 @@
-import os
-import torch
-import shutil
-import numpy as np
 from pathlib import Path
-from PIL import Image
+
 from .logger import logger
 
-# Import only when needed to save startup time
+# Note: These are imported at the module level to allow for easier testing and mocking.
+# However, this module itself is only imported by FileOrganizer when ML is explicitly
+# requested, ensuring that startup time for the main UI remains fast.
 try:
-    from transformers import AutoModel, AutoProcessor, AutoTokenizer
-    from sentence_transformers import SentenceTransformer
-    import pypdf
     import docx
-except ImportError:
-    pass
+    import numpy as np
+    import pypdf
+    import torch
+    from PIL import Image
+    from sentence_transformers import SentenceTransformer
+    from transformers import AutoModel, AutoProcessor, AutoTokenizer
+except ImportError as e:
+    logger.warning(f"ML dependencies not fully installed: {e}")
+    # Define placeholder names to allow tests to patch them even if dependencies are missing.
+    docx = None
+    np = None
+    pypdf = None
+    torch = None
+    Image = None
+    SentenceTransformer = None
+    AutoModel = None
+    AutoProcessor = None
+    AutoTokenizer = None
 
 class MultimodalFileOrganizer:
     def __init__(self, categories_config=None):
@@ -29,10 +40,13 @@ class MultimodalFileOrganizer:
 
     def _get_device(self):
         """Detects the best available device (CUDA, MPS, or CPU)."""
-        if torch.cuda.is_available():
-            return "cuda"
-        elif torch.backends.mps.is_available():
-            return "mps"
+        try:
+            if torch.cuda.is_available():
+                return "cuda"
+            elif torch.backends.mps.is_available():
+                return "mps"
+        except (NameError, AttributeError):
+            pass
         return "cpu"
 
     def are_models_present(self):

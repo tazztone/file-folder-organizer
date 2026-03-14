@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
+
 from pro_file_organizer.ui.themes import themes
+
 
 class TestThemes(unittest.TestCase):
     def test_get_palette_light(self):
