@@ -82,19 +82,19 @@ class BatchDialog(QDialog):
 
         lbl_sets = QLabel("Settings")
         lbl_sets.setFixedWidth(150)
-        lbl_sets.setAlignment(Qt.AlignCenter)
+        lbl_sets.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_sets.setStyleSheet("font-weight: bold;")
         header_layout.addWidget(lbl_sets)
 
         lbl_status = QLabel("Status")
         lbl_status.setFixedWidth(100)
-        lbl_status.setAlignment(Qt.AlignCenter)
+        lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_status.setStyleSheet("font-weight: bold;")
         header_layout.addWidget(lbl_status)
 
         lbl_action = QLabel("Action")
         lbl_action.setFixedWidth(80)
-        lbl_action.setAlignment(Qt.AlignCenter)
+        lbl_action.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_action.setStyleSheet("font-weight: bold;")
         header_layout.addWidget(lbl_action)
 
@@ -156,8 +156,8 @@ class BatchDialog(QDialog):
                 if w:
                     w.deleteLater()
 
-        for i, item in enumerate(self.batch_folders):
-            self._create_row(i, item)
+        for i, folder_item in enumerate(self.batch_folders):
+            self._create_row(i, folder_item)
 
     def _create_row(self, index, item):
         row_frame = QFrame()
@@ -184,14 +184,14 @@ class BatchDialog(QDialog):
 
         lbl_sets = QLabel(settings_str)
         lbl_sets.setFixedWidth(150)
-        lbl_sets.setAlignment(Qt.AlignCenter)
+        lbl_sets.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row_layout.addWidget(lbl_sets)
 
         # Status
         status = item.get("last_status", "Pending")
         lbl_status = QLabel(status)
         lbl_status.setFixedWidth(100)
-        lbl_status.setAlignment(Qt.AlignCenter)
+        lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row_layout.addWidget(lbl_status)
         item["status_label"] = lbl_status
 
@@ -227,8 +227,8 @@ class BatchDialog(QDialog):
 
     def clear_all(self):
         res = QMessageBox.question(self, "Confirm", "Clear all folders from batch list?",
-                                 QMessageBox.Yes | QMessageBox.No)
-        if res == QMessageBox.Yes:
+                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res == QMessageBox.StandardButton.Yes:
             self.batch_folders = []
             self._save_batch_config()
             self._refresh_list()
@@ -290,8 +290,8 @@ class BatchDialog(QDialog):
             return
 
         msg = f"Are you sure you want to process {len(self.batch_folders)} folders?"
-        res = QMessageBox.question(self, "Confirm Batch", msg, QMessageBox.Yes | QMessageBox.No)
-        if res != QMessageBox.Yes:
+        res = QMessageBox.question(self, "Confirm Batch", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res != QMessageBox.StandardButton.Yes:
             return
 
         self.btn_run.setEnabled(False)

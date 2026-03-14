@@ -1,28 +1,29 @@
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from pathlib import Path
 
 from .logger import logger
 
 
 class MultimodalFileOrganizer:
-    def __init__(self, categories_config=None):
+    def __init__(self, categories_config: Optional[Dict[str, Any]] = None):
         self.device = self._get_device_early()
         self.categories_config = categories_config or {}
-        self.text_model = None
-        self.image_model = None
-        self.image_processor = None
-        self.text_category_embeddings = {}
+        self.text_model: Any = None
+        self.image_model: Any = None
+        self.image_processor: Any = None
+        self.text_category_embeddings: Dict[str, Any] = {}
 
         # Lazy modules
-        self.docx = None
-        self.np = None
-        self.pypdf = None
-        self.torch = None
-        self.Image = None
-        self.SentenceTransformer = None
-        self.AutoModel = None
-        self.AutoProcessor = None
-        self.AutoTokenizer = None
-        self.cosine_similarity = None
+        self.docx: Any = None
+        self.np: Any = None
+        self.pypdf: Any = None
+        self.torch: Any = None
+        self.Image: Any = None
+        self.SentenceTransformer: Any = None
+        self.AutoModel: Any = None
+        self.AutoProcessor: Any = None
+        self.AutoTokenizer: Any = None
+        self.cosine_similarity: Any = None
 
         # Flags
         self.models_loaded = False

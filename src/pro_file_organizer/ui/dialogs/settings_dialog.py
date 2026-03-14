@@ -1,4 +1,5 @@
 
+from typing import List, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -28,7 +29,7 @@ class SettingsDialog(QDialog):
         self.organizer = organizer
         self.last_selected_cat = None
         self.cat_buttons: dict[str, QPushButton] = {}  # Map category name to button widget
-        self.selected_cat_btn = None
+        self.selected_cat_btn: Optional[QPushButton] = None
 
         self._setup_ui()
         self._populate_cat_list()
@@ -124,7 +125,7 @@ class SettingsDialog(QDialog):
         ml_layout = QHBoxLayout()
         tab_layout.addLayout(ml_layout)
 
-        self.slider_ml = QSlider(Qt.Horizontal)
+        self.slider_ml = QSlider(Qt.Orientation.Horizontal)
         self.slider_ml.setRange(0, 100)
         current_threshold = getattr(self.organizer, "ml_confidence", 0.3)
         self.slider_ml.setValue(int(current_threshold * 100))
@@ -139,7 +140,7 @@ class SettingsDialog(QDialog):
         undo_layout = QHBoxLayout()
         tab_layout.addLayout(undo_layout)
 
-        self.slider_undo = QSlider(Qt.Horizontal)
+        self.slider_undo = QSlider(Qt.Orientation.Horizontal)
         self.slider_undo.setRange(1, 50)
         current_undo = getattr(self.organizer, "max_undo_stack", 5)
         self.slider_undo.setValue(int(current_undo))
@@ -155,7 +156,7 @@ class SettingsDialog(QDialog):
         tab = QWidget()
         self.tab_widget.addTab(tab, "Profiles")
         tab_layout = QVBoxLayout(tab)
-        tab_layout.setAlignment(Qt.AlignCenter)
+        tab_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tab_layout.setSpacing(20)
 
         tab_layout.addWidget(QLabel("Import and Export Configuration Profiles"))
@@ -224,7 +225,7 @@ class SettingsDialog(QDialog):
         if ok and name.strip():
             new_cat = name.strip()
             if new_cat in self.organizer.directories:
-                QMessageBox.error(self, "Error", "Category already exists.")
+                QMessageBox.critical(self, "Error", "Category already exists.")
                 return
 
             self.organizer.directories[new_cat] = []
@@ -237,8 +238,8 @@ class SettingsDialog(QDialog):
 
         cat = self.last_selected_cat
         res = QMessageBox.question(self, "Confirm", f"Delete category '{cat}'?",
-                                 QMessageBox.Yes | QMessageBox.No)
-        if res == QMessageBox.Yes:
+                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res == QMessageBox.StandardButton.Yes:
             del self.organizer.directories[cat]
             self.last_selected_cat = None
             self._populate_cat_list()
@@ -259,8 +260,8 @@ class SettingsDialog(QDialog):
         path, _ = QFileDialog.getOpenFileName(self, "Import Configuration", "", "JSON Files (*.json)")
         if path:
             res = QMessageBox.question(self, "Confirm", "Importing will overwrite current settings. Continue?",
-                                     QMessageBox.Yes | QMessageBox.No)
-            if res == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if res == QMessageBox.StandardButton.Yes:
                 if self.organizer.import_config_file(path):
                     self._populate_cat_list()
                     self.txt_excl_exts.setPlainText(", ".join(self.organizer.excluded_extensions))

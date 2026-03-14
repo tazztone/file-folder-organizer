@@ -3,6 +3,7 @@ import os
 import threading
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional, Any, Dict, Callable
 
 from pro_file_organizer.core.organizer import OrganizationOptions
 from pro_file_organizer.core.watcher import FolderWatcher
@@ -14,16 +15,16 @@ class MainWindowController:
     Decoupled from customtkinter widgets for testability.
     """
 
-    def __init__(self, view, organizer, ml_organizer):
+    def __init__(self, view: Any, organizer: Any, ml_organizer: Any):
         self.view = view
         self.organizer = organizer
         self.ml_organizer = ml_organizer
 
-        self.selected_path = None
+        self.selected_path: Optional[Path] = None
         self.is_running = False
         self.ai_enabled = False
-        self.watcher = None
-        self.recent_folders = []
+        self.watcher: Optional[FolderWatcher] = None
+        self.recent_folders: List[str] = []
         self.stats = {"total_files": 0, "last_run": "Never"}
 
         self.load_stats()
@@ -208,7 +209,10 @@ class MainWindowController:
 
         threading.Thread(target=self._organize_worker, args=(dry_run,), daemon=True).start()
 
-    def _organize_worker(self, dry_run):
+    def _organize_worker(self, dry_run: bool):
+        if not self.selected_path:
+            return
+
         def on_event(data):
             self.view.after_main(0, lambda: self.view.add_result_card(data))
 

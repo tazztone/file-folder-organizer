@@ -1,3 +1,4 @@
+import os
 import argparse
 import sys
 from pathlib import Path
@@ -19,6 +20,13 @@ def main():
         sys.exit(1)
 
     organizer = FileOrganizer()
+    
+    # Allow overriding the undo stack path for Docker persistence
+    if "UNDO_STACK_PATH" in os.environ:
+        from pro_file_organizer.core import constants
+        constants.DEFAULT_UNDO_STACK_FILE = Path(os.environ["UNDO_STACK_PATH"])
+        # Re-load to ensure we pick up the mounted file
+        organizer._load_undo_stack()
     
     if args.undo:
         print(f"Undoing last changes in {source_path}...")

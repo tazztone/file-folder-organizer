@@ -49,7 +49,7 @@ class ToggleSwitch(QAbstractButton):
         self._thumb_pos = self._margin
         self._animation = QPropertyAnimation(self, b"thumb_pos", self)
         self._animation.setDuration(200)
-        self._animation.setEasingCurve(QEasingCurve.InOutExpo)
+        self._animation.setEasingCurve(QEasingCurve.Type.InOutExpo)
 
         self.setFixedSize(self._base_width, self._base_height)
 
@@ -67,16 +67,16 @@ class ToggleSwitch(QAbstractButton):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Draw track
         track_color = QColor(COLORS["accent"]) if self.isChecked() else QColor(COLORS["border"])
         painter.setBrush(QBrush(track_color))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(0, 0, self.width(), self.height(), self._track_radius, self._track_radius)
 
         # Draw thumb
-        painter.setBrush(QBrush(Qt.white))
+        painter.setBrush(QBrush(Qt.GlobalColor.white))
         painter.drawEllipse(
             self._thumb_pos, self._margin, self.height() - 2 * self._margin, self.height() - 2 * self._margin
         )
@@ -128,12 +128,12 @@ class DropZoneWidget(QFrame):
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         color = COLORS["accent"] if self.hovered else COLORS["border"]
         pen = QPen(QColor(color))
         pen.setWidth(2)
-        pen.setStyle(Qt.DashLine)
+        pen.setStyle(Qt.PenStyle.DashLine)
         pen.setDashPattern([10, 5])
 
         painter.setPen(pen)
@@ -159,7 +159,7 @@ class DropZoneWidget(QFrame):
                 self.dropped.emit(path)
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.dropped.emit("__BROWSE__")
 
 
@@ -328,7 +328,7 @@ class OrganizerApp(QMainWindow):
         options_layout.addWidget(self.chk_duplicates)
 
         self.chk_watch = QCheckBox("Watch Folder")
-        self.chk_watch.stateChanged.connect(lambda s: self.controller.toggle_watch(s == Qt.Checked))
+        self.chk_watch.stateChanged.connect(lambda s: self.controller.toggle_watch(s == Qt.CheckState.Checked))
         options_layout.addWidget(self.chk_watch)
 
         controls_layout.addStretch()
@@ -338,7 +338,7 @@ class OrganizerApp(QMainWindow):
         ai_conf_layout = QHBoxLayout(self.ai_conf_container)
         ai_conf_layout.setContentsMargins(0, 0, 0, 0)
         ai_conf_layout.addWidget(QLabel("AI Confidence:"))
-        self.slider_conf = QSlider(Qt.Horizontal)
+        self.slider_conf = QSlider(Qt.Orientation.Horizontal)
         self.slider_conf.setRange(1, 9)
         self.slider_conf.setValue(3)
         self.slider_conf.setFixedWidth(100)
@@ -422,8 +422,8 @@ class OrganizerApp(QMainWindow):
         QMessageBox.information(self, title, message)
 
     def confirm_action(self, title, message):
-        res = QMessageBox.question(self, title, message, QMessageBox.Yes | QMessageBox.No)
-        return res == QMessageBox.Yes
+        res = QMessageBox.question(self, title, message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        return res == QMessageBox.StandardButton.Yes
 
     def update_recent_menu(self, recent_folders):
         self.option_recent.blockSignals(True)
@@ -520,8 +520,8 @@ class OrganizerApp(QMainWindow):
             self.controller.set_folder(path)
 
     def browse_folder(self):
-        initial = self.controller.selected_path if self.controller.selected_path else None
-        path = QFileDialog.getExistingDirectory(self, "Select Folder", initial or "")
+        initial = str(self.controller.selected_path) if self.controller.selected_path else ""
+        path = QFileDialog.getExistingDirectory(self, "Select Folder", initial)
         if path:
             self.controller.set_folder(path)
 

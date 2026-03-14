@@ -10,7 +10,7 @@ class FolderWatcherHandler:
     def __init__(self, callback, debounce=2.0):
         self.callback = callback
         self.debounce = debounce
-        self.last_triggered = 0
+        self.last_triggered = 0.0
 
     def dispatch(self, event):
         """Called by watchdog."""
