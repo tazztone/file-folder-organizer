@@ -117,8 +117,9 @@ def get_pyside_mocks():
     mock_qtwidgets.QVBoxLayout = MockBase
     mock_qtwidgets.QHBoxLayout = MockBase
     mock_qtwidgets.QGridLayout = MockBase
-    mock_qtwidgets.QGridLayout.Policy = MockModule()
-    mock_qtwidgets.QGridLayout.Policy.Fixed = 1
+    mock_qtwidgets.QSizePolicy = MockModule()
+    mock_qtwidgets.QSizePolicy.Policy = MockModule()
+    mock_qtwidgets.QSizePolicy.Policy.Fixed = 1
 
     def mock_qlabel(text="", parent=None):
         m = MockBase(parent)

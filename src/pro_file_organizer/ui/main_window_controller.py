@@ -127,8 +127,8 @@ class MainWindowController:
             self.view.show_status("Loading AI Models...")
 
             def load_task():
-                def thread_safe_progress(c, t, f):
-                    self.view.after_main(0, lambda: self.view.update_progress(c, t, f))
+                def thread_safe_progress(msg, pct):
+                    self.view.after_main(0, lambda: self.view.update_progress(pct, 1.0, msg))
 
                 success = self.ml_organizer.load_models(progress_callback=thread_safe_progress)
                 if success:

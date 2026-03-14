@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSlider,
     QVBoxLayout,
     QWidget,
@@ -37,7 +38,7 @@ class ToggleSwitch(QAbstractButton):
     def __init__(self, parent=None, track_radius=10, thumb_radius=8):
         super().__init__(parent)
         self.setCheckable(True)
-        self.setSizePolicy(QGridLayout.Policy.Fixed, QGridLayout.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         self._track_radius = track_radius
         self._thumb_radius = thumb_radius
