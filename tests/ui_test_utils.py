@@ -163,6 +163,7 @@ def get_pyside_mocks():
     mock_qtwidgets.QDialog = MockBase
     mock_qtwidgets.QTabWidget = MockBase
     mock_qtwidgets.QTextEdit = MockBase
+    mock_qtwidgets.QPlainTextEdit = MockBase
     mock_qtwidgets.QLineEdit = MockBase
     mock_qtwidgets.QAbstractButton = MockBase
     mock_qtwidgets.QInputDialog = MagicMock()

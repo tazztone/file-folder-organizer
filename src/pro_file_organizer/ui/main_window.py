@@ -15,11 +15,13 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
     QSlider,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -391,6 +393,12 @@ class OrganizerApp(QMainWindow):
         self.results_header.setStyleSheet(get_font_style("label"))
         main_area_layout.addWidget(self.results_header)
 
+        # Results & Log area with Tabs
+        self.results_tabs = QTabWidget()
+        self.results_tabs.setObjectName("results_tabs")
+        main_area_layout.addWidget(self.results_tabs, 1)
+
+        # Tab 1: Results (Cards)
         self.results_scroll = QScrollArea()
         self.results_scroll.setWidgetResizable(True)
         self.results_scroll.setObjectName("card")
@@ -404,7 +412,13 @@ class OrganizerApp(QMainWindow):
         self.results_layout.addStretch()
 
         self.results_scroll.setWidget(self.results_container)
-        main_area_layout.addWidget(self.results_scroll, 1)
+        self.results_tabs.addTab(self.results_scroll, "Results")
+
+        # Tab 2: Raw Log
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setStyleSheet(f"{get_font_style('mono')}")
+        self.results_tabs.addTab(self.log_view, "Log View")
 
         # Status Bar
         status_layout = QHBoxLayout()
@@ -545,6 +559,17 @@ class OrganizerApp(QMainWindow):
 
     def update_results_header(self, message):
         self.results_header.setText(message)
+
+    def append_log(self, message):
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.log_view.appendPlainText(f"[{timestamp}] {message}")
+        # Always scroll to bottom
+        self.log_view.verticalScrollBar().setValue(self.log_view.verticalScrollBar().maximum())
+
+    def clear_log(self):
+        self.log_view.clear()
 
     # --- Event Handlers ---
 

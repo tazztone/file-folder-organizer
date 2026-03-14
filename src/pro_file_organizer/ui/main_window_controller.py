@@ -39,6 +39,7 @@ class MainWindowController:
             self.add_recent(str(path))
             self.view.update_folder_display(str(path))
             self.view.clear_results()
+            self.view.clear_log()
         else:
             self.view.show_error("Invalid Directory", f"The path {path_str} is not a valid directory.")
 
@@ -194,6 +195,7 @@ class MainWindowController:
         self.is_running = True
         self.view.set_running_state(True)
         self.view.clear_results()
+        self.view.clear_log()
         self.view.show_status("Organizing..." if not dry_run else "Previewing...")
 
         # Set confidence if AI enabled
@@ -212,6 +214,9 @@ class MainWindowController:
         def on_progress(current, total, filename):
             self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
 
+        def on_log(msg):
+            self.view.after_main(0, lambda: self.view.append_log(msg))
+
         options = OrganizationOptions(
             source_path=self.selected_path,
             recursive=self.view.get_recursive_val(),
@@ -221,6 +226,7 @@ class MainWindowController:
             dry_run=dry_run,
             use_ml=self.ai_enabled,
             progress_callback=on_progress,
+            log_callback=on_log,
             event_callback=on_event,
             check_stop=lambda: not self.is_running,
         )
