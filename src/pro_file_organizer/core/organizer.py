@@ -430,6 +430,17 @@ class FileOrganizer:
                         if log_callback:
                             log_callback(f"Date error for {item.name}: {e}")
 
+                # SAFETY CHECK: Ensure the target directory is WITHIN the source_path
+                try:
+                    target_dir.resolve().relative_to(source_path.resolve())
+                except ValueError:
+                    msg = f"SAFETY BREACH: Target {target_dir} is outside source {source_path}. Skipping {item.name}."
+                    if log_callback:
+                        log_callback(msg)
+                    logger.error(msg)
+                    errors += 1
+                    continue
+
                 # SKIP ALREADY ORGANIZED FILES
                 if item.parent.resolve() == target_dir.resolve():
                     continue
@@ -665,6 +676,16 @@ class FileOrganizer:
         # Process in reverse order
         for current_path, original_path in reversed(history):
             try:
+                # SAFETY CHECK: Ensure the original path is WITHIN the source_path
+                try:
+                    original_path.resolve().relative_to(source_path.resolve())
+                except ValueError:
+                    msg = f"SAFETY BREACH during Undo: {original_path} is outside source {source_path}. Skipping."
+                    if log_callback:
+                        log_callback(msg)
+                    logger.error(msg)
+                    continue
+
                 if current_path.exists():
                     original_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(current_path), str(original_path))

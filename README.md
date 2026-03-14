@@ -64,7 +64,43 @@ A powerful, modern file organizer application built with Python and PySide6. It 
     *   **Smart Categorization (AI)**: Enable for content-based sorting (requires ~3GB model download on first run).
 4.  **Start**: Click "ORGANIZE".
 
-## Smart Categorization (AI) 🤖
+## Sandbox Testing & Safety 🛡️
+
+Testing a file organizer on real data can be risky. We provide multiple layers of safety:
+
+### 1. "Hard Stop" Safety
+The core `FileOrganizer` logic includes a built-in safety check that refuses to move or restore any file outside of the user-provided target directory, preventing "escape" bugs.
+
+### 2. Manual Sandbox
+Run the sandbox preparation script to create a messy folder with dummy data for testing:
+```bash
+python3 scripts/prepare_sandbox.py
+```
+Then, test the app using the CLI wrapper (headless) or the GUI against the `test_sandbox/` folder.
+
+### 3. Docker Isolation (Recommended for Real Data)
+For 100% isolation, run the app inside a Docker container. This ensures the app **physically cannot see** any files on your host except for the ones you explicitly mount.
+
+**Build the sandbox:**
+```bash
+docker build -f Dockerfile.sandbox -t file-organizer-sandbox .
+```
+
+**Run the sandbox (Dry Run):**
+```bash
+docker run --rm \
+  -v $(pwd)/test_sandbox:/sandbox \
+  file-organizer-sandbox /sandbox --dry-run
+```
+
+**Run the sandbox (Real):**
+```bash
+docker run --rm \
+  -v $(pwd)/test_sandbox:/sandbox \
+  file-organizer-sandbox /sandbox
+```
+
+## AI Models & ML 🤖
 
 When enabled, the app uses local AI models to inspect file content:
 *   **Images**: Analyzed by `google/siglip2-base-patch32-256` to detect scene/content (e.g., Personal, Screenshots, Diagrams).

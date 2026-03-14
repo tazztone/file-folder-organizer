@@ -173,3 +173,7 @@ __marimo__/
 # --- App runtime state files (user-specific, should not be committed) ---
 logs/
 config/
+
+# --- Sandbox & ML Cache ---
+test_sandbox/
+.model_cache/
