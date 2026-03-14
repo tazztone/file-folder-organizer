@@ -22,6 +22,7 @@ show_help() {
     echo "  dry-run       Preview organization without moving files"
     echo "  undo          Revert the last organization run"
     echo "  ml-run        Run with AI categorization enabled"
+    echo "  gui           Launch the GUI app inside the Docker sandbox"
     echo "  prepare       Reset the test_sandbox with dummy data"
     echo "  shell         Drop into a shell inside the container for debugging"
     echo ""
@@ -31,7 +32,10 @@ show_help() {
     echo "  $0 ml-run --recursive"
 }
 
-case "$1" in
+# Default to 'gui' if no command is provided
+COMMAND="${1:-gui}"
+
+case "$COMMAND" in
     build)
         echo "Building Docker image: $IMAGE_NAME..."
         docker build -f "$DOCKERFILE" -t "$IMAGE_NAME" .
@@ -65,6 +69,20 @@ case "$1" in
             "$IMAGE_NAME" /sandbox --ml "$@"
         ;;
 
+    gui)
+        echo "Starting GUI in Docker Sandbox..."
+        # Allow X11 connections (required for some Linux setups)
+        xhost +local:docker > /dev/null || true
+        
+        docker run --rm \
+            -e DISPLAY=$DISPLAY \
+            -v /tmp/.X11-unix:/tmp/.X11-unix \
+            -v "$SANDBOX_DIR":/sandbox \
+            -v "$MODEL_CACHE":/models_cache \
+            --entrypoint python \
+            "$IMAGE_NAME" run_app.py
+        ;;
+
     prepare)
         echo "Resetting sandbox dummy data..."
         python3 scripts/prepare_sandbox.py
@@ -80,6 +98,12 @@ case "$1" in
         ;;
 
     *)
-        show_help
+        # If an unknown command was typed, show help
+        if [ "$COMMAND" != "gui" ]; then
+            show_help
+        else
+            # This handles the case where gui was specifically requested but failed earlier
+            show_help
+        fi
         ;;
 esac
