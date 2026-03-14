@@ -80,10 +80,10 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.assertEqual(self.organizer._get_device(), "cpu")
 
     def test_models_exist(self):
-        with patch("transformers.AutoConfig.from_pretrained") as mock_conf:
-            mock_conf.return_value = True
+        with patch("huggingface_hub.try_to_load_from_cache") as mock_cache:
+            mock_cache.return_value = "/tmp/path"
             self.assertTrue(self.organizer.models_exist())
-            mock_conf.side_effect = Exception("Not found")
+            mock_cache.return_value = None
             self.assertFalse(self.organizer.models_exist())
 
     def test_extract_text_variations(self):

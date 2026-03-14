@@ -48,15 +48,22 @@ class MultimodalFileOrganizer:
     def models_exist(self):
         """
         Checks if both required models are likely present in the cache.
+        Verifies presence of weight files, not just config.
         """
         try:
-            from transformers import AutoConfig
+            from huggingface_hub import try_to_load_from_cache
 
-            # Check SigLIP 2
-            AutoConfig.from_pretrained("google/siglip2-base-patch32-256", local_files_only=True)
-            # Check Qwen Embedding
-            AutoConfig.from_pretrained("Qwen/Qwen3-Embedding-0.6B", local_files_only=True)
-            return True
+            # Check SigLIP 2 weights
+            siglip = try_to_load_from_cache("google/siglip2-base-patch32-256", "model.safetensors")
+            if siglip is None:
+                siglip = try_to_load_from_cache("google/siglip2-base-patch32-256", "pytorch_model.bin")
+
+            # Check Qwen weights
+            qwen = try_to_load_from_cache("Qwen/Qwen3-Embedding-0.6B", "model.safetensors")
+            if qwen is None:
+                qwen = try_to_load_from_cache("Qwen/Qwen3-Embedding-0.6B", "pytorch_model.bin")
+
+            return siglip is not None and qwen is not None
         except Exception:
             return False
 
