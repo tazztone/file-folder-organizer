@@ -152,6 +152,10 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.chk_date = ctk.CTkCheckBox(self.frame_options, text="Sort by Date", variable=self.var_date_sort)
         self.chk_date.pack(side="left", padx=10, pady=10)
 
+        self.var_detect_duplicates = ctk.BooleanVar(value=False)
+        self.chk_duplicates = ctk.CTkCheckBox(self.frame_options, text="Duplicates", variable=self.var_detect_duplicates)
+        self.chk_duplicates.pack(side="left", padx=10, pady=10)
+
         self.frame_ai_conf = ctk.CTkFrame(self.frame_controls, fg_color="transparent")
         self.lbl_conf = ctk.CTkLabel(self.frame_ai_conf, text="AI Confidence:")
         self.lbl_conf.pack(side="left", padx=5)
@@ -274,6 +278,9 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
 
     def get_del_empty_val(self):
         return self.var_del_empty.get()
+
+    def get_detect_duplicates_val(self):
+        return self.var_detect_duplicates.get()
 
     def add_result_card(self, data):
         card = FileCard(self.scroll_results, data)

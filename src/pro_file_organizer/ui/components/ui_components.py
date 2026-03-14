@@ -35,6 +35,10 @@ class FileCard(ctk.CTkFrame):
         if event_data.get("type") == "error":
             badge_color = "#D32F2F"
             badge_text = "ERR"
+        
+        if event_data.get("type") == "duplicate":
+            badge_color = "#FF9800" # Orange for Duplicates
+            badge_text = "DUP"
 
         self.lbl_badge = ctk.CTkLabel(self, text=badge_text, width=60, height=24,
                                       fg_color=badge_color, text_color="white", corner_radius=6,
@@ -59,6 +63,13 @@ class FileCard(ctk.CTkFrame):
 
         if event_data.get("type") == "error":
             display_dest = f"Error: {event_data.get('error')}"
+        
+        if event_data.get("type") == "duplicate":
+            dup_of = event_data.get("duplicate_of", "another file")
+            try:
+                display_dest = f"Duplicate of: {Path(dup_of).name}"
+            except Exception:
+                display_dest = f"Duplicate of: {dup_of}"
 
         self.lbl_dest = ctk.CTkLabel(
             self, text=display_dest, font=ctk.CTkFont(size=12),

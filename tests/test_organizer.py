@@ -229,5 +229,67 @@ class TestFileOrganizer(unittest.TestCase):
             stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
             self.assertEqual(stats["moved"], 0)
 
+    def test_duplicate_detection(self):
+        self.create_file("file1.txt", content="same content")
+        self.create_file("file2.txt", content="same content")
+        self.create_file("file3.txt", content="different content")
+
+        options = OrganizationOptions(Path(self.test_dir), detect_duplicates=True)
+        stats = self.organizer.organize_files(options)
+
+        self.assertEqual(stats["moved"], 2)
+        self.assertEqual(stats["duplicates"], 1)
+        
+        # Check report
+        report = stats.get("report", [])
+        self.assertEqual(len(report), 3)
+        statuses = [item["status"] for item in report]
+        self.assertIn("duplicate", statuses)
+        self.assertIn("moved", statuses)
+
+    def test_reporting(self):
+        self.create_file("image.jpg")
+        self.create_file("doc.pdf")
+
+        options = OrganizationOptions(Path(self.test_dir))
+        stats = self.organizer.organize_files(options)
+
+        self.assertIn("report", stats)
+        report = stats["report"]
+        self.assertEqual(len(report), 2)
+        for entry in report:
+            self.assertEqual(entry["status"], "moved")
+            self.assertIn("file", entry)
+            self.assertIn("source", entry)
+            self.assertIn("destination", entry)
+
+    def test_hashing_error(self):
+        self.create_file("file.txt")
+        # Mock open to fail for hashing
+        with patch("builtins.open", side_effect=OSError("Read error")):
+            # hashing is called inside organize_files if detect_duplicates=True
+            h = self.organizer._get_file_hash(Path(self.test_dir) / "file.txt")
+            self.assertEqual(h, "")
+
+    def test_organize_permission_error(self):
+        self.create_file("file.txt")
+        with patch("shutil.move", side_effect=PermissionError("Permission Denied")):
+            stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
+            self.assertEqual(stats["errors"], 1)
+            self.assertEqual(stats["report"][0]["error_type"], "PermissionError")
+
+    def test_organize_os_error(self):
+        self.create_file("file.txt")
+        with patch("shutil.move", side_effect=OSError("OS Error")):
+            stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
+            self.assertEqual(stats["errors"], 1)
+            self.assertEqual(stats["report"][0]["error_type"], "OSError")
+
+    def test_mkdir_error(self):
+        self.create_file("file.txt")
+        with patch("pathlib.Path.mkdir", side_effect=Exception("Mkdir Error")):
+            stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
+            self.assertEqual(stats["errors"], 1)
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -23,7 +24,9 @@ class OrganizationResult(TypedDict, total=False):
     moved: int
     errors: int
     renamed: int
+    duplicates: int
     rolled_back: bool
+    report: list[dict]
 
 
 @dataclass
@@ -35,6 +38,7 @@ class OrganizationOptions:
     del_empty: bool = False
     dry_run: bool = False
     use_ml: bool = False
+    detect_duplicates: bool = False
     rollback_on_error: bool = False
     progress_callback: Optional[Callable] = None
     log_callback: Optional[Callable] = None
@@ -98,6 +102,19 @@ class FileOrganizer:
                 json.dump(data, f, indent=4)
         except Exception as e:
             logger.error(f"Error saving undo stack: {e}")
+
+    def _get_file_hash(self, file_path: Path) -> str:
+        """Calculates SHA-256 hash of a file."""
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                # Read in 64KB chunks
+                for byte_block in iter(lambda: f.read(65536), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            logger.error(f"Error hashing file {file_path}: {e}")
+            return ""
 
     def validate_config(self) -> list[str] :
         """
@@ -281,6 +298,7 @@ class FileOrganizer:
         del_empty = options.del_empty
         dry_run = options.dry_run
         use_ml = options.use_ml
+        detect_duplicates = options.detect_duplicates
         rollback_on_error = options.rollback_on_error
         progress_callback = options.progress_callback
         log_callback = options.log_callback
@@ -288,6 +306,14 @@ class FileOrganizer:
         check_stop = options.check_stop
 
         current_history = []
+        report: list[dict] = []
+        moved_count = 0
+        renamed_count = 0
+        errors = 0
+        duplicates_count = 0
+
+        # Known file hashes in the target tree to detect duplicates
+        known_hashes: dict[str, Path] = {}
 
         # Ensure ML is ready if requested
         if use_ml and not self.ml_categorizer:
@@ -326,6 +352,7 @@ class FileOrganizer:
         moved_count = 0
         renamed_count = 0
         errors = 0
+        duplicates_count = 0
 
         for i, item in enumerate(all_files, 1):
             if check_stop and check_stop():
@@ -339,6 +366,34 @@ class FileOrganizer:
             try:
                 # Get Category Logic
                 category, confidence, method = self.get_category(item, use_ml)
+
+                # DUPLICATE DETECTION
+                if detect_duplicates:
+                     file_hash = self._get_file_hash(item)
+                     if file_hash:
+                         if file_hash in known_hashes:
+                             duplicates_count += 1
+                             orig_path = known_hashes[file_hash]
+                             if log_callback:
+                                 log_callback(f"SKIP DUPLICATE: {item.name} (already at {orig_path.name})")
+
+                             report.append({
+                                 "file": item.name,
+                                 "status": "duplicate",
+                                 "source": str(item),
+                                 "duplicate_of": str(orig_path)
+                             })
+
+                             if event_callback:
+                                 event_callback({
+                                     "type": "duplicate",
+                                     "file": item.name,
+                                     "source": str(item),
+                                     "duplicate_of": str(orig_path)
+                                 })
+                             continue
+                         else:
+                             known_hashes[file_hash] = item
 
                 # If ML is used, category might be a nested path string "Images/Personal"
                 target_dir = source_path / category
@@ -395,6 +450,16 @@ class FileOrganizer:
                         log_callback(f"{log_prefix}would move: {item.name} -> {rel_dest}{log_suffix}")
                     if event_callback:
                         event_callback(event_data)
+                    
+                    report.append({
+                        "file": item.name,
+                        "status": "dry_run",
+                        "source": str(item),
+                        "destination": str(final_dest_path),
+                        "category": category,
+                        "method": method,
+                        "confidence": confidence
+                    })
                 else:
                     shutil.move(str(item), final_dest_path)
                     current_history.append((final_dest_path, item))
@@ -414,6 +479,17 @@ class FileOrganizer:
 
                     if event_callback:
                         event_callback(event_data)
+                    
+                    report.append({
+                        "file": item.name,
+                        "status": "moved",
+                        "source": str(item),
+                        "destination": str(final_dest_path),
+                        "category": category,
+                        "method": method,
+                        "confidence": confidence,
+                        "renamed": final_dest_path.name != item.name
+                    })
 
                 moved_count += 1
 
@@ -423,6 +499,14 @@ class FileOrganizer:
                 if log_callback:
                     log_callback(msg)
                 logger.error(msg)
+                
+                report.append({
+                    "file": item.name,
+                    "status": "error",
+                    "error_type": "PermissionError",
+                    "error": str(e)
+                })
+
                 if event_callback:
                     event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "PermissionError"})
 
@@ -434,7 +518,9 @@ class FileOrganizer:
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
-                        "rolled_back": True
+                        "duplicates": duplicates_count,
+                        "rolled_back": True,
+                        "report": report
                     }
 
             except OSError as e:
@@ -443,6 +529,14 @@ class FileOrganizer:
                 if log_callback:
                     log_callback(msg)
                 logger.error(msg)
+
+                report.append({
+                    "file": item.name,
+                    "status": "error",
+                    "error_type": "OSError",
+                    "error": str(e)
+                })
+
                 if event_callback:
                     event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "OSError"})
 
@@ -454,7 +548,9 @@ class FileOrganizer:
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
-                        "rolled_back": True
+                        "duplicates": duplicates_count,
+                        "rolled_back": True,
+                        "report": report
                     }
 
             except Exception as e:
@@ -463,6 +559,13 @@ class FileOrganizer:
                 if log_callback:
                     log_callback(msg)
                 logger.error(msg)
+
+                report.append({
+                    "file": item.name,
+                    "status": "error",
+                    "error_type": type(e).__name__,
+                    "error": str(e)
+                })
 
                 if event_callback:
                     event_callback({
@@ -481,7 +584,9 @@ class FileOrganizer:
                         "moved": moved_count,
                         "errors": errors,
                         "renamed": renamed_count,
-                        "rolled_back": True
+                        "duplicates": duplicates_count,
+                        "rolled_back": True,
+                        "report": report
                     }
 
         # Delete Empty Folders
@@ -524,7 +629,13 @@ class FileOrganizer:
                 self.undo_stack.pop(0)
             self._save_undo_stack()
 
-        return {"moved": moved_count, "errors": errors, "renamed": renamed_count}
+        return {
+            "moved": moved_count,
+            "errors": errors,
+            "renamed": renamed_count,
+            "duplicates": duplicates_count,
+            "report": report
+        }
 
     def undo_changes(self, log_callback: Optional[Callable] = None) -> int:
         """Reverses the last organization run."""

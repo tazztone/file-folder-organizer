@@ -187,6 +187,7 @@ class MainWindowController:
             recursive=self.view.get_recursive_val(),
             date_sort=self.view.get_date_sort_val(),
             del_empty=self.view.get_del_empty_val(),
+            detect_duplicates=self.view.get_detect_duplicates_val(),
             dry_run=dry_run,
             use_ml=self.ai_enabled,
             progress_callback=on_progress,
@@ -203,6 +204,10 @@ class MainWindowController:
         self.view.update_progress(1, 1, "Complete")
 
         msg = f"Done! {'Would move' if dry_run else 'Moved'} {stats['moved']} files."
+        if stats.get('renamed', 0) > 0:
+            msg += f" ({stats['renamed']} renamed)"
+        if stats.get('duplicates', 0) > 0:
+            msg += f" ({stats['duplicates']} duplicates skipped)"
         if stats.get('errors', 0) > 0:
             msg += f" ({stats['errors']} errors)"
 
