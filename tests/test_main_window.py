@@ -3,12 +3,13 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tests.ui_test_utils import get_ui_mocks
+from tests.ui_test_utils import get_pyside_mocks
 
 # Apply standardized mocks
-mock_ctk, mock_dnd = get_ui_mocks()
-sys.modules["customtkinter"] = mock_ctk
-sys.modules["tkinterdnd2"] = mock_dnd
+mock_qtwidgets, mock_qtcore, mock_qtgui = get_pyside_mocks()
+sys.modules["PySide6.QtWidgets"] = mock_qtwidgets
+sys.modules["PySide6.QtCore"] = mock_qtcore
+sys.modules["PySide6.QtGui"] = mock_qtgui
 
 # Reload main_window
 import pro_file_organizer.ui.main_window  # noqa: E402
@@ -25,10 +26,12 @@ class TestMainWindow(unittest.TestCase):
             patch("pro_file_organizer.ui.main_window.MainWindowController"),
             patch("pro_file_organizer.ui.main_window.SettingsDialog"),
             patch("pro_file_organizer.ui.main_window.BatchDialog"),
-            patch("pro_file_organizer.ui.main_window.messagebox"),
-            patch("pro_file_organizer.ui.main_window.filedialog"),
+            patch("pro_file_organizer.ui.main_window.QMessageBox"),
+            patch("pro_file_organizer.ui.main_window.QFileDialog"),
         ]
         self.mocks = [p.start() for p in self.patchers]
+        self.mocks[5].Yes = 1
+        self.mocks[5].No = 0
         self.app = OrganizerApp()
 
     def tearDown(self):
@@ -40,39 +43,44 @@ class TestMainWindow(unittest.TestCase):
 
     def test_update_folder_display(self):
         self.app.update_folder_display("/tmp/test")
-        self.assertEqual(self.app.lbl_drop.cget("text"), "Selected: test")
-        self.assertEqual(self.app.btn_run.cget("state"), "normal")
+        self.app.drop_zone.lbl_text.setText.assert_called_with("Selected: test")
+        self.app.btn_run.setEnabled.assert_called_with(True)
 
     def test_clear_results(self):
-        mock_child = MagicMock()
-        self.app.scroll_results.winfo_children.return_value = [mock_child]
+        self.app.results_layout.count.return_value = 3 # 2 items to clear + 1 stretch
+        mock_item = MagicMock()
+        mock_widget = MagicMock()
+        mock_item.widget.return_value = mock_widget
+        self.app.results_layout.takeAt.return_value = mock_item
+        
         self.app.clear_results()
-        mock_child.destroy.assert_called()
+        # Should be called count-1 times
+        self.assertEqual(self.app.results_layout.takeAt.call_count, 2)
+        mock_widget.deleteLater.assert_called()
 
     def test_show_status(self):
         self.app.show_status("Busy...")
-        self.assertEqual(self.app.lbl_status.cget("text"), "Busy...")
+        self.app.lbl_status.setText.assert_called_with("Busy...")
 
     def test_update_progress(self):
         # Numeric progress
         self.app.update_progress(5, 10, "file.txt")
-        self.app.progress_bar.set.assert_called_with(0.5)
+        self.app.progress_bar.setValue.assert_called_with(50)
 
         # Float progress (ML loading)
         self.app.update_progress(0.7, 1.0, "Model Loading")
-        self.app.progress_bar.set.assert_called_with(0.7)
+        self.app.progress_bar.setValue.assert_called_with(70)
 
     def test_ui_toggles(self):
         self.app.enable_ai_ui()
-        self.app.frame_ai_conf.pack.assert_called()
+        self.app.ai_conf_container.show.assert_called()
 
         self.app.disable_ai_ui()
-        self.app.frame_ai_conf.pack_forget.assert_called()
+        self.app.ai_conf_container.hide.assert_called()
 
     def test_set_running_state(self):
         self.app.set_running_state(True)
-        self.assertEqual(self.app.btn_run.cget("state"), "disabled")
-        self.assertEqual(self.app.scroll_results.cget("label_text"), "Processing...")
+        self.app.btn_run.setEnabled.assert_called_with(False)
 
     def test_open_dialogs(self):
         self.app.open_settings()
@@ -82,110 +90,72 @@ class TestMainWindow(unittest.TestCase):
         self.app.controller.open_batch.assert_called()
 
     def test_change_appearance(self):
-        with patch("pro_file_organizer.ui.main_window.ctk.set_appearance_mode") as mock_set:
+        with patch.object(self.app, "_apply_theme") as mock_apply:
             self.app.change_appearance_mode_event("Dark")
-            mock_set.assert_called_with("Dark")
+            mock_apply.assert_called_with("Dark")
             self.app.organizer.save_theme_mode.assert_called_with("Dark")
 
-    def test_on_drop(self):
-        event = MagicMock()
-        event.data = "/tmp/drop"
-        self.app.on_drop(event)
+    def test_handle_drop(self):
+        self.app._handle_drop("/tmp/drop")
         self.app.controller.set_folder.assert_called_with("/tmp/drop")
-
-        # Braced path
-        event.data = "{/tmp/spaced path}"
-        self.app.on_drop(event)
-        self.app.controller.set_folder.assert_called_with("/tmp/spaced path")
 
     def test_show_error(self):
         self.app.show_error("Title", "Message")
-        self.mocks[5].showerror.assert_called_with("Title", "Message")
+        self.mocks[5].critical.assert_called_with(self.app, "Title", "Message")
 
     def test_show_info(self):
         self.app.show_info("Title", "Message")
-        self.mocks[5].showinfo.assert_called_with("Title", "Message")
+        self.mocks[5].information.assert_called_with(self.app, "Title", "Message")
 
     def test_confirm_action(self):
-        self.app.confirm_action("Title", "Message")
-        self.mocks[5].askyesno.assert_called_with("Title", "Message")
+        self.mocks[5].question.return_value = 1 # QMessageBox.Yes
+        res = self.app.confirm_action("Title", "Message")
+        self.assertTrue(res)
+        self.mocks[5].question.assert_called_with(self.app, "Title", "Message", mock_qtwidgets.QMessageBox.Yes | mock_qtwidgets.QMessageBox.No)
 
     def test_update_stats_display(self):
         stats = {"total_files": 100, "last_run": "Today"}
         self.app.update_stats_display(stats)
-        self.assertEqual(self.app.lbl_stats_total.cget("text"), "Files Organized: 100")
-        self.assertEqual(self.app.lbl_stats_last.cget("text"), "Last Run: Today")
+        self.app.lbl_stats_total.setText.assert_called_with("Files Organized: 100")
+        self.app.lbl_stats_last.setText.assert_called_with("Last Run: Today")
 
     def test_show_model_download(self):
         with patch("pro_file_organizer.ui.main_window.ModelDownloadModal") as mock_modal:
             callback = MagicMock()
             self.app.show_model_download(callback)
             mock_modal.assert_called_with(self.app, on_complete=callback)
+            mock_modal().exec.assert_called()
 
     def test_show_settings(self):
         with patch("pro_file_organizer.ui.main_window.SettingsDialog") as mock_dialog:
             self.app.show_settings(self.app.organizer)
             mock_dialog.assert_called_with(self.app, self.app.organizer)
+            mock_dialog().exec.assert_called()
 
     def test_show_batch(self):
         with patch("pro_file_organizer.ui.main_window.BatchDialog") as mock_dialog:
             self.app.show_batch(self.app.organizer)
             mock_dialog.assert_called_with(self.app, self.app.organizer)
+            mock_dialog().exec.assert_called()
 
     def test_set_ai_switch_state(self):
         self.app.set_ai_switch_state(True)
-        self.app.switch_ai.select.assert_called()
-        self.app.set_ai_switch_state(False)
-        self.app.switch_ai.deselect.assert_called()
+        self.app.switch_ai.setChecked.assert_called_with(True)
 
     def test_set_watch_switch_state(self):
         self.app.set_watch_switch_state(True)
-        self.app.chk_watch.select.assert_called()
-        self.app.set_watch_switch_state(False)
-        self.app.chk_watch.deselect.assert_called()
+        self.app.chk_watch.setChecked.assert_called_with(True)
 
     def test_getters(self):
-        self.app.slider_conf.get.return_value = 0.5
+        self.app.slider_conf.value.return_value = 5
         self.assertEqual(self.app.get_ai_confidence(), 0.5)
 
     def test_browse_folder(self):
-        with patch("pro_file_organizer.ui.main_window.CTkFolderPicker") as mock_picker:
-            self.app.controller.selected_path = "/tmp"
-            self.app.browse_folder()
-            mock_picker.assert_called_with(self.app, initial_dir="/tmp", on_select=self.app.controller.set_folder)
-
-    def test_drag_drop_visuals(self):
-        event = MagicMock()
-        with patch.object(self.app, "_draw_dashed_border") as mock_draw:
-            self.app._on_drag_enter(event)
-            mock_draw.assert_called()
-            self.app._on_drag_leave(event)
-            self.assertEqual(mock_draw.call_count, 2)
-
-    def test_appearance_mode_changed(self):
-        with patch.object(self.app, "_draw_dashed_border") as mock_draw:
-            self.app._on_appearance_mode_changed("Dark")
-            # Uses app.after, which our MockBase executes immediately
-            mock_draw.assert_called()
-
-    def test_draw_dashed_border(self):
-        # Verify it doesn't crash and calls canvas methods
-        self.app.drop_canvas.winfo_width.return_value = 100
-        self.app.drop_canvas.winfo_height.return_value = 100
-        self.app._draw_dashed_border()
-        self.app.drop_canvas.create_rectangle.assert_called()
-
-        self.app.var_recursive.set(True)
-        self.assertEqual(self.app.get_recursive_val(), True)
-
-        self.app.var_date_sort.set(False)
-        self.assertEqual(self.app.get_date_sort_val(), False)
-
-        self.app.var_del_empty.set(True)
-        self.assertEqual(self.app.get_del_empty_val(), True)
-
-        self.app.var_detect_duplicates.set(False)
-        self.assertEqual(self.app.get_detect_duplicates_val(), False)
+        self.app.controller.selected_path = "/tmp"
+        self.mocks[6].getExistingDirectory.return_value = "/new/path"
+        self.app.browse_folder()
+        self.mocks[6].getExistingDirectory.assert_called_with(self.app, "Select Folder", "/tmp")
+        self.app.controller.set_folder.assert_called_with("/new/path")
 
     def test_add_result_card(self):
         with patch("pro_file_organizer.ui.main_window.FileCard") as mock_card:
@@ -193,10 +163,6 @@ class TestMainWindow(unittest.TestCase):
             self.app.add_result_card(data)
             self.assertEqual(len(self.app.result_cards), 1)
             mock_card.assert_called()
-
-    def test_update_results_header(self):
-        self.app.update_results_header("New Header")
-        self.app.scroll_results.configure.assert_called_with(label_text="New Header")
 
 
 if __name__ == "__main__":

@@ -1,19 +1,16 @@
-import importlib
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tests.ui_test_utils import get_ui_mocks
+from tests.ui_test_utils import get_pyside_mocks
 
 # Apply standardized mocks
-mock_ctk, _ = get_ui_mocks()
-sys.modules["customtkinter"] = mock_ctk
+mock_qtwidgets, mock_qtcore, mock_qtgui = get_pyside_mocks()
+sys.modules["PySide6.QtWidgets"] = mock_qtwidgets
+sys.modules["PySide6.QtCore"] = mock_qtcore
+sys.modules["PySide6.QtGui"] = mock_qtgui
 
-# Force reload
-import pro_file_organizer.ui.dialogs.settings_dialog_ctk  # noqa: E402
-
-importlib.reload(pro_file_organizer.ui.dialogs.settings_dialog_ctk)
-from pro_file_organizer.ui.dialogs.settings_dialog_ctk import SettingsDialog  # noqa: E402
+from pro_file_organizer.ui.dialogs import settings_dialog
 
 
 class TestSettingsDialog(unittest.TestCase):
@@ -25,38 +22,35 @@ class TestSettingsDialog(unittest.TestCase):
         self.mock_organizer.excluded_extensions = {".tmp"}
         self.mock_organizer.excluded_folders = {"node_modules"}
 
-        with patch("pro_file_organizer.ui.dialogs.settings_dialog_ctk.ToolTip"):
-            self.dialog = SettingsDialog(self.mock_parent, self.mock_organizer)
+        self.dialog = settings_dialog.SettingsDialog(self.mock_parent, self.mock_organizer)
 
     def test_init(self):
         self.assertEqual(self.dialog.organizer, self.mock_organizer)
 
-    @patch("pro_file_organizer.ui.dialogs.settings_dialog_ctk.ctk.CTkInputDialog")
-    def test_add_category_success(self, mock_input_class):
-        mock_input = MagicMock()
-        mock_input.get_input.return_value = "Music"
-        mock_input_class.return_value = mock_input
-        self.dialog.add_category()
-        self.assertIn("Music", self.mock_organizer.directories)
+    def test_add_category_success(self):
+        with patch.object(settings_dialog, "QInputDialog") as mock_input:
+            mock_input.getText.return_value = ("Music", True)
+            self.dialog.add_category()
+            self.assertIn("Music", self.mock_organizer.directories)
 
     def test_delete_category(self):
         self.dialog.on_cat_select("Videos")
-        with patch("pro_file_organizer.ui.dialogs.settings_dialog_ctk.messagebox.askyesno", return_value=True):
+        with patch.object(settings_dialog, "QMessageBox") as mock_msg:
+            mock_msg.Yes = 1
+            mock_msg.question.return_value = 1
             self.dialog.delete_category()
             self.assertNotIn("Videos", self.mock_organizer.directories)
 
     def test_save_config_with_validation_errors(self):
         self.mock_organizer.validate_config.return_value = ["Error 1"]
-        patch_path = "pro_file_organizer.ui.dialogs.settings_dialog_ctk.messagebox.showerror"
-        with patch(patch_path) as mock_err:
+        with patch.object(settings_dialog, "QMessageBox") as mock_msg:
             self.dialog.save_config()
-            mock_err.assert_called()
+            mock_msg.critical.assert_called()
 
     def test_exclusion_logic(self):
-        self.dialog.txt_excl_exts.get.return_value = ".log, .tmp"
-        self.dialog.txt_excl_folders.get.return_value = "dist, build"
-        self.dialog.slider_ml = MagicMock()
-        self.dialog.slider_ml.get.return_value = 0.8
+        self.dialog.txt_excl_exts.toPlainText.return_value = ".log, .tmp"
+        self.dialog.txt_excl_folders.toPlainText.return_value = "dist, build"
+        self.dialog.slider_ml.value.return_value = 80 # 0.8 * 100
 
         self.dialog._apply_exclusions()
 
@@ -66,22 +60,23 @@ class TestSettingsDialog(unittest.TestCase):
 
     def test_save_pending_cat_changes(self):
         self.dialog.last_selected_cat = "Images"
-        self.dialog.txt_exts.get.return_value = ".jpg, .jpeg"
+        self.dialog.txt_exts.toPlainText.return_value = ".jpg, .jpeg"
         self.dialog.save_pending_cat_changes()
         self.assertEqual(self.mock_organizer.directories["Images"], [".jpg", ".jpeg"])
 
     def test_export_import(self):
-        patch_save = "pro_file_organizer.ui.dialogs.settings_dialog_ctk.filedialog.asksaveasfilename"
-        with patch(patch_save, return_value="/tmp/conf.json"):
+        with patch.object(settings_dialog, "QFileDialog") as mock_fd:
+            mock_fd.getSaveFileName.return_value = ("/tmp/conf.json", "filter")
             self.dialog.export_profile()
-            self.mock_organizer.export_config_file.assert_called()
+            self.mock_organizer.export_config_file.assert_called_with("/tmp/conf.json")
 
-        patch_open = "pro_file_organizer.ui.dialogs.settings_dialog_ctk.filedialog.askopenfilename"
-        with patch(patch_open, return_value="/tmp/conf.json"):
-            patch_confirm = "pro_file_organizer.ui.dialogs.settings_dialog_ctk.messagebox.askyesno"
-            with patch(patch_confirm, return_value=True):
+        with patch.object(settings_dialog, "QFileDialog") as mock_fd:
+            mock_fd.getOpenFileName.return_value = ("/tmp/conf.json", "filter")
+            with patch.object(settings_dialog, "QMessageBox") as mock_msg:
+                mock_msg.Yes = 1
+                mock_msg.question.return_value = 1
                 self.dialog.import_profile()
-                self.mock_organizer.import_config_file.assert_called()
+                self.mock_organizer.import_config_file.assert_called_with("/tmp/conf.json")
 
 
 if __name__ == "__main__":
