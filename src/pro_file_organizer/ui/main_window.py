@@ -2,13 +2,14 @@ import os
 import sys
 from typing import List, Optional
 
-from PySide6.QtCore import Qt, QTimer, Signal, QSize, QPoint
+from PySide6.QtCore import Qt, QTimer, Signal, QSize, QPoint, QPropertyAnimation, QEasingCurve, Property
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QFrame, QLabel, QPushButton, QCheckBox, QComboBox, QSlider, 
-    QProgressBar, QScrollArea, QFileDialog, QMessageBox, QGridLayout
+    QProgressBar, QScrollArea, QFileDialog, QMessageBox, QGridLayout,
+    QAbstractButton
 )
-from PySide6.QtGui import QPainter, QPen, QColor, QDragEnterEvent, QDropEvent, QIcon
+from PySide6.QtGui import QPainter, QPen, QColor, QDragEnterEvent, QDropEvent, QIcon, QPalette, QBrush
 
 from ..core.ml_organizer import MultimodalFileOrganizer
 from ..core.organizer import FileOrganizer
@@ -17,6 +18,67 @@ from .dialogs.batch_dialog import BatchDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .main_window_controller import MainWindowController
 from .themes.themes import COLORS, FONTS, RADII, build_stylesheet, LIGHT_COLORS, DARK_COLORS, get_font_style
+
+
+class ToggleSwitch(QAbstractButton):
+    def __init__(self, parent=None, track_radius=10, thumb_radius=8):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setSizePolicy(QGridLayout.Policy.Fixed, QGridLayout.Policy.Fixed)
+
+        self._track_radius = track_radius
+        self._thumb_radius = thumb_radius
+
+        self._margin = 2
+        self._base_width = 40
+        self._base_height = 20
+
+        self._thumb_pos = self._margin
+        self._animation = QPropertyAnimation(self, b"thumb_pos", self)
+        self._animation.setDuration(200)
+        self._animation.setEasingCurve(QEasingCurve.InOutExpo)
+
+        self.setFixedSize(self._base_width, self._base_height)
+
+    @Property(float)
+    def thumb_pos(self):
+        return self._thumb_pos
+
+    @thumb_pos.setter
+    def thumb_pos(self, pos):
+        self._thumb_pos = pos
+        self.update()
+
+    def sizeHint(self):
+        return QSize(self._base_width, self._base_height)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Draw track
+        track_color = QColor(COLORS["accent"]) if self.isChecked() else QColor(COLORS["border"])
+        painter.setBrush(QBrush(track_color))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), self._track_radius, self._track_radius)
+
+        # Draw thumb
+        painter.setBrush(QBrush(Qt.white))
+        painter.drawEllipse(self._thumb_pos, self._margin, self.height() - 2 * self._margin, self.height() - 2 * self._margin)
+
+    def nextCheckState(self):
+        super().nextCheckState()
+        self._animation.stop()
+        if self.isChecked():
+            self._animation.setEndValue(self.width() - self.height() + self._margin)
+        else:
+            self._animation.setEndValue(self._margin)
+        self._animation.start()
+
+    def setChecked(self, checked):
+        super().setChecked(checked)
+        self._thumb_pos = (self.width() - self.height() + self._margin) if checked else self._margin
+        self.update()
 
 
 class DropZoneWidget(QFrame):
@@ -114,7 +176,12 @@ class OrganizerApp(QMainWindow):
             self.appearance_mode_menu.setCurrentText(theme_mode)
 
     def _apply_theme(self, mode: str):
-        colors = LIGHT_COLORS if mode == "Light" else DARK_COLORS
+        if mode == "System":
+            is_dark = QApplication.palette().color(QPalette.Window).lightness() < 128
+            colors = DARK_COLORS if is_dark else LIGHT_COLORS
+        else:
+            colors = LIGHT_COLORS if mode == "Light" else DARK_COLORS
+        
         QApplication.instance().setStyleSheet(build_stylesheet(colors))
 
     def _setup_ui(self):
@@ -158,9 +225,8 @@ class OrganizerApp(QMainWindow):
         
         ai_layout.addStretch()
         
-        self.switch_ai = QCheckBox() # Simple checkbox for now, can be styled as switch
-        self.switch_ai.setFixedSize(40, 20)
-        self.switch_ai.stateChanged.connect(lambda s: self.controller.toggle_ai(s == Qt.Checked))
+        self.switch_ai = ToggleSwitch()
+        self.switch_ai.clicked.connect(lambda: self.controller.toggle_ai(self.switch_ai.isChecked()))
         ai_layout.addWidget(self.switch_ai)
 
         # Main Buttons
@@ -278,6 +344,10 @@ class OrganizerApp(QMainWindow):
         controls_layout.addWidget(self.btn_run)
 
         # Results Area
+        self.results_header = QLabel("Waiting for action...")
+        self.results_header.setStyleSheet(get_font_style("label"))
+        main_area_layout.addWidget(self.results_header)
+
         self.results_scroll = QScrollArea()
         self.results_scroll.setWidgetResizable(True)
         self.results_scroll.setObjectName("card")
@@ -385,9 +455,7 @@ class OrganizerApp(QMainWindow):
         self.lbl_ai.setStyleSheet(f"{get_font_style('label')} color: {COLORS['text_main']};")
 
     def set_ai_switch_state(self, state):
-        self.switch_ai.blockSignals(True)
         self.switch_ai.setChecked(state)
-        self.switch_ai.blockSignals(False)
 
     def set_watch_switch_state(self, state):
         self.chk_watch.blockSignals(True)
@@ -422,9 +490,7 @@ class OrganizerApp(QMainWindow):
         self.result_cards.append(card)
 
     def update_results_header(self, message):
-        # In this version, we don't have a specific header in the scroll area
-        # but we can use the status label
-        self.lbl_status.setText(message)
+        self.results_header.setText(message)
 
     # --- Event Handlers ---
 

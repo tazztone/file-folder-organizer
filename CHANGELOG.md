@@ -5,21 +5,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Framework Migration**: Migrated the entire UI layer from `customtkinter` to **PySide6**.
+  - Improved performance and cross-platform stability.
+  - Native drag-and-drop support using Qt events.
+  - QSS-based theming system with dynamic Light/Dark/System mode support.
 - **UI/UX Polish**:
-  - **Dashboard**: Added statistics cards (Total Files, Last Run, Batches) to the Home screen.
-  - **Drag & Drop**: Improved visual feedback with clearer borders and colors when hovering over the drop zone.
-  - **Progress**: Enhanced progress reporting with speed (files/s), ETA, and truncated filenames for better readability.
-  - **Icon**: Added a custom generated window icon.
-- **ML Features**:
-  - **Progress Bar**: Added real-time progress updates for ML model downloading/loading.
-  - Smart Categorization now supports text and image content analysis.
-- **Documentation**:
-  - Added CHANGELOG.md.
-  - Updated README with ML details, hardware recommendations, and configuration examples.
+  - Replaced plain checkboxes with custom animated **Toggle Switches**.
+  - Restored separate Results Header for better visual hierarchy during processing.
+  - Refined dashboard layout with improved spacing and typography.
+- **CI/CD Improvements**:
+  - Updated CI pipeline to use `xvfb` for headless Linux testing.
+  - Switched test runner to `pytest` for better integration with project configuration.
+- **Reliability**:
+  - Fixed a critical infinite loop bug in layout clearing that caused memory exhaustion.
+  - Added robust PySide6 mocks for the test suite.
 
-### Changed
-- Refactored `app.py` to support multiple views.
-- Improved `organizer.py` to handle ML model loading feedback via callback wrapper.
+## [0.1.0] - 2026-03-13
 
-### Fixed
-- Fixed potential freezing during ML model initialization by providing better user feedback.
+### Added
+- **UI/UX Polish**:

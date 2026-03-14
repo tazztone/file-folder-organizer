@@ -92,13 +92,23 @@ class MockModule(object):
 def get_pyside_mocks():
     mock_qtwidgets = MockModule()
     mock_qtwidgets.QApplication = MagicMock()
-    mock_qtwidgets.QApplication.instance = MagicMock(return_value=MockBase())
+    mock_app_instance = MockBase()
+    # Mock palette().color().lightness() < 128
+    mock_palette = MagicMock()
+    mock_color = MagicMock()
+    mock_color.lightness.return_value = 100 # Dark by default
+    mock_palette.color.return_value = mock_color
+    mock_qtwidgets.QApplication.palette.return_value = mock_palette
+    mock_qtwidgets.QApplication.instance = MagicMock(return_value=mock_app_instance)
     mock_qtwidgets.QMainWindow = MockBase
     mock_qtwidgets.QWidget = MockBase
     mock_qtwidgets.QFrame = MockBase
     mock_qtwidgets.QVBoxLayout = MockBase
     mock_qtwidgets.QHBoxLayout = MockBase
     mock_qtwidgets.QGridLayout = MockBase
+    mock_qtwidgets.QGridLayout.Policy = MockModule()
+    mock_qtwidgets.QGridLayout.Policy.Fixed = 1
+    
     def mock_qlabel(text="", parent=None):
         m = MockBase(parent)
         m.text.return_value = text
@@ -126,6 +136,7 @@ def get_pyside_mocks():
     mock_qtwidgets.QTabWidget = MockBase
     mock_qtwidgets.QTextEdit = MockBase
     mock_qtwidgets.QLineEdit = MockBase
+    mock_qtwidgets.QAbstractButton = MockBase
     mock_qtwidgets.QInputDialog = MagicMock()
     mock_qtwidgets.QInputDialog.getText = MagicMock(return_value=("mock_text", True))
 
@@ -144,6 +155,10 @@ def get_pyside_mocks():
     mock_qtcore.QObject = MockBase
     mock_qtcore.QSize = MagicMock()
     mock_qtcore.QPoint = MagicMock()
+    mock_qtcore.QPropertyAnimation = lambda *args, **kwargs: MagicMock()
+    mock_qtcore.QEasingCurve = MockModule()
+    mock_qtcore.QEasingCurve.InOutExpo = 1
+    mock_qtcore.Property = MagicMock
 
     mock_qtgui = MockModule()
     mock_qtgui.QPainter = MagicMock()
@@ -153,5 +168,8 @@ def get_pyside_mocks():
     mock_qtgui.QIcon = MagicMock()
     mock_qtgui.QDragEnterEvent = MagicMock()
     mock_qtgui.QDropEvent = MagicMock()
+    mock_qtgui.QPalette = MockModule()
+    mock_qtgui.QPalette.Window = 1
+    mock_qtgui.QBrush = MagicMock
 
     return mock_qtwidgets, mock_qtcore, mock_qtgui

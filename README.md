@@ -1,6 +1,6 @@
 # Pro File Organizer 📂
 
-A powerful, modern file organizer application built with Python and CustomTkinter. It uses intelligent rules and AI to organize your messy folders into a clean, structured hierarchy.
+A powerful, modern file organizer application built with Python and PySide6. It uses intelligent rules and AI to organize your messy folders into a clean, structured hierarchy.
 
 ![Dashboard Placeholder](https://via.placeholder.com/800x500?text=Pro+File+Organizer+Dashboard)
 
@@ -10,7 +10,7 @@ A powerful, modern file organizer application built with Python and CustomTkinte
 *   **AI-Powered Categorization** 🧠:
     *   Uses **Multimodal AI** (Qwen for text, SigLIP for images) to understand file content.
     *   Categorizes "screenshot.png" into "Images/Screenshots" or "invoice.pdf" into "Documents/Financial".
-*   **Modern UI**: Clean, dark-mode friendly interface using CustomTkinter.
+*   **Modern UI**: Clean, dark-mode friendly interface using PySide6 and QSS.
 *   **Dashboard**: Track your organization stats and history.
 *   **Drag & Drop**: Simply drag a folder into the window to start.
 *   **Batch Processing**: Organize multiple folders with different settings in one go.
@@ -21,15 +21,15 @@ A powerful, modern file organizer application built with Python and CustomTkinte
 ## Installation 🛠️
 
 ### Prerequisites
-*   Python 3.8+
+*   Python 3.10+
 *   [uv](https://github.com/astral-sh/uv) (a fast Python package installer)
 *   (Optional) NVIDIA GPU for faster AI processing
 
 ### Setup
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/pro-file-organizer.git
-    cd pro-file-organizer
+    git clone https://github.com/tazztone/file-folder-organizer.git
+    cd file-folder-organizer
     ```
 2.  Run the setup script:
     *   **Windows**: Double-click `scripts/setup.bat`
@@ -49,7 +49,7 @@ A powerful, modern file organizer application built with Python and CustomTkinte
 
 1.  **Launch the App**:
     ```bash
-    python run_app.py
+    uv run run_app.py
     ```
     Alternatively, if installed as a package:
     ```bash
@@ -61,8 +61,8 @@ A powerful, modern file organizer application built with Python and CustomTkinte
 3.  **Choose Options**:
     *   **Include Subfolders**: Deep scan.
     *   **Sort by Date**: Organizes into `Year/Month` subfolders.
-    *   **Smart Categorization (AI)**: Enable for content-based sorting (requires ~2GB model download on first run).
-4.  **Start**: Click "Start Organizing".
+    *   **Smart Categorization (AI)**: Enable for content-based sorting (requires ~3GB model download on first run).
+4.  **Start**: Click "ORGANIZE".
 
 ## Smart Categorization (AI) 🤖
 
@@ -70,7 +70,7 @@ When enabled, the app uses local AI models to inspect file content:
 *   **Images**: Analyzed by `google/siglip2-base-patch32-256` to detect scene/content (e.g., Personal, Screenshots, Diagrams).
 *   **Documents/Text**: Analyzed by `Qwen/Qwen3-Embedding-0.6B` to classify based on semantic content (e.g., Financial, Code, Reports).
 
-**Note**: The first run will download approximately **2GB** of model data. This is cached locally.
+**Note**: The first run will download approximately **3GB** of model data. This is cached locally.
 **Hardware**: NVIDIA GPU (CUDA) or Apple Silicon (MPS) is recommended for best performance. CPU mode is supported but slower.
 
 ## Configuration ⚙️
@@ -127,9 +127,15 @@ You can exclude specific files, extensions, or folders from being processed.
 
 ### Running Tests
 
-To run the full test suite (currently achieving **91% coverage**):
+To run the full test suite:
 ```bash
-$env:PYTHONPATH="src"; uv run coverage run -m unittest discover tests; uv run coverage report --include="src/*"
+uv run pytest
+```
+
+To run tests with coverage:
+```bash
+uv run coverage run -m pytest tests/
+uv run coverage report
 ```
 
 ### Agents 🤖
