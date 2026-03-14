@@ -6,6 +6,8 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from ...core.constants import DEFAULT_BATCH_CONFIG_FILE
+from ..themes.themes import COLORS, RADII
+from ..ui_utils import ToolTip
 
 
 class BatchDialog:
@@ -17,6 +19,7 @@ class BatchDialog:
         self.window = ctk.CTkToplevel(parent)
         self.window.title("Batch Organization")
         self.window.geometry("800x600")
+        self.window.configure(fg_color=COLORS["bg_main"])
 
         # Ensure it stays on top
         self.window.transient(parent)
@@ -33,17 +36,22 @@ class BatchDialog:
         frame_toolbar = ctk.CTkFrame(self.window, fg_color="transparent")
         frame_toolbar.pack(fill="x", padx=20, pady=10)
 
-        btn_add = ctk.CTkButton(frame_toolbar, text="Add Folder", command=self.add_folder, width=120)
+        btn_add = ctk.CTkButton(
+            frame_toolbar, text="Add Folder", command=self.add_folder,
+            width=120, height=36, corner_radius=RADII["card"],
+            fg_color=COLORS["accent"]
+        )
         btn_add.pack(side="left", padx=5)
 
         btn_clear = ctk.CTkButton(
             frame_toolbar, text="Clear All", command=self.clear_all,
-            width=120, fg_color="red", hover_color="darkred"
+            width=120, height=36, corner_radius=RADII["card"],
+            fg_color=COLORS["danger"], hover_color="#C0392B"
         )
         btn_clear.pack(side="right", padx=5)
 
         # Header for the list
-        frame_header = ctk.CTkFrame(self.window, corner_radius=0, height=30)
+        frame_header = ctk.CTkFrame(self.window, corner_radius=0, height=30, fg_color=COLORS["bg_sidebar"])
         frame_header.pack(fill="x", padx=20)
 
         lbl_path = ctk.CTkLabel(frame_header, text="Folder Path", anchor="w", font=("Arial", 12, "bold"))
@@ -59,20 +67,24 @@ class BatchDialog:
         lbl_action.pack(side="left", padx=5)
 
         # List Area (Scrollable Frame)
-        self.scroll_frame = ctk.CTkScrollableFrame(self.window)
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.window, corner_radius=RADII["standard"],
+            fg_color=COLORS["bg_card"]
+        )
         self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         # Bottom Actions
         frame_actions = ctk.CTkFrame(self.window, fg_color="transparent")
         frame_actions.pack(fill="x", padx=20, pady=20)
 
-        self.progress = ctk.CTkProgressBar(frame_actions)
+        self.progress = ctk.CTkProgressBar(frame_actions, progress_color=COLORS["accent"])
         self.progress.pack(fill="x", pady=(0, 10))
         self.progress.set(0)
 
         btn_run = ctk.CTkButton(
             frame_actions, text="Run Batch", command=self.run_batch,
-            fg_color="green", hover_color="darkgreen", height=40
+            fg_color=COLORS["success"], hover_color="#27AE60",
+            height=44, corner_radius=RADII["card"]
         )
         btn_run.pack(fill="x")
 
@@ -104,7 +116,7 @@ class BatchDialog:
             self._create_row(i, item)
 
     def _create_row(self, index, item):
-        row_frame = ctk.CTkFrame(self.scroll_frame)
+        row_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=RADII["card"])
         row_frame.pack(fill="x", pady=2)
 
         # Path
@@ -133,12 +145,19 @@ class BatchDialog:
         item["status_label"] = lbl_status
 
         # Config Button
-        btn_conf = ctk.CTkButton(row_frame, text="⚙", width=30, command=lambda idx=index: self.configure_folder(idx))
+        btn_conf = ctk.CTkButton(
+            row_frame, text="⚙", width=30, height=30,
+            fg_color=COLORS["border"], text_color=COLORS["text_main"],
+            hover_color=COLORS["accent"], corner_radius=RADII["badge"],
+            command=lambda idx=index: self.configure_folder(idx)
+        )
         btn_conf.pack(side="left", padx=2)
 
         # Remove Button
         btn_del = ctk.CTkButton(
-            row_frame, text="X", width=30, fg_color="red", hover_color="darkred",
+            row_frame, text="X", width=30, height=30,
+            fg_color=COLORS["danger"], hover_color="#C0392B",
+            corner_radius=RADII["badge"],
             command=lambda idx=index: self.remove_folder(idx)
         )
         btn_del.pack(side="left", padx=5)

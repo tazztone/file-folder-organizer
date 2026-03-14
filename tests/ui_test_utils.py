@@ -22,6 +22,8 @@ class MockBase(object):
         self.after_main = MagicMock(side_effect=self._mock_after)
         self.winfo_children = MagicMock(return_value=[])
         self.winfo_toplevel = MagicMock(return_value=self)
+        self.lift = MagicMock()
+        self.focus_force = MagicMock()
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -42,6 +44,7 @@ class MockBase(object):
     def grid_columnconfigure(self, *args, **kwargs): pass
     def grid_rowconfigure(self, *args, **kwargs): pass
     def pack_propagate(self, *args): pass
+    def grid_propagate(self, *args): pass
     def bind(self, *args, **kwargs): pass
     def unbind(self, *args, **kwargs): pass
     def winfo_rootx(self): return 0
@@ -56,6 +59,11 @@ class MockBase(object):
     def add(self, *args, **kwargs): return self
     def tab(self, *args, **kwargs): return self
     def select(self, *args, **kwargs): pass
+    def create_rectangle(self, *args, **kwargs): return 1
+    def create_text(self, *args, **kwargs): return 1
+    def itemconfig(self, *args, **kwargs): pass
+    def coords(self, *args, **kwargs): pass
+    def delete(self, *args, **kwargs): pass
 
 class MockCTk(MockBase):
     def title(self, *args): pass
@@ -72,6 +80,8 @@ class MockCTkToplevel(MockCTk):
         self.master = master
     def transient(self, *args): pass
     def grab_set(self): pass
+    def lift(self): pass
+    def focus_force(self): pass
 
 class MockDnDWrapper(object):
     def drop_target_register(self, *args): pass
@@ -102,6 +112,8 @@ def get_ui_mocks():
     mock_ctk.CTkSlider = MagicMock(
         side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkProgressBar = MagicMock(
+        side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkCanvas = MagicMock(
         side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkTextbox = MockBase
     mock_ctk.CTkTabview = MagicMock(

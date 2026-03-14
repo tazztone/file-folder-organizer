@@ -1,162 +1,42 @@
+"""
+Centralized UI constants for Pro File Organizer.
+Uses customtkinter color tuples for automatic light/dark theme support.
+"""
 
-# Palette definitions
-PALETTES = {
-    "light": {
-        "bg": "#f0f0f0",
-        "fg": "#000000",
-        "select_bg": "#a6a6a6",
-        "select_fg": "#000000",
-        "entry_bg": "#ffffff",
-        "entry_fg": "#000000",
-        "text_bg": "#ffffff",
-        "text_fg": "#000000",
-        "btn_bg": "#e0e0e0",
-        "btn_fg": "#000000",
-        "success": "#4CAF50",
-        "warning": "#FFC107",
-        "danger": "#D32F2F",
-        "disabled": "#cccccc"
-    },
-    "dark": {
-        "bg": "#2d2d2d",
-        "fg": "#ffffff",
-        "select_bg": "#555555",
-        "select_fg": "#ffffff",
-        "entry_bg": "#3d3d3d",
-        "entry_fg": "#ffffff",
-        "text_bg": "#1e1e1e",
-        "text_fg": "#d4d4d4",
-        "btn_bg": "#444444",
-        "btn_fg": "#ffffff",
-        "success": "#388E3C",
-        "warning": "#FFA000",
-        "danger": "#D32F2F",
-        "disabled": "#555555"
-    }
+# Palette Definitions (Light, Dark)
+COLORS = {
+    "accent": ("#2F6FAD", "#3B8ED0"),
+    "bg_main": ("#F5F6F8", "#1A1B1E"),
+    "bg_sidebar": ("#EAEBED", "#111214"),
+    "bg_card": ("#FFFFFF", "#25262B"),
+    "bg_hover": ("#EBF5FF", "#1C2C3E"), # Subtle blue tint for hover
+    "text_main": ("#1A1B1E", "#C1C2C5"),
+    "text_dimmed": ("#909296", "#5C5F66"),
+    "success": ("#2DCC70", "#2DCC70"),
+    "danger": ("#E03131", "#E03131"),
+    "warning": ("#F08C00", "#F08C00"),
+    "border": ("#CED4DA", "#373A40"),
+    "separator": ("#DEE2E6", "#2C2E33"),
 }
 
-def setup_themes(style):
-    """
-    Configures the ttk.Style object with 'pro_light' and 'pro_dark' themes.
-    """
+# Typography
+FONTS = {
+    "title": ("Inter", 20, "bold"),
+    "subtitle": ("Inter", 16, "bold"),
+    "label": ("Inter", 13, "bold"),
+    "main": ("Inter", 13),
+    "small": ("Inter", 11),
+    "mono": ("Consolas", 11),
+}
 
-    # ---------------------------------------------------------
-    # Pro Light
-    # ---------------------------------------------------------
-    if "pro_light" not in style.theme_names():
-        p = PALETTES["light"]
-        style.theme_create("pro_light", parent="clam", settings={
-            ".": {
-                "configure": {
-                    "background": p["bg"],
-                    "foreground": p["fg"],
-                    "troughcolor": p["bg"],
-                    "selectbackground": p["select_bg"],
-                    "selectforeground": p["select_fg"],
-                    "fieldbackground": p["entry_bg"],
-                    "borderwidth": 1,
-                }
-            },
-            "TFrame": {"configure": {"background": p["bg"]}},
-            "TLabel": {"configure": {"background": p["bg"], "foreground": p["fg"]}},
-            "TButton": {
-                "configure": {"background": p["btn_bg"], "foreground": p["btn_fg"], "borderwidth": 1},
-                "map": {
-                    "background": [("active", p["select_bg"]), ("disabled", p["disabled"])],
-                    "foreground": [("disabled", "#888888")]
-                }
-            },
-            "TEntry": {
-                "configure": {"fieldbackground": p["entry_bg"], "foreground": p["entry_fg"]}
-            },
-            "TCheckbutton": {
-                "configure": {"background": p["bg"], "foreground": p["fg"]},
-                "map": {"background": [("active", p["bg"])]}
-            },
-            "TCombobox": {
-                "configure": {"fieldbackground": p["entry_bg"], "foreground": p["entry_fg"], "arrowcolor": p["fg"]},
-                "map": {"fieldbackground": [("readonly", p["entry_bg"])]}
-            },
-            "Treeview": {
-                "configure": {"background": p["entry_bg"], "foreground": p["fg"], "fieldbackground": p["entry_bg"]},
-                "map": {"background": [("selected", p["select_bg"])], "foreground": [("selected", p["select_fg"])]}
-            },
-            "Treeview.Heading": {
-                "configure": {"background": p["btn_bg"], "foreground": p["btn_fg"], "relief": "flat"}
-            },
-            # Custom styles
-            "Success.TButton": {
-                "configure": {"background": p["success"], "foreground": "#ffffff"},
-                "map": {"background": [("active", "#2E7D32"), ("disabled", p["disabled"])]}
-            },
-            "Danger.TButton": {
-                 "configure": {"background": p["danger"], "foreground": "#ffffff"},
-                 "map": {"background": [("active", "#B71C1C"), ("disabled", p["disabled"])]}
-            }
-        })
+# Radii
+RADII = {
+    "standard": 12,
+    "card": 10,
+    "badge": 6,
+}
 
-    # ---------------------------------------------------------
-    # Pro Dark
-    # ---------------------------------------------------------
-    if "pro_dark" not in style.theme_names():
-        p = PALETTES["dark"]
-        style.theme_create("pro_dark", parent="clam", settings={
-             ".": {
-                "configure": {
-                    "background": p["bg"],
-                    "foreground": p["fg"],
-                    "troughcolor": p["bg"],
-                    "selectbackground": p["select_bg"],
-                    "selectforeground": p["select_fg"],
-                    "fieldbackground": p["entry_bg"],
-                    "borderwidth": 1,
-                    "bordercolor": p["bg"],
-                }
-            },
-            "TFrame": {"configure": {"background": p["bg"]}},
-            "TLabel": {"configure": {"background": p["bg"], "foreground": p["fg"]}},
-            "TButton": {
-                "configure": {
-                    "background": p["btn_bg"], "foreground": p["btn_fg"],
-                    "borderwidth": 1, "bordercolor": "#555555"
-                },
-                "map": {
-                    "background": [("active", p["select_bg"]), ("disabled", p["disabled"])],
-                    "foreground": [("disabled", "#888888")]
-                }
-            },
-            "TEntry": {
-                "configure": {"fieldbackground": p["entry_bg"], "foreground": p["entry_fg"], "insertcolor": p["fg"]}
-            },
-            "TCheckbutton": {
-                "configure": {
-                    "background": p["bg"], "foreground": p["fg"],
-                    "indicatorbackground": p["entry_bg"], "indicatorforeground": p["fg"]
-                },
-                 "map": {"background": [("active", p["bg"])]}
-            },
-            "TCombobox": {
-                "configure": {"fieldbackground": p["entry_bg"], "foreground": p["entry_fg"], "arrowcolor": p["fg"]},
-                "map": {"fieldbackground": [("readonly", p["entry_bg"])]}
-            },
-            "Treeview": {
-                "configure": {"background": p["entry_bg"], "foreground": p["fg"], "fieldbackground": p["entry_bg"]},
-                "map": {"background": [("selected", p["select_bg"])], "foreground": [("selected", p["select_fg"])]}
-            },
-            "Treeview.Heading": {
-                "configure": {"background": p["btn_bg"], "foreground": p["btn_fg"], "relief": "flat"}
-            },
-            "Success.TButton": {
-                "configure": {"background": p["success"], "foreground": "#ffffff"},
-                "map": {"background": [("active", "#43A047"), ("disabled", p["disabled"])]}
-            },
-            "Danger.TButton": {
-                 "configure": {"background": p["danger"], "foreground": "#ffffff"},
-                 "map": {"background": [("active", "#E53935"), ("disabled", p["disabled"])]}
-            }
-        })
-
-def get_palette(theme_name):
-    """Returns the color palette for manual coloring of non-ttk widgets"""
-    name = theme_name.replace("pro_", "")
-    return PALETTES.get(name, PALETTES["dark"])
+def get_font(key):
+    """Fallback font handling if Inter is not available."""
+    # CustomTkinter handles system font fallback well
+    return FONTS.get(key, ("sans-serif", 13))

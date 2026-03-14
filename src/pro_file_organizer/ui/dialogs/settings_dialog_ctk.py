@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from ..ui_utils import ToolTip
+from ..themes.themes import COLORS, FONTS, RADII
 
 
 class SettingsDialog:
@@ -14,12 +15,13 @@ class SettingsDialog:
         self.window = ctk.CTkToplevel(parent)
         self.window.title("Configuration")
         self.window.geometry("700x550")
+        self.window.configure(fg_color=COLORS["bg_main"])
 
         # Ensure it stays on top
         self.window.transient(parent)
         self.window.grab_set()
 
-        self.tabview = ctk.CTkTabview(self.window)
+        self.tabview = ctk.CTkTabview(self.window, segment_color=COLORS["accent"], corner_radius=RADII["standard"])
         self.tabview.pack(fill="both", expand=True, padx=20, pady=20)
 
         self.tabview.add("Categories")
@@ -33,7 +35,8 @@ class SettingsDialog:
         # Bottom Buttons
         self.btn_save = ctk.CTkButton(
             self.window, text="Save & Close", command=self.save_config,
-            fg_color="green", hover_color="darkgreen"
+            fg_color=COLORS["success"], hover_color="#27AE60",
+            corner_radius=RADII["card"], height=40
         )
         self.btn_save.pack(side="bottom", pady=20)
         ToolTip(self.btn_save, "Save changes to config.json and close")
@@ -48,11 +51,14 @@ class SettingsDialog:
         # but let's try to be "pure" CTk or use a ScrollableFrame with selectable buttons.
         # For simplicity and robustness, I'll use CTkScrollableFrame.
 
-        self.frame_list = ctk.CTkScrollableFrame(tab, width=200, label_text="Categories")
+        self.frame_list = ctk.CTkScrollableFrame(
+            tab, width=200, label_text="Categories",
+            corner_radius=RADII["card"], fg_color=COLORS["bg_card"]
+        )
         self.frame_list.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
         # Right: Edit area
-        self.frame_edit = ctk.CTkFrame(tab)
+        self.frame_edit = ctk.CTkFrame(tab, corner_radius=RADII["card"], fg_color=COLORS["bg_card"])
         self.frame_edit.grid(row=0, column=1, sticky="nsew")
 
         self.lbl_exts = ctk.CTkLabel(self.frame_edit, text="Extensions (comma separated):", anchor="w")
@@ -65,12 +71,13 @@ class SettingsDialog:
         frame_btns = ctk.CTkFrame(self.frame_edit, fg_color="transparent")
         frame_btns.pack(fill="x", padx=10, pady=10)
 
-        self.btn_add = ctk.CTkButton(frame_btns, text="Add Category", command=self.add_category, width=100)
+        self.btn_add = ctk.CTkButton(frame_btns, text="Add Category", command=self.add_category, width=100, corner_radius=RADII["card"])
         self.btn_add.pack(side="left", padx=(0, 5))
 
         self.btn_del = ctk.CTkButton(
             frame_btns, text="Delete Category", command=self.delete_category,
-            width=100, fg_color="red", hover_color="darkred"
+            width=100, fg_color=COLORS["danger"], hover_color="#C0392B",
+            corner_radius=RADII["card"]
         )
         self.btn_del.pack(side="left", padx=(5, 0))
 
@@ -178,7 +185,7 @@ class SettingsDialog:
         if cat_name in self.cat_buttons:
             self.selected_cat_btn = self.cat_buttons[cat_name]
             # Use theme color for selection
-            self.selected_cat_btn.configure(fg_color=["#3B8ED0", "#1F6AA5"])
+            self.selected_cat_btn.configure(fg_color=COLORS["accent"])
 
         self.last_selected_cat = cat_name
         exts = self.organizer.directories.get(cat_name, [])

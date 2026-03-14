@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 
 import customtkinter as ctk
-
+from ..themes.themes import COLORS, FONTS, RADII
 
 class FileCard(ctk.CTkFrame):
     """
@@ -15,56 +15,64 @@ class FileCard(ctk.CTkFrame):
         super().__init__(master, **kwargs)
         self.event = event_data
 
+        # Initial state (dimmed)
+        self.executed = False
+        self.opacity = 0.7
+
         # Colors
-        self.configure(fg_color=("gray95", "gray20"))
+        # Theme Colors
+        self.configure(fg_color=COLORS["bg_card"], corner_radius=RADII["card"])
 
         # Layout
         self.grid_columnconfigure(1, weight=1)
 
-        # Icon / Method Badge
+        # Left Accent Stripe & Badge Logic
         method = event_data.get("method", "extension")
         confidence = event_data.get("confidence", 1.0)
+        etype = event_data.get("type", "move")
 
-        badge_color = "#3B8ED0" # Blue for Extension
+        accent_color = COLORS["accent"]
         badge_text = "EXT"
 
         if method != "extension" and method != "ml-not-loaded":
-            badge_color = "#9C27B0" # Purple for AI
+            accent_color = ("#9C27B0", "#9C27B0") # AI Purple
             badge_text = f"AI {int(confidence*100)}%"
 
-        if event_data.get("type") == "error":
-            badge_color = "#D32F2F"
+        if etype == "error":
+            accent_color = COLORS["danger"]
             badge_text = "ERR"
-
-        if event_data.get("type") == "duplicate":
-            badge_color = "#FF9800" # Orange for Duplicates
+        elif etype == "duplicate":
+            accent_color = COLORS["warning"]
             badge_text = "DUP"
 
-        self.lbl_badge = ctk.CTkLabel(self, text=badge_text, width=60, height=24,
-                                      fg_color=badge_color, text_color="white", corner_radius=6,
-                                      font=ctk.CTkFont(size=11, weight="bold"))
-        self.lbl_badge.grid(row=0, column=0, rowspan=2, padx=10, pady=5)
+        # Accent Stripe
+        self.stripe = ctk.CTkFrame(self, width=4, corner_radius=0, fg_color=accent_color)
+        self.stripe.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(0, 10))
+
+        # Badge
+        self.lbl_badge = ctk.CTkLabel(self, text=badge_text, width=60, height=22,
+                                      fg_color=accent_color, text_color="white",
+                                      corner_radius=RADII["badge"],
+                                      font=FONTS["small"])
+        self.lbl_badge.grid(row=0, column=2, rowspan=2, padx=10, pady=5)
 
         # Filename
         filename = event_data.get("file", "Unknown")
-        self.lbl_name = ctk.CTkLabel(self, text=filename, font=ctk.CTkFont(size=13, weight="bold"), anchor="w")
+        self.lbl_name = ctk.CTkLabel(self, text=filename, font=FONTS["label"], anchor="w")
         self.lbl_name.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=(5, 0))
 
-        # Destination
+        # Destination / Error Message
         dest = event_data.get("destination", "")
-        # Try to show relative path if possible, or just parent folder
         try:
-             # This is tricky without knowing source root context in the card,
-             # but we can try to show just the parent dir name
              dest_path = Path(dest)
              display_dest = f"→ {dest_path.parent.name}/{dest_path.name}"
         except Exception:
              display_dest = f"→ {dest}"
 
-        if event_data.get("type") == "error":
+        if etype == "error":
             display_dest = f"Error: {event_data.get('error')}"
 
-        if event_data.get("type") == "duplicate":
+        if etype == "duplicate":
             dup_of = event_data.get("duplicate_of", "another file")
             try:
                 display_dest = f"Duplicate of: {Path(dup_of).name}"
@@ -72,10 +80,26 @@ class FileCard(ctk.CTkFrame):
                 display_dest = f"Duplicate of: {dup_of}"
 
         self.lbl_dest = ctk.CTkLabel(
-            self, text=display_dest, font=ctk.CTkFont(size=12),
-            text_color=("gray50", "gray70"), anchor="w"
+            self, text=display_dest, font=FONTS["small"],
+            text_color=COLORS["text_dimmed"], anchor="w"
         )
         self.lbl_dest.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 5))
+
+        # Apply initial opacity
+        self._apply_appearance()
+
+    def set_executed(self):
+        """Transition card to fully opaque executed state."""
+        self.executed = True
+        self.opacity = 1.0
+        self._apply_appearance()
+
+    def _apply_appearance(self):
+        # We simulate opacity by dimming text colors
+        if not self.executed:
+            self.lbl_name.configure(text_color=COLORS["text_dimmed"])
+        else:
+            self.lbl_name.configure(text_color=COLORS["text_main"])
 
 
 class RedirectedStderr:
@@ -119,27 +143,29 @@ class ModelDownloadModal(ctk.CTkToplevel):
     def __init__(self, master, on_complete=None):
         super().__init__(master)
         self.title("Smart AI Setup")
-        self.geometry("500x400")
+        self.geometry("500x450")
         self.resizable(False, False)
         self.on_complete = on_complete
         self.download_started = False
+        self.configure(fg_color=COLORS["bg_main"])
 
+        # Grid setup
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.frame = ctk.CTkFrame(self)
+        self.frame = ctk.CTkFrame(self, corner_radius=RADII["standard"], fg_color=COLORS["bg_card"])
         self.frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Title
-        self.lbl_title = ctk.CTkLabel(self.frame, text="Download AI Models", font=ctk.CTkFont(size=18, weight="bold"))
+        self.lbl_title = ctk.CTkLabel(self.frame, text="Download AI Models", font=FONTS["subtitle"])
         self.lbl_title.pack(pady=(20, 10))
 
         # Description
         desc_text = (
             "Smart Categorization requires advanced AI models to analyze your files.\n"
-            "This involves a one-time download."
+            "This involves a ~3GB one-time download."
         )
-        self.lbl_desc = ctk.CTkLabel(self.frame, text=desc_text, justify="center")
+        self.lbl_desc = ctk.CTkLabel(self.frame, text=desc_text, justify="center", font=FONTS["main"])
         self.lbl_desc.pack(pady=(0, 20))
 
         # Details Frame
@@ -163,25 +189,34 @@ class ModelDownloadModal(ctk.CTkToplevel):
         # Let's pack it but empty.
         # self.txt_log.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
+        # Progress Bar (New)
+        self.progress_bar = ctk.CTkProgressBar(self.frame, progress_color=COLORS["accent"])
+        self.progress_bar.set(0)
+        # We pack it later, when download starts, or now hidden?
+        # Let's pack it but height 0? No, CTk doesn't like that. Just pack later.
+
         # Buttons
         self.frame_btns = ctk.CTkFrame(self.frame, fg_color="transparent")
-        self.frame_btns.pack(fill="x", padx=20, pady=10, side="bottom")
+        self.frame_btns.pack(fill="x", padx=20, pady=20, side="bottom")
 
-        self.btn_cancel = ctk.CTkButton(self.frame_btns, text="Cancel", fg_color="transparent", border_width=1,
-                                        text_color=("gray10", "gray90"), command=self.on_cancel)
+        self.btn_cancel = ctk.CTkButton(
+            self.frame_btns, text="Cancel", fg_color="transparent",
+            border_width=2, border_color=COLORS["border"],
+            text_color=COLORS["text_main"], hover_color=COLORS["bg_hover"],
+            command=self.on_cancel, corner_radius=RADII["card"]
+        )
         self.btn_cancel.pack(side="left", expand=True, padx=5)
 
         self.btn_start = ctk.CTkButton(
-            self.frame_btns, text="Download Models", fg_color="green",
-            hover_color="darkgreen", command=self.start_download
+            self.frame_btns, text="Download Models", fg_color=COLORS["success"],
+            hover_color="#27AE60", command=self.start_download,
+            corner_radius=RADII["card"]
         )
         self.btn_start.pack(side="right", expand=True, padx=5)
 
         if free_space_gb < 4:
-            self.lbl_warn = ctk.CTkLabel(self.frame, text="⚠️ Low Disk Space", text_color="red")
+            self.lbl_warn = ctk.CTkLabel(self.frame, text="⚠️ Low Disk Space", text_color=COLORS["danger"], font=FONTS["small"])
             self.lbl_warn.pack(side="bottom", pady=5)
-            # Optional: Disable start button? Use discretion.
-            # self.btn_start.configure(state="disabled")
 
         # Center the window
         self.update_idletasks()
@@ -189,7 +224,9 @@ class ModelDownloadModal(ctk.CTkToplevel):
         y = master.winfo_y() + (master.winfo_height() // 2) - (400 // 2)
         self.geometry(f"+{x}+{y}")
 
-        # Modal
+        # Modal polish
+        self.lift()
+        self.focus_force()
         self.grab_set()
 
     def _add_detail_row(self, parent, label, value, value_color=None):
@@ -231,9 +268,11 @@ class ModelDownloadModal(ctk.CTkToplevel):
         self.btn_start.configure(state="disabled", text="Downloading...")
         self.btn_cancel.configure(state="disabled")
 
-        # Show Log Area
-        self.frame_details.pack_forget() # Hide details to make room
-        self.lbl_desc.configure(text="Please wait. This may take a few minutes depending on your connection.")
+        # Show Log Area & Progress Bar
+        self.frame_details.pack_forget()
+        self.lbl_desc.configure(text="Please wait. This may take a few minutes.")
+
+        self.progress_bar.pack(fill="x", padx=20, pady=(0, 20))
         self.txt_log.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         self.txt_log.insert("1.0", "Initializing download...\n")
 
@@ -261,9 +300,11 @@ class ModelDownloadModal(ctk.CTkToplevel):
             # We don't need a callback if we are capturing stderr/tqdm
             # But the original code used one. Let's pass a dummy one or one that logs to our text box too.
             def cb(msg, val):
-                # Only log messages, ignore float progress since tqdm handles it
-                # or write to redirector
-                sys.stderr.write(f"\n[System] {msg}\n")
+                # Update progress bar
+                if isinstance(val, (int, float)):
+                    self.after(0, lambda: self.progress_bar.set(val))
+                self.after(0, lambda: self.txt_log.insert("end", f"{msg}\n"))
+                self.after(0, lambda: self.txt_log.see("end"))
 
             ml_org.ensure_models(progress_callback=cb)
             success = True
@@ -277,10 +318,7 @@ class ModelDownloadModal(ctk.CTkToplevel):
             if success:
                 self.after(0, self._finish_success)
             else:
-                # self.after(0, lambda: self._finish_error(error_msg))
-                # Instead of closing, let the user see the error log?
-                # For now, close with failure
-                self.after(2000, lambda: self._finish_error(error_msg))
+                self.after(0, lambda: self._finish_error(error_msg))
 
     def _finish_success(self):
         if self.on_complete:
@@ -288,6 +326,11 @@ class ModelDownloadModal(ctk.CTkToplevel):
         self.destroy()
 
     def _finish_error(self, error_msg):
+        self.lbl_title.configure(text="Download Failed", text_color=COLORS["danger"])
+        self.btn_cancel.configure(state="normal")
+        self.btn_start.configure(text="Retry", state="normal")
+        self.download_started = False
         if self.on_complete:
             self.on_complete(False)
-        self.destroy()
+
+        # We DON'T destroy here, let user see error
