@@ -137,9 +137,12 @@ def get_pyside_mocks():
     mock_qtwidgets.QFileDialog.getExistingDirectory = MagicMock(return_value="/mock/path")
     mock_qtwidgets.QFileDialog.getSaveFileName = MagicMock(return_value=("/mock/file.json", "filter"))
     mock_qtwidgets.QFileDialog.getOpenFileName = MagicMock(return_value=("/mock/file.json", "filter"))
-    mock_qtwidgets.QMessageBox = MagicMock()
+    mock_qtwidgets.QMessageBox = MockModule()
     mock_qtwidgets.QMessageBox.Yes = 1
     mock_qtwidgets.QMessageBox.No = 0
+    mock_qtwidgets.QMessageBox.StandardButton = MockModule()
+    mock_qtwidgets.QMessageBox.StandardButton.Yes = 1
+    mock_qtwidgets.QMessageBox.StandardButton.No = 0
     mock_qtwidgets.QMessageBox.question = MagicMock(return_value=1)
     mock_qtwidgets.QMessageBox.information = MagicMock()
     mock_qtwidgets.QMessageBox.critical = MagicMock()
@@ -158,6 +161,17 @@ def get_pyside_mocks():
     mock_qtcore.Qt.AlignmentFlag.AlignCenter = 1
     mock_qtcore.Qt.CursorShape = MockModule()
     mock_qtcore.Qt.CursorShape.PointingHandCursor = 1
+    mock_qtcore.Qt.Orientation = MockModule()
+    mock_qtcore.Qt.Orientation.Horizontal = 1
+    mock_qtcore.Qt.CheckState = MockModule()
+    mock_qtcore.Qt.CheckState.Checked = 2
+    mock_qtcore.Qt.MouseButton = MockModule()
+    mock_qtcore.Qt.MouseButton.LeftButton = 1
+    mock_qtcore.Qt.GlobalColor = MockModule()
+    mock_qtcore.Qt.GlobalColor.white = 1
+    mock_qtcore.Qt.PenStyle = MockModule()
+    mock_qtcore.Qt.PenStyle.NoPen = 0
+    mock_qtcore.Qt.PenStyle.DashLine = 1
 
     mock_qtcore.Qt.AlignCenter = 1
     mock_qtcore.Qt.Horizontal = 1
@@ -174,11 +188,15 @@ def get_pyside_mocks():
     mock_qtcore.QPoint = MagicMock()
     mock_qtcore.QPropertyAnimation = lambda *args, **kwargs: MagicMock()
     mock_qtcore.QEasingCurve = MockModule()
+    mock_qtcore.QEasingCurve.Type = MockModule()
+    mock_qtcore.QEasingCurve.Type.InOutExpo = 1
     mock_qtcore.QEasingCurve.InOutExpo = 1
     mock_qtcore.Property = MagicMock
 
     mock_qtgui = MockModule()
     mock_qtgui.QPainter = MagicMock()
+    mock_qtgui.QPainter.RenderHint = MockModule()
+    mock_qtgui.QPainter.RenderHint.Antialiasing = 1
     mock_qtgui.QPen = MagicMock()
     mock_qtgui.QColor = MagicMock()
     mock_qtgui.QFont = MagicMock()

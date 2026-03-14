@@ -108,10 +108,15 @@ class TestMainWindow(unittest.TestCase):
         self.mocks[5].information.assert_called_with(self.app, "Title", "Message")
 
     def test_confirm_action(self):
-        self.mocks[5].question.return_value = 1 # QMessageBox.Yes
+        self.mocks[5].StandardButton.Yes = 1
+        self.mocks[5].StandardButton.No = 0
+        self.mocks[5].question.return_value = 1
         res = self.app.confirm_action("Title", "Message")
         self.assertTrue(res)
-        self.mocks[5].question.assert_called_with(self.app, "Title", "Message", mock_qtwidgets.QMessageBox.Yes | mock_qtwidgets.QMessageBox.No)
+        self.mocks[5].question.assert_called_with(
+            self.app, "Title", "Message",
+            self.mocks[5].StandardButton.Yes | self.mocks[5].StandardButton.No
+        )
 
     def test_update_stats_display(self):
         stats = {"total_files": 100, "last_run": "Today"}

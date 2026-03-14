@@ -36,7 +36,8 @@ class TestSettingsDialog(unittest.TestCase):
     def test_delete_category(self):
         self.dialog.on_cat_select("Videos")
         with patch.object(settings_dialog, "QMessageBox") as mock_msg:
-            mock_msg.Yes = 1
+            mock_msg.StandardButton.Yes = 1
+            mock_msg.StandardButton.No = 0
             mock_msg.question.return_value = 1
             self.dialog.delete_category()
             self.assertNotIn("Videos", self.mock_organizer.directories)
@@ -73,7 +74,8 @@ class TestSettingsDialog(unittest.TestCase):
         with patch.object(settings_dialog, "QFileDialog") as mock_fd:
             mock_fd.getOpenFileName.return_value = ("/tmp/conf.json", "filter")
             with patch.object(settings_dialog, "QMessageBox") as mock_msg:
-                mock_msg.Yes = 1
+                mock_msg.StandardButton.Yes = 1
+                mock_msg.StandardButton.No = 0
                 mock_msg.question.return_value = 1
                 self.dialog.import_profile()
                 self.mock_organizer.import_config_file.assert_called_with("/tmp/conf.json")
