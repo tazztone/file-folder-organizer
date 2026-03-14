@@ -11,10 +11,13 @@ CONFIG_DIR = Path(user_config_dir(APP_NAME, APP_AUTHOR))
 DATA_DIR = Path(user_data_dir(APP_NAME, APP_AUTHOR))
 LOG_DIR = DATA_DIR / "logs"
 
-# Ensure directories exist
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+def init_app_dirs():
+    """Ensure application directories exist."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_UNDO_STACK = 5
 
 DEFAULT_CONFIG_FILE = str(CONFIG_DIR / "config.json")
 DEFAULT_BATCH_CONFIG_FILE = str(CONFIG_DIR / "batch_config.json")
@@ -22,11 +25,24 @@ DEFAULT_STATS_FILE = str(DATA_DIR / "stats.json")
 DEFAULT_RECENT_FILE = str(DATA_DIR / "recent.json")
 
 DEFAULT_DIRECTORIES = {
-    "Images": [".jpeg", ".jpg", ".tiff", ".gif", ".bmp", ".png", ".bpg", ".svg", ".heif", ".psd"],
-    "Videos": [".avi", ".flv", ".wmv", ".mov", ".mp4", ".webm", ".vob", ".mng", ".qt", ".mpg", ".mpeg", ".3gp"],
-    "Documents": [".oxps", ".epub", ".pages", ".docx", ".doc", ".fdf", ".ods", ".odt", ".pwi", ".xsn", ".xps", ".dotx", ".docm", ".dox", ".rvg", ".rtf", ".rtfd", ".wpd", ".xls", ".xlsx", ".ppt", ".pptx", ".csv", ".pdf", ".txt", ".md"],
-    "Archives": [".a", ".ar", ".cpio", ".iso", ".tar", ".gz", ".rz", ".7z", ".dmg", ".rar", ".xar", ".zip"],
-    "Audio": [".aac", ".aa", ".dvf", ".m4a", ".m4b", ".m4p", ".mp3", ".msv", ".ogg", ".oga", ".raw", ".vox", ".wav", ".wma"],
+    "Images": [
+        ".jpeg", ".jpg", ".tiff", ".gif", ".bmp", ".png", ".bpg", ".svg", ".heif", ".psd"
+    ],
+    "Videos": [
+        ".avi", ".flv", ".wmv", ".mov", ".mp4", ".webm", ".vob", ".mng", ".qt", ".mpg", ".mpeg", ".3gp"
+    ],
+    "Documents": [
+        ".oxps", ".epub", ".pages", ".docx", ".doc", ".fdf", ".ods", ".odt", ".pwi", ".xsn",
+        ".xps", ".dotx", ".docm", ".dox", ".rvg", ".rtf", ".rtfd", ".wpd", ".xls", ".xlsx",
+        ".ppt", ".pptx", ".csv", ".pdf", ".txt", ".md"
+    ],
+    "Archives": [
+        ".a", ".ar", ".cpio", ".iso", ".tar", ".gz", ".rz", ".7z", ".dmg", ".rar", ".xar", ".zip"
+    ],
+    "Audio": [
+        ".aac", ".aa", ".dvf", ".m4a", ".m4b", ".m4p", ".mp3", ".msv", ".ogg", ".oga", ".raw",
+        ".vox", ".wav", ".wma"
+    ],
     "Code": [".py", ".js", ".html", ".css", ".php", ".c", ".cpp", ".h", ".java", ".cs"],
     "Executables": [".exe", ".msi", ".bat", ".sh"]
 }
@@ -63,7 +79,7 @@ DEFAULT_ML_CATEGORIES = {
 }
 
 # Names of files/folders that should never be moved by the organizer.
+# These are generic exclusions common across systems.
 EXCLUDED_NAMES = {
-    "config.json", "recent.json",
-    "batch_config.json", "venv", ".git", "__pycache__", "src", "config", "logs", "scripts"
+    "venv", ".git", "__pycache__", ".venv", "node_modules", ".ruff_cache", ".pytest_cache"
 }

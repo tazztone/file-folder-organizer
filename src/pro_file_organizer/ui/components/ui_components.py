@@ -60,7 +60,10 @@ class FileCard(ctk.CTkFrame):
         if event_data.get("type") == "error":
             display_dest = f"Error: {event_data.get('error')}"
 
-        self.lbl_dest = ctk.CTkLabel(self, text=display_dest, font=ctk.CTkFont(size=12), text_color=("gray50", "gray70"), anchor="w")
+        self.lbl_dest = ctk.CTkLabel(
+            self, text=display_dest, font=ctk.CTkFont(size=12),
+            text_color=("gray50", "gray70"), anchor="w"
+        )
         self.lbl_dest.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 5))
 
 
@@ -157,8 +160,10 @@ class ModelDownloadModal(ctk.CTkToplevel):
                                         text_color=("gray10", "gray90"), command=self.on_cancel)
         self.btn_cancel.pack(side="left", expand=True, padx=5)
 
-        self.btn_start = ctk.CTkButton(self.frame_btns, text="Download Models", fg_color="green", hover_color="darkgreen",
-                                       command=self.start_download)
+        self.btn_start = ctk.CTkButton(
+            self.frame_btns, text="Download Models", fg_color="green",
+            hover_color="darkgreen", command=self.start_download
+        )
         self.btn_start.pack(side="right", expand=True, padx=5)
 
         if free_space_gb < 4:

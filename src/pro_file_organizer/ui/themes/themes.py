@@ -116,7 +116,10 @@ def setup_themes(style):
             "TFrame": {"configure": {"background": p["bg"]}},
             "TLabel": {"configure": {"background": p["bg"], "foreground": p["fg"]}},
             "TButton": {
-                "configure": {"background": p["btn_bg"], "foreground": p["btn_fg"], "borderwidth": 1, "bordercolor": "#555555"},
+                "configure": {
+                    "background": p["btn_bg"], "foreground": p["btn_fg"],
+                    "borderwidth": 1, "bordercolor": "#555555"
+                },
                 "map": {
                     "background": [("active", p["select_bg"]), ("disabled", p["disabled"])],
                     "foreground": [("disabled", "#888888")]
@@ -126,7 +129,10 @@ def setup_themes(style):
                 "configure": {"fieldbackground": p["entry_bg"], "foreground": p["entry_fg"], "insertcolor": p["fg"]}
             },
             "TCheckbutton": {
-                "configure": {"background": p["bg"], "foreground": p["fg"], "indicatorbackground": p["entry_bg"], "indicatorforeground": p["fg"]},
+                "configure": {
+                    "background": p["bg"], "foreground": p["fg"],
+                    "indicatorbackground": p["entry_bg"], "indicatorforeground": p["fg"]
+                },
                  "map": {"background": [("active", p["bg"])]}
             },
             "TCombobox": {

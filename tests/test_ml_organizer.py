@@ -17,6 +17,11 @@ sys.modules['PIL.Image'] = MagicMock()
 sys.modules['pypdf'] = MagicMock()
 sys.modules['docx'] = MagicMock()
 sys.modules['numpy'] = MagicMock()
+sys.modules['sklearn'] = MagicMock()
+sys.modules['sklearn.metrics'] = MagicMock()
+sys.modules['sklearn.metrics.pairwise'] = MagicMock()
+sys.modules['scipy'] = MagicMock()
+sys.modules['scipy.sparse'] = MagicMock()
 
 # Now import the module to test
 from pro_file_organizer.core.ml_organizer import MultimodalFileOrganizer
@@ -49,21 +54,21 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         self.mock_text_model.encode.assert_called()
 
     def test_get_device_cuda(self):
-        with patch('pro_file_organizer.core.ml_organizer.torch.cuda.is_available', return_value=True):
+        with patch('pro_file_organizer.core.ml_organizer.torch') as mock_torch:
+            mock_torch.cuda.is_available.return_value = True
             self.assertEqual(self.organizer._get_device(), "cuda")
 
     def test_get_device_mps(self):
-        with patch('pro_file_organizer.core.ml_organizer.torch.cuda.is_available',
-                   return_value=False):
-            with patch('pro_file_organizer.core.ml_organizer.torch.backends.mps.is_available',
-                       return_value=True):
-                self.assertEqual(self.organizer._get_device(), "mps")
+        with patch('pro_file_organizer.core.ml_organizer.torch') as mock_torch:
+            mock_torch.cuda.is_available.return_value = False
+            mock_torch.backends.mps.is_available.return_value = True
+            self.assertEqual(self.organizer._get_device(), "mps")
 
     def test_get_device_cpu(self):
-        with patch('pro_file_organizer.core.ml_organizer.torch.cuda.is_available',
-                   return_value=False):
-            with patch('pro_file_organizer.core.ml_organizer.torch.backends.mps.is_available', return_value=False):
-                self.assertEqual(self.organizer._get_device(), "cpu")
+        with patch('pro_file_organizer.core.ml_organizer.torch') as mock_torch:
+            mock_torch.cuda.is_available.return_value = False
+            mock_torch.backends.mps.is_available.return_value = False
+            self.assertEqual(self.organizer._get_device(), "cpu")
 
     def test_are_models_present(self):
         with patch('transformers.AutoConfig.from_pretrained') as mock_conf:
@@ -82,13 +87,14 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         mock_page = MagicMock()
         mock_page.extract_text.return_value = "pdf content"
         mock_reader.pages = [mock_page]
-        with patch('pro_file_organizer.core.ml_organizer.pypdf.PdfReader',
-                   return_value=mock_reader):
+        with patch('pro_file_organizer.core.ml_organizer.pypdf') as mock_pypdf:
+            mock_pypdf.PdfReader.return_value = mock_reader
             text = self.organizer.extract_text(Path("test.pdf"))
             self.assertEqual(text, "pdf content\n")
 
         # PDF Error
-        with patch('pro_file_organizer.core.ml_organizer.pypdf.PdfReader', side_effect=Exception("PDF Error")):
+        with patch('pro_file_organizer.core.ml_organizer.pypdf') as mock_pypdf:
+            mock_pypdf.PdfReader.side_effect = Exception("PDF Error")
             self.assertEqual(self.organizer.extract_text(Path("test.pdf")), "")
 
         # DOCX Success
@@ -96,12 +102,14 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         mock_para = MagicMock()
         mock_para.text = "docx content"
         mock_doc.paragraphs = [mock_para]
-        with patch('pro_file_organizer.core.ml_organizer.docx.Document', return_value=mock_doc):
+        with patch('pro_file_organizer.core.ml_organizer.docx') as mock_docx:
+            mock_docx.Document.return_value = mock_doc
             text = self.organizer.extract_text(Path("test.docx"))
             self.assertEqual(text, "docx content")
 
         # DOCX Error
-        with patch('pro_file_organizer.core.ml_organizer.docx.Document', side_effect=Exception("Docx Error")):
+        with patch('pro_file_organizer.core.ml_organizer.docx') as mock_docx:
+            mock_docx.Document.side_effect = Exception("Docx Error")
             self.assertEqual(self.organizer.extract_text(Path("test.docx")), "")
 
         # General Exception
@@ -133,25 +141,32 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
         mock_probs.argmax.return_value.item.return_value = 1
         mock_probs[1].item.return_value = 0.95
 
-        with patch('pro_file_organizer.core.ml_organizer.Image.open', return_value=MagicMock()):
-            with patch('pro_file_organizer.core.ml_organizer.torch.no_grad'):
-                with patch('pro_file_organizer.core.ml_organizer.torch.sigmoid', return_value=mock_probs):
-                    cat, conf = self.organizer.categorize_image(Path("test.jpg"))
-                    self.assertEqual(cat, "Documents/Code")
-                    self.assertEqual(conf, 0.95)
+        with patch('pro_file_organizer.core.ml_organizer.Image') as mock_image:
+            mock_image.open.return_value = MagicMock()
+            with patch('pro_file_organizer.core.ml_organizer.torch') as mock_torch:
+                mock_torch.no_grad.return_value = MagicMock()
+                mock_torch.sigmoid.return_value = mock_probs
+                cat, conf = self.organizer.categorize_image(Path("test.jpg"))
+                self.assertEqual(cat, "Documents/Code")
+                self.assertEqual(conf, 0.95)
 
     def test_categorize_image_error(self):
-        with patch('pro_file_organizer.core.ml_organizer.Image.open', side_effect=Exception("Open Error")):
+        with patch('pro_file_organizer.core.ml_organizer.Image') as mock_image:
+            mock_image.open.side_effect = Exception("Open Error")
             cat, conf = self.organizer.categorize_image(Path("bad.jpg"))
             self.assertIsNone(cat)
 
     def test_categorize_text_file_logic_extended(self):
         content = "This is a long enough content to pass the 10 char check."
         self.organizer.text_category_embeddings = {"Images/Personal": np.array([1.0, 0.0])}
-        with patch.object(self.mock_text_model, 'encode', return_value=np.array([1.0, 0.0])):
-            cat, conf = self.organizer.categorize_text_file(Path("test.txt"), content)
-            self.assertEqual(cat, "Images/Personal")
-            self.assertAlmostEqual(conf, 1.0)
+        with patch('pro_file_organizer.core.ml_organizer.np') as mock_np:
+            mock_np.array.side_effect = lambda x: np.array(x)
+            with patch('pro_file_organizer.core.ml_organizer.cosine_similarity') as mock_cos:
+                mock_cos.return_value = np.array([[1.0]])
+                with patch.object(self.mock_text_model, 'encode', return_value=np.array([1.0, 0.0])):
+                    cat, conf = self.organizer.categorize_text_file(Path("test.txt"), content)
+                    self.assertEqual(cat, "Images/Personal")
+                    self.assertAlmostEqual(conf, 1.0)
 
         # Exception
         with patch.object(self.mock_text_model, 'encode', side_effect=Exception("Encode fail")):
@@ -199,8 +214,8 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
     def test_load_models_error(self):
         self.organizer.models_loaded = False
         with patch('pro_file_organizer.core.ml_organizer.SentenceTransformer', side_effect=Exception("Load Fail")):
-            with self.assertRaises(Exception):
-                self.organizer.load_models()
+            result = self.organizer.load_models()
+            self.assertFalse(result)
 
     def test_ensure_models(self):
         with patch.object(self.organizer, 'load_models') as mock_load:

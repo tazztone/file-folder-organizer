@@ -165,13 +165,13 @@ class TestMainWindowController(unittest.TestCase):
             self.assertFalse(self.controller.is_running)
 
             # Verify callbacks captured and called
-            _, kwargs = self.organizer.organize_files.call_args
+            options = self.organizer.organize_files.call_args[0][0]
 
-            on_event = kwargs['event_callback']
+            on_event = options.event_callback
             on_event({"file": "test"})
             self.view.add_result_card.assert_called()
 
-            on_progress = kwargs['progress_callback']
+            on_progress = options.progress_callback
             on_progress(1, 10, "f")
             self.view.update_progress.assert_called()
 

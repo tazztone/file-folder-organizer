@@ -1,16 +1,36 @@
 import json
 import os
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Optional
 
 from .constants import (
     DEFAULT_CONFIG_FILE,
     DEFAULT_DIRECTORIES,
     DEFAULT_ML_CATEGORIES,
     EXCLUDED_NAMES,
+    MAX_UNDO_STACK,
+    init_app_dirs,
 )
 from .logger import logger
+
+
+@dataclass
+class OrganizationOptions:
+    """Options for the organization process."""
+    source_path: Path
+    recursive: bool = False
+    date_sort: bool = False
+    del_empty: bool = False
+    dry_run: bool = False
+    use_ml: bool = False
+    rollback_on_error: bool = False
+    progress_callback: Optional[Callable] = None
+    log_callback: Optional[Callable] = None
+    event_callback: Optional[Callable] = None
+    check_stop: Optional[Callable] = None
 
 
 class FileOrganizer:
@@ -21,7 +41,7 @@ class FileOrganizer:
         # undo_stack is a list of history records. Each record is a tuple: (history_list, last_source_path)
         # history_list is [(new_path, old_path), ...]
         self.undo_stack = []
-        self.max_undo_stack = 5
+        self.max_undo_stack = MAX_UNDO_STACK
         self.theme_mode = "System"
         self.ml_categorizer = None
         self.ml_confidence = 0.3
@@ -29,7 +49,10 @@ class FileOrganizer:
         # Exclusions
         self.excluded_names = EXCLUDED_NAMES.copy()
         self.excluded_extensions = set() # e.g., {".tmp", ".log"}
-        self.excluded_folders = {".git", "__pycache__", "venv", "src", "config", "logs", "scripts"}
+        self.excluded_folders = EXCLUDED_NAMES.copy()
+
+        # Ensure app directories exist on init
+        init_app_dirs()
 
     def _build_extension_map(self):
         return {ext: category for category, exts in self.directories.items() for ext in exts}
@@ -196,21 +219,30 @@ class FileOrganizer:
         return category, 1.0, "extension"
 
 
-    def organize_files(self, source_path: Path, recursive=False, date_sort=False, del_empty=False, dry_run=False, progress_callback=None, log_callback=None, event_callback=None, check_stop=None, rollback_on_error=False, use_ml=False):
+    def organize_files(self, options: OrganizationOptions):
         """
-        Organizes files from source_path.
+        Organizes files based on provided options.
         """
+        source_path = options.source_path
+        recursive = options.recursive
+        date_sort = options.date_sort
+        del_empty = options.del_empty
+        dry_run = options.dry_run
+        use_ml = options.use_ml
+        rollback_on_error = options.rollback_on_error
+        progress_callback = options.progress_callback
+        log_callback = options.log_callback
+        event_callback = options.event_callback
+        check_stop = options.check_stop
+
         current_history = []
 
         # Ensure ML is ready if requested
         if use_ml and not self.ml_categorizer:
-             # This should ideally be handled by caller (loading models with progress),
-             # but we can do a lazy init here just in case.
+             # Lazy init
              from .ml_organizer import MultimodalFileOrganizer
              self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
              if not self.ml_categorizer.models_loaded:
-                  # If models aren't loaded, try loading (this might block/freeze if not done in thread,
-                  # but organize_files is threaded)
                   if log_callback:
                       log_callback("Initializing ML models (this may take a while)...")
 
@@ -218,7 +250,6 @@ class FileOrganizer:
                       if log_callback:
                           log_callback(f"[ML Init] {msg}")
                       if progress_callback and val is not None:
-                           # Pass val as current and 1.0 as total to drive progress bar (0-100%)
                            progress_callback(val, 1.0, f"Loading AI Models: {int(val*100)}%")
 
                   try:
@@ -324,7 +355,10 @@ class FileOrganizer:
                     if log_callback:
                         msg = f"Moved: {item.name} -> {rel_dest}{log_suffix}"
                         if final_dest_path_unique != final_dest_path:
-                             msg = f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} (in {rel_dest}){log_suffix}"
+                             msg = (
+                                 f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} "
+                                 f"(in {rel_dest}){log_suffix}"
+                             )
                              renamed_count += 1
                         log_callback(msg)
 
@@ -348,13 +382,14 @@ class FileOrganizer:
                 if rollback_on_error and not dry_run:
                      if log_callback:
                          log_callback("Critical error encountered. Rolling back changes...")
-                     # Add partial history to undo stack to allow undo
-                     self.undo_stack.append({
-                        "history": current_history,
-                        "source_path": source_path
-                     })
-                     self.undo_changes(log_callback)
-                     return {"moved": moved_count, "errors": errors, "renamed": renamed_count, "rolled_back": True}
+                     # Rollback only current partial history
+                     self._undo_history(current_history, source_path, log_callback)
+                     return {
+                        "moved": moved_count,
+                        "errors": errors,
+                        "renamed": renamed_count,
+                        "rolled_back": True
+                    }
 
         # Delete Empty Folders
         if del_empty and not dry_run:
@@ -406,9 +441,10 @@ class FileOrganizer:
 
         # Pop the last operation
         last_op = self.undo_stack.pop()
-        history = last_op["history"]
-        source_path = last_op["source_path"]
+        return self._undo_history(last_op["history"], last_op["source_path"], log_callback)
 
+    def _undo_history(self, history, source_path, log_callback=None):
+        """Internal helper to reverse a list of file operations."""
         if log_callback:
             log_callback("\n--- Undoing Changes ---")
 
@@ -435,7 +471,7 @@ class FileOrganizer:
             try:
                 curr = folder
                 # Recursively delete empty parent folders, but stop at source_path
-                while curr.exists() and (not source_path or curr != source_path):
+                while curr.exists() and (not source_path or curr.resolve() != source_path.resolve()):
                      if not any(curr.iterdir()):
                          curr.rmdir()
                          cleaned_folders += 1

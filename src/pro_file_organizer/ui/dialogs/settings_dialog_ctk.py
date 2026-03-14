@@ -31,7 +31,10 @@ class SettingsDialog:
         self._setup_profiles_tab()
 
         # Bottom Buttons
-        self.btn_save = ctk.CTkButton(self.window, text="Save & Close", command=self.save_config, fg_color="green", hover_color="darkgreen")
+        self.btn_save = ctk.CTkButton(
+            self.window, text="Save & Close", command=self.save_config,
+            fg_color="green", hover_color="darkgreen"
+        )
         self.btn_save.pack(side="bottom", pady=20)
         ToolTip(self.btn_save, "Save changes to config.json and close")
 
@@ -65,7 +68,10 @@ class SettingsDialog:
         self.btn_add = ctk.CTkButton(frame_btns, text="Add Category", command=self.add_category, width=100)
         self.btn_add.pack(side="left", padx=(0, 5))
 
-        self.btn_del = ctk.CTkButton(frame_btns, text="Delete Category", command=self.delete_category, width=100, fg_color="red", hover_color="darkred")
+        self.btn_del = ctk.CTkButton(
+            frame_btns, text="Delete Category", command=self.delete_category,
+            width=100, fg_color="red", hover_color="darkred"
+        )
         self.btn_del.pack(side="left", padx=(5, 0))
 
         self.cat_buttons = {} # Map category name to button widget
@@ -83,7 +89,9 @@ class SettingsDialog:
         self.txt_excl_exts.pack(fill="x", padx=10, pady=5)
         self.txt_excl_exts.insert("1.0", ", ".join(self.organizer.excluded_extensions))
 
-        lbl_folders = ctk.CTkLabel(tab, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated:", anchor="w")
+        lbl_folders = ctk.CTkLabel(
+            tab, text="Excluded Folder Names (e.g., node_modules, .git) - Comma separated:", anchor="w"
+        )
         lbl_folders.pack(fill="x", padx=10, pady=(10, 5))
 
         self.txt_excl_folders = ctk.CTkTextbox(tab, height=100)

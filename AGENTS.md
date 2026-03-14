@@ -9,7 +9,7 @@ Welcome! This guide helps AI agents understand the codebase, development workflo
 *   **Machine Learning**: `transformers`, `torch`, `sentence-transformers` (Hugging Face ecosystem).
 *   **Image Processing**: `Pillow` (PIL).
 *   **File Handling**: `shutil`, `pathlib`.
-*   **Package Manager**: `uv` (recommended), or standard `pip`.
+*   **Package Manager**: `uv` (recommended), or standard `pip`. We commit `uv.lock` to ensure reproducible environments for all contributors.
 
 ## 📂 Project Structure
 
@@ -58,7 +58,7 @@ python -m unittest discover tests
 *   **Verify Everything**: After editing code, run the tests (`python -m unittest discover tests`). **Aim to maintain 90%+ total coverage.**
 *   **No Artifacts**: Do not edit files in `__pycache__` or `.git`.
 *   **Clean Code**: Keep the UI logic separate from the business logic (`organizer.py`) as much as possible. Use the `Controller` for orchestration.
-*   **Dependencies**: If adding a new dependency, update `requirements.txt`.
+*   **Dependencies**: If adding a new dependency, update `pyproject.toml`.
 
 ## 🐛 Troubleshooting
 

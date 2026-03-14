@@ -80,13 +80,22 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.lbl_ai = ctk.CTkLabel(self.frame_ai_toggle, text="✨ Smart AI", font=ctk.CTkFont(size=14, weight="bold"))
         self.lbl_ai.pack(side="left", padx=10)
 
-        self.switch_ai = ctk.CTkSwitch(self.frame_ai_toggle, text="", command=lambda: self.controller.toggle_ai(self.switch_ai.get() == 1), width=40)
+        self.switch_ai = ctk.CTkSwitch(
+            self.frame_ai_toggle, text="",
+            command=lambda: self.controller.toggle_ai(self.switch_ai.get() == 1), width=40
+        )
         self.switch_ai.pack(side="right", padx=5)
 
-        self.btn_batch = ctk.CTkButton(self.sidebar, text="Batch Mode", command=self.open_batch, fg_color="transparent", border_width=2)
+        self.btn_batch = ctk.CTkButton(
+            self.sidebar, text="Batch Mode", command=self.open_batch,
+            fg_color="transparent", border_width=2
+        )
         self.btn_batch.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
 
-        self.btn_settings = ctk.CTkButton(self.sidebar, text="Settings", command=self.open_settings, fg_color="transparent", border_width=2)
+        self.btn_settings = ctk.CTkButton(
+            self.sidebar, text="Settings", command=self.open_settings,
+            fg_color="transparent", border_width=2
+        )
         self.btn_settings.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
         self.appearance_mode_menu = ctk.CTkOptionMenu(self.sidebar, values=["Light", "Dark", "System"],
@@ -106,7 +115,10 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         try:
             self.frame_top.drop_target_register(DND_FILES)
             self.frame_top.dnd_bind('<<Drop>>', self.on_drop)
-            self.frame_top.dnd_bind('<<DragEnter>>', lambda e: self.frame_top.configure(border_width=2, border_color="#3B8ED0"))
+            self.frame_top.dnd_bind(
+                '<<DragEnter>>',
+                lambda e: self.frame_top.configure(border_width=2, border_color="#3B8ED0")
+            )
             self.frame_top.dnd_bind('<<DragLeave>>', lambda e: self.frame_top.configure(border_width=0))
         except Exception:
             pass
@@ -117,7 +129,9 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.btn_browse = ctk.CTkButton(self.frame_top, text="Browse Folder", command=self.browse_folder, height=40)
         self.btn_browse.pack(side="right", padx=30)
 
-        self.option_recent = ctk.CTkOptionMenu(self.frame_top, values=["Recent..."], command=self.controller.on_recent_select)
+        self.option_recent = ctk.CTkOptionMenu(
+            self.frame_top, values=["Recent..."], command=self.controller.on_recent_select
+        )
         self.option_recent.pack(side="right", padx=(0, 10))
 
         self.frame_controls = ctk.CTkFrame(self.main_area, fg_color="transparent")
@@ -145,13 +159,22 @@ class OrganizerApp(ctk.CTk, DnDWrapper):
         self.slider_conf.set(0.3)
         self.slider_conf.pack(side="left", padx=5)
 
-        self.btn_preview = ctk.CTkButton(self.frame_controls, text="PREVIEW", width=120, command=lambda: self.controller.run_organization(dry_run=True), state="disabled")
+        self.btn_preview = ctk.CTkButton(
+            self.frame_controls, text="PREVIEW", width=120,
+            command=lambda: self.controller.run_organization(dry_run=True), state="disabled"
+        )
         self.btn_preview.pack(side="right", padx=5)
 
-        self.btn_run = ctk.CTkButton(self.frame_controls, text="ORGANIZE", width=120, fg_color="green", hover_color="darkgreen", command=self.controller.run_organization, state="disabled")
+        self.btn_run = ctk.CTkButton(
+            self.frame_controls, text="ORGANIZE", width=120, fg_color="green",
+            hover_color="darkgreen", command=self.controller.run_organization, state="disabled"
+        )
         self.btn_run.pack(side="right", padx=5)
 
-        self.lbl_results = ctk.CTkLabel(self.main_area, text="Preview / Results", anchor="w", font=ctk.CTkFont(weight="bold"))
+        self.lbl_results = ctk.CTkLabel(
+            self.main_area, text="Preview / Results", anchor="w",
+            font=ctk.CTkFont(weight="bold")
+        )
         self.lbl_results.grid(row=2, column=0, sticky="w", pady=(10, 5))
 
         self.scroll_results = ctk.CTkScrollableFrame(self.main_area, label_text="Waiting for action...")

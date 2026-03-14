@@ -2,29 +2,18 @@ from pathlib import Path
 
 from .logger import logger
 
-# Note: These are imported at the module level to allow for easier testing and mocking.
-# However, this module itself is only imported by FileOrganizer when ML is explicitly
-# requested, ensuring that startup time for the main UI remains fast.
-try:
-    import docx
-    import numpy as np
-    import pypdf
-    import torch
-    from PIL import Image
-    from sentence_transformers import SentenceTransformer
-    from transformers import AutoModel, AutoProcessor, AutoTokenizer
-except ImportError as e:
-    logger.warning(f"ML dependencies not fully installed: {e}")
-    # Define placeholder names to allow tests to patch them even if dependencies are missing.
-    docx = None
-    np = None
-    pypdf = None
-    torch = None
-    Image = None
-    SentenceTransformer = None
-    AutoModel = None
-    AutoProcessor = None
-    AutoTokenizer = None
+# These are placeholders that will be populated during lazy loading in load_models()
+docx = None
+np = None
+pypdf = None
+torch = None
+Image = None
+SentenceTransformer = None
+AutoModel = None
+AutoProcessor = None
+AutoTokenizer = None
+cosine_similarity = None
+
 
 class MultimodalFileOrganizer:
     def __init__(self, categories_config=None):
@@ -51,12 +40,14 @@ class MultimodalFileOrganizer:
 
     def are_models_present(self):
         """
-        Checks if the models are likely present in the cache.
+        Checks if both required models are likely present in the cache.
         """
         try:
             from transformers import AutoConfig
-            # Check SigLIP
+            # Check SigLIP 2
             AutoConfig.from_pretrained("google/siglip2-base-patch32-256", local_files_only=True)
+            # Check Qwen Embedding
+            AutoConfig.from_pretrained("Qwen/Qwen3-Embedding-0.6B", local_files_only=True)
             return True
         except Exception:
             return False
@@ -65,13 +56,45 @@ class MultimodalFileOrganizer:
         self.load_models(progress_callback)
 
     def load_models(self, progress_callback=None):
-        """
-        Loads the models. Downloads them if not present.
-        """
+        """Import heavy libraries and load models from disk/HuggingFace."""
+        global docx, np, pypdf, torch, Image, SentenceTransformer
+        global AutoModel, AutoProcessor, AutoTokenizer, cosine_similarity
         if self.models_loaded:
             if progress_callback:
                 progress_callback("Models already loaded.", 1.0)
             return
+
+        # Lazy imports of heavy dependencies
+        global docx, np, pypdf, torch, Image, SentenceTransformer, AutoModel, AutoProcessor, AutoTokenizer
+        try:
+            import docx as docx_mod
+            import numpy as np_mod
+            import pypdf as pypdf_mod
+            import torch as torch_mod
+            from PIL import Image as Image_mod
+            from sentence_transformers import SentenceTransformer as SentenceTransformer_cls
+            from transformers import AutoModel as AutoModel_cls
+            from transformers import AutoProcessor as AutoProcessor_cls
+            from transformers import AutoTokenizer as AutoTokenizer_cls
+
+            docx = docx_mod
+            np = np_mod
+            pypdf = pypdf_mod
+            torch = torch_mod
+            Image = Image_mod
+            SentenceTransformer = SentenceTransformer_cls
+            AutoModel = AutoModel_cls
+            AutoProcessor = AutoProcessor_cls
+            AutoTokenizer = AutoTokenizer_cls
+
+            from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
+            cosine_similarity = cosine_similarity_func
+
+            self.models_loaded = True
+
+        except ImportError as e:
+            logger.error(f"Failed to import ML dependencies: {e}")
+            raise e
 
         try:
             if progress_callback:
@@ -215,6 +238,7 @@ class MultimodalFileOrganizer:
 
     def categorize_text_file(self, file_path, content, threshold=0.4):
         """Categorize text-based file using Qwen3"""
+        global cosine_similarity
         if not self.models_loaded or not content or len(content.strip()) < 10:
             return None, 0.0
 
@@ -226,6 +250,10 @@ class MultimodalFileOrganizer:
                 prompt_name="query",
                 convert_to_numpy=True
             )
+
+            if cosine_similarity is None:
+                from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
+                cosine_similarity = cosine_similarity_func
 
             # Compute similarities
             similarities = {}

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from pro_file_organizer.core.organizer import FileOrganizer
+from pro_file_organizer.core.organizer import FileOrganizer, OrganizationOptions
 
 
 class TestFileOrganizer(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestFileOrganizer(unittest.TestCase):
         self.create_file("image.jpg")
         self.create_file("doc.pdf")
 
-        stats = self.organizer.organize_files(Path(self.test_dir))
+        stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
 
         self.assertEqual(stats["moved"], 2)
         self.assertTrue((Path(self.test_dir) / "Images" / "image.jpg").exists())
@@ -43,7 +43,7 @@ class TestFileOrganizer(unittest.TestCase):
     def test_dry_run(self):
         self.create_file("image.jpg")
 
-        stats = self.organizer.organize_files(Path(self.test_dir), dry_run=True)
+        stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), dry_run=True))
 
         self.assertEqual(stats["moved"], 1)
         # File should NOT have moved
@@ -53,7 +53,7 @@ class TestFileOrganizer(unittest.TestCase):
     def test_recursive(self):
         self.create_file("sub/image.png")
 
-        self.organizer.organize_files(Path(self.test_dir), recursive=True)
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), recursive=True))
 
         self.assertTrue((Path(self.test_dir) / "Images" / "image.png").exists())
 
@@ -62,18 +62,18 @@ class TestFileOrganizer(unittest.TestCase):
         ts = 1672574400 # 2023-01-01
         os.utime(f, (ts, ts))
 
-        self.organizer.organize_files(Path(self.test_dir), date_sort=True)
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), date_sort=True))
 
         self.assertTrue((Path(self.test_dir) / "Images" / "2023").exists())
 
     def test_delete_empty(self):
         os.makedirs(os.path.join(self.test_dir, "empty"))
-        self.organizer.organize_files(Path(self.test_dir), del_empty=True)
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), del_empty=True))
         self.assertFalse((Path(self.test_dir) / "empty").exists())
 
     def test_undo(self):
         self.create_file("doc.txt")
-        self.organizer.organize_files(Path(self.test_dir))
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
 
         self.assertFalse((Path(self.test_dir) / "doc.txt").exists())
 
@@ -90,7 +90,7 @@ class TestFileOrganizer(unittest.TestCase):
         self.organizer.load_config(config_path)
         self.create_file("test.xyz")
 
-        self.organizer.organize_files(Path(self.test_dir))
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
 
         self.assertTrue((Path(self.test_dir) / "Custom" / "test.xyz").exists())
 
@@ -106,7 +106,7 @@ class TestFileOrganizer(unittest.TestCase):
             processed_count += 1
             return processed_count > 1
 
-        stats = self.organizer.organize_files(Path(self.test_dir), check_stop=check_stop)
+        stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), check_stop=check_stop))
 
         self.assertEqual(stats["moved"], 1)
 
@@ -122,7 +122,7 @@ class TestFileOrganizer(unittest.TestCase):
             return original_move(src, dst)
 
         with patch("shutil.move", side_effect=side_effect):
-            stats = self.organizer.organize_files(Path(self.test_dir), rollback_on_error=True)
+            stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), rollback_on_error=True))
             self.assertTrue(stats.get("rolled_back", False))
             self.assertTrue((Path(self.test_dir) / "file1.txt").exists())
             self.assertTrue((Path(self.test_dir) / "file2.txt").exists())
@@ -139,7 +139,7 @@ class TestFileOrganizer(unittest.TestCase):
                 os.rename(os.path.join(self.test_dir, "test.txt"), unique_dest)
 
         self.create_file("test.txt")
-        self.organizer.organize_files(Path(self.test_dir))
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
         self.assertTrue((Path(self.test_dir) / "Documents" / "test_5.txt").exists())
 
     def test_undo_nested(self):
@@ -147,7 +147,7 @@ class TestFileOrganizer(unittest.TestCase):
         ts = 1672574400 # 2023-01-01
         os.utime(f, (ts, ts))
 
-        self.organizer.organize_files(Path(self.test_dir), date_sort=True)
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), date_sort=True))
         self.assertTrue((Path(self.test_dir) / "Images" / "2023" / "January" / "photo.jpg").exists())
 
         self.organizer.undo_changes()
@@ -167,7 +167,7 @@ class TestFileOrganizer(unittest.TestCase):
         mock_ml.smart_categorize.return_value = ("Images", 0.9, "image-ml")
 
         with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
-            self.organizer.organize_files(Path(self.test_dir), use_ml=True)
+            self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), use_ml=True))
             self.assertTrue((Path(self.test_dir) / "Images" / "unknown.ext").exists())
 
     def test_recursive_exclusions(self):
@@ -184,7 +184,7 @@ class TestFileOrganizer(unittest.TestCase):
     def test_event_callbacks(self):
         self.create_file("test.txt")
         callback = MagicMock()
-        self.organizer.organize_files(Path(self.test_dir), event_callback=callback)
+        self.organizer.organize_files(OrganizationOptions(Path(self.test_dir), event_callback=callback))
         callback.assert_called()
 
     def test_load_save_config_robust(self):
@@ -210,10 +210,12 @@ class TestFileOrganizer(unittest.TestCase):
 
         with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer', return_value=mock_ml):
             self.organizer.organize_files(
-                Path(self.test_dir),
-                use_ml=True,
-                log_callback=log_cb,
-                progress_callback=prog_cb
+                OrganizationOptions(
+                    Path(self.test_dir),
+                    use_ml=True,
+                    log_callback=log_cb,
+                    progress_callback=prog_cb
+                )
             )
             _, kwargs = mock_ml.load_models.call_args
             prog_func = kwargs['progress_callback']
@@ -224,7 +226,7 @@ class TestFileOrganizer(unittest.TestCase):
 
     def test_scan_files_error(self):
         with patch.object(Path, 'iterdir', side_effect=Exception("Path Error")):
-            stats = self.organizer.organize_files(Path(self.test_dir))
+            stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
             self.assertEqual(stats["moved"], 0)
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-from pro_file_organizer.core.organizer import FileOrganizer
+from pro_file_organizer.core.organizer import FileOrganizer, OrganizationOptions
 
 
 class TestOrganizerExtended(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestOrganizerExtended(unittest.TestCase):
         mock_log = MagicMock()
         with patch.object(Path, 'stat') as mock_stat:
             mock_stat.return_value.st_mtime = 1600000000
-            self.organizer.organize_files(self.tmp_dir, date_sort=True, log_callback=mock_log)
+            self.organizer.organize_files(OrganizationOptions(self.tmp_dir, date_sort=True, log_callback=mock_log))
             # Verify logging was called
             mock_log.assert_called()
 
@@ -75,7 +75,7 @@ class TestOrganizerExtended(unittest.TestCase):
         f = self.tmp_dir / "test.txt"
         f.touch()
         with patch('shutil.move', side_effect=Exception("Move Failed")):
-            result = self.organizer.organize_files(self.tmp_dir, rollback_on_error=True)
+            result = self.organizer.organize_files(OrganizationOptions(self.tmp_dir, rollback_on_error=True))
             self.assertTrue(result.get("rolled_back", False))
 
     def test_undo_changes_cleanup_empty(self):
@@ -84,7 +84,7 @@ class TestOrganizerExtended(unittest.TestCase):
         f = src / "test.txt"
         f.touch()
 
-        self.organizer.organize_files(src)
+        self.organizer.organize_files(OrganizationOptions(src))
         self.organizer.undo_changes(log_callback=MagicMock())
         self.assertTrue(f.exists())
         self.assertFalse((src / "Documents").exists())
@@ -95,7 +95,7 @@ class TestOrganizerExtended(unittest.TestCase):
         # Mock load_models to fail
         with patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer.load_models', side_effect=Exception("ML Fail")):
             mock_log = MagicMock()
-            self.organizer.organize_files(self.tmp_dir, use_ml=True, log_callback=mock_log)
+            self.organizer.organize_files(OrganizationOptions(self.tmp_dir, use_ml=True, log_callback=mock_log))
             # Should have logged the failure
             log_output = [str(args) for args in mock_log.call_args_list]
             self.assertTrue(any("Failed to load ML models" in s for s in log_output))
@@ -103,7 +103,7 @@ class TestOrganizerExtended(unittest.TestCase):
     def test_del_empty_folders(self):
         folder = self.tmp_dir / "empty_dir"
         folder.mkdir()
-        self.organizer.organize_files(self.tmp_dir, del_empty=True, log_callback=MagicMock())
+        self.organizer.organize_files(OrganizationOptions(self.tmp_dir, del_empty=True, log_callback=MagicMock()))
         self.assertFalse(folder.exists())
 
     def test_export_import_config(self):

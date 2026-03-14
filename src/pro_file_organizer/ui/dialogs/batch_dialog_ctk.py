@@ -36,7 +36,10 @@ class BatchDialog:
         btn_add = ctk.CTkButton(frame_toolbar, text="Add Folder", command=self.add_folder, width=120)
         btn_add.pack(side="left", padx=5)
 
-        btn_clear = ctk.CTkButton(frame_toolbar, text="Clear All", command=self.clear_all, width=120, fg_color="red", hover_color="darkred")
+        btn_clear = ctk.CTkButton(
+            frame_toolbar, text="Clear All", command=self.clear_all,
+            width=120, fg_color="red", hover_color="darkred"
+        )
         btn_clear.pack(side="right", padx=5)
 
         # Header for the list
@@ -67,7 +70,10 @@ class BatchDialog:
         self.progress.pack(fill="x", pady=(0, 10))
         self.progress.set(0)
 
-        btn_run = ctk.CTkButton(frame_actions, text="Run Batch", command=self.run_batch, fg_color="green", hover_color="darkgreen", height=40)
+        btn_run = ctk.CTkButton(
+            frame_actions, text="Run Batch", command=self.run_batch,
+            fg_color="green", hover_color="darkgreen", height=40
+        )
         btn_run.pack(fill="x")
 
     def _load_batch_config(self):
@@ -131,7 +137,10 @@ class BatchDialog:
         btn_conf.pack(side="left", padx=2)
 
         # Remove Button
-        btn_del = ctk.CTkButton(row_frame, text="X", width=30, fg_color="red", hover_color="darkred", command=lambda idx=index: self.remove_folder(idx))
+        btn_del = ctk.CTkButton(
+            row_frame, text="X", width=30, fg_color="red", hover_color="darkred",
+            command=lambda idx=index: self.remove_folder(idx)
+        )
         btn_del.pack(side="left", padx=5)
 
     def add_folder(self):
@@ -209,7 +218,8 @@ class BatchDialog:
             settings = folder_item.get("settings")
 
             # Update status to Running
-            self.window.after(0, lambda f=folder_item: f["status_label"].configure(text="Running...") if "status_label" in f else None)
+            self.window.after(0, lambda f=folder_item: f["status_label"].configure(
+                text="Running...") if "status_label" in f else None)
 
             p = Path(folder_path)
             status_msg = ""

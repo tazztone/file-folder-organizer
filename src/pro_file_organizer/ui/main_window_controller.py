@@ -4,6 +4,8 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+from pro_file_organizer.core.organizer import OrganizationOptions
+
 
 class MainWindowController:
     """
@@ -177,17 +179,18 @@ class MainWindowController:
         def on_progress(current, total, filename):
              self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
 
-        stats = self.organizer.organize_files(
+        options = OrganizationOptions(
             source_path=self.selected_path,
             recursive=self.view.get_recursive_val(),
             date_sort=self.view.get_date_sort_val(),
             del_empty=self.view.get_del_empty_val(),
             dry_run=dry_run,
+            use_ml=self.ai_enabled,
             progress_callback=on_progress,
             event_callback=on_event,
-            check_stop=lambda: not self.is_running,
-            use_ml=self.ai_enabled
+            check_stop=lambda: not self.is_running
         )
+        stats = self.organizer.organize_files(options)
 
         self.view.after_main(0, lambda: self._on_complete(stats, dry_run))
 
