@@ -310,14 +310,14 @@ class TestFileOrganizer(unittest.TestCase):
     def test_safety_hard_stop(self):
         """Tests that organization logic refuses to move files outside the source directory."""
         self.create_file("sensitive.txt")
-        
+
         # Mock get_category to return an absolute path outside the test_dir
         # For example, pointing to /tmp or the parent directory
         outside_path = Path("/tmp/danger_zone")
-        
+
         with patch.object(self.organizer, "get_category", return_value=(str(outside_path), 1.0, "malicious")):
             stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
-            
+
             # Should have encountered a safety error
             self.assertEqual(stats["errors"], 1)
             # File should NOT have moved
@@ -327,16 +327,16 @@ class TestFileOrganizer(unittest.TestCase):
     def test_safety_hard_stop_undo(self):
         """Tests that undo logic refuses to move files outside the source directory."""
         # 1. Setup a valid move
-        f = self.create_file("file.txt")
+        self.create_file("file.txt")
         self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
-        
+
         # 2. Corrupt the undo stack to point to an outside original path
         outside_path = Path("/tmp/hijacked_path")
         self.organizer.undo_stack[-1]["history"] = [(Path(self.test_dir) / "Documents" / "file.txt", outside_path)]
-        
+
         # 3. Attempt undo
         count = self.organizer.undo_changes()
-        
+
         # Should have skipped the hijacked path
         self.assertEqual(count, 0)
         self.assertFalse(outside_path.exists())

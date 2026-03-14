@@ -1,8 +1,10 @@
-import os
 import argparse
+import os
 import sys
 from pathlib import Path
+
 from pro_file_organizer.core.organizer import FileOrganizer, OrganizationOptions
+
 
 def main():
     parser = argparse.ArgumentParser(description="Pro File Organizer CLI (Headless Sandbox Mode)")
@@ -11,7 +13,7 @@ def main():
     parser.add_argument("--ml", action="store_true", help="Enable AI-powered categorization")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without moving files")
     parser.add_argument("--undo", action="store_true", help="Undo the last organization run")
-    
+
     args = parser.parse_args()
     source_path = Path(args.source).resolve()
 
@@ -20,14 +22,14 @@ def main():
         sys.exit(1)
 
     organizer = FileOrganizer()
-    
+
     # Allow overriding the undo stack path for Docker persistence
     if "UNDO_STACK_PATH" in os.environ:
         from pro_file_organizer.core import constants
         constants.DEFAULT_UNDO_STACK_FILE = Path(os.environ["UNDO_STACK_PATH"])
         # Re-load to ensure we pick up the mounted file
         organizer._load_undo_stack()
-    
+
     if args.undo:
         print(f"Undoing last changes in {source_path}...")
         count = organizer.undo_changes(log_callback=print)
@@ -48,13 +50,13 @@ def main():
         print("!!! DRY RUN ENABLED - No files will be moved !!!")
 
     result = organizer.organize_files(options)
-    
+
     print("\n\n--- Results ---")
     print(f"Files moved: {result.get('moved', 0)}")
     print(f"Renamed:     {result.get('renamed', 0)}")
     print(f"Duplicates:  {result.get('duplicates', 0)}")
     print(f"Errors:      {result.get('errors', 0)}")
-    
+
     if result.get("errors", 0) > 0:
         print("\nReview the logs for error details.")
 

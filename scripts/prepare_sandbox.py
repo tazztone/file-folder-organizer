@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
+
 def create_dummy_file(path, size_kb=1):
     """Creates a dummy file of a certain size."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -12,7 +13,7 @@ def setup_sandbox(sandbox_path: Path):
     if sandbox_path.exists():
         print(f"Cleaning existing sandbox at {sandbox_path}...")
         shutil.rmtree(sandbox_path)
-    
+
     sandbox_path.mkdir(parents=True, exist_ok=True)
     print(f"Creating sandbox at {sandbox_path}...")
 
@@ -37,7 +38,7 @@ def setup_sandbox(sandbox_path: Path):
 
     for f in files:
         create_dummy_file(sandbox_path / f)
-    
+
     print("\nSandbox prepared! You can now test the app on this folder.")
     print(f"Path: {sandbox_path.absolute()}")
     print("\nSuggested tests:")

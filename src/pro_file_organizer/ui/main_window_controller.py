@@ -3,7 +3,7 @@ import os
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Any, Dict, Callable
+from typing import Any, List, Optional
 
 from pro_file_organizer.core.organizer import OrganizationOptions
 from pro_file_organizer.core.watcher import FolderWatcher

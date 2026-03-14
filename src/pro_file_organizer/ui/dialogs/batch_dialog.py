@@ -290,7 +290,9 @@ class BatchDialog(QDialog):
             return
 
         msg = f"Are you sure you want to process {len(self.batch_folders)} folders?"
-        res = QMessageBox.question(self, "Confirm Batch", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        res = QMessageBox.question(
+            self, "Confirm Batch", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
         if res != QMessageBox.StandardButton.Yes:
             return
 
