@@ -54,7 +54,7 @@ class FileCard(ctk.CTkFrame):
              # but we can try to show just the parent dir name
              dest_path = Path(dest)
              display_dest = f"→ {dest_path.parent.name}/{dest_path.name}"
-        except:
+        except Exception:
              display_dest = f"→ {dest}"
 
         if event_data.get("type") == "error":
@@ -80,7 +80,7 @@ class RedirectedStderr:
         # To be safe:
         try:
             self.text_widget.after(0, lambda: self._append(string))
-        except:
+        except Exception:
             pass # Widget might be destroyed
 
     def _append(self, string):
@@ -98,7 +98,7 @@ class RedirectedStderr:
             self.text_widget.insert("end", string)
             self.text_widget.see("end")
             self.text_widget.configure(state="disabled")
-        except:
+        except Exception:
             pass
 
     def flush(self):
@@ -209,7 +209,7 @@ class ModelDownloadModal(ctk.CTkToplevel):
 
             total, used, free = shutil.disk_usage(check_path)
             return free / (1024**3)
-        except:
+        except Exception:
             return 0.0
 
     def start_download(self):

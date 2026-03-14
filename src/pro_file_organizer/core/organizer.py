@@ -4,7 +4,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from .constants import (
     DEFAULT_CONFIG_FILE,
@@ -54,10 +54,10 @@ class FileOrganizer:
         # Ensure app directories exist on init
         init_app_dirs()
 
-    def _build_extension_map(self):
+    def _build_extension_map(self) -> dict[str, str]:
         return {ext: category for category, exts in self.directories.items() for ext in exts}
 
-    def validate_config(self):
+    def validate_config(self) -> list[str]:
         """
         Validates the current configuration.
         Returns a list of error messages. If list is empty, config is valid.
@@ -73,7 +73,7 @@ class FileOrganizer:
                  errors.append(f"Category name '{cat}' cannot contain path separators.")
 
         # Check for invalid extensions and duplicates
-        all_exts = {}
+        all_exts: dict[str, str] = {}
         for cat, exts in self.directories.items():
             for ext in exts:
                 if not ext.startswith("."):
@@ -87,7 +87,7 @@ class FileOrganizer:
 
         return errors
 
-    def load_config(self, config_path=DEFAULT_CONFIG_FILE):
+    def load_config(self, config_path: Union[str, Path] = DEFAULT_CONFIG_FILE) -> bool:
         """Loads configuration from a JSON file."""
         if os.path.exists(config_path):
             try:
@@ -102,6 +102,7 @@ class FileOrganizer:
                         self.excluded_folders = set(data.get("excluded_folders", []))
                         self.theme_mode = data.get("theme_mode", "System")
                         self.ml_confidence = data.get("ml_confidence", 0.3)
+                        self.max_undo_stack = data.get("max_undo_stack", MAX_UNDO_STACK)
                     else:
                         # Fallback for old format
                         self.directories = data
@@ -113,7 +114,7 @@ class FileOrganizer:
                 return False
         return False
 
-    def save_config(self, config_path=DEFAULT_CONFIG_FILE):
+    def save_config(self, config_path: Union[str, Path] = DEFAULT_CONFIG_FILE) -> bool:
         """Saves current configuration to a JSON file."""
         # Block save if config is invalid (validate_config returns a non-empty error list)
         errors = self.validate_config()
@@ -130,25 +131,26 @@ class FileOrganizer:
                     "excluded_extensions": list(self.excluded_extensions),
                     "excluded_folders": list(self.excluded_folders),
                     "theme_mode": self.theme_mode,
-                    "ml_confidence": self.ml_confidence
+                    "ml_confidence": self.ml_confidence,
+                    "max_undo_stack": self.max_undo_stack
                 }, f, indent=4)
             return True
         except Exception as e:
             logger.error(f"Error saving config: {e}")
             return False
 
-    def export_config_file(self, path):
+    def export_config_file(self, path: str) -> bool:
         """Exports the current configuration to a specified path."""
         return self.save_config(path)
 
-    def import_config_file(self, path):
+    def import_config_file(self, path: str) -> bool:
         """Imports configuration from a specified path."""
         return self.load_config(path)
 
-    def get_theme_mode(self):
+    def get_theme_mode(self) -> str:
         return self.theme_mode
 
-    def save_theme_mode(self, mode):
+    def save_theme_mode(self, mode: str) -> None:
         self.theme_mode = mode
         self.save_config()
 
@@ -163,7 +165,7 @@ class FileOrganizer:
                 return new_path
             counter += 1
 
-    def scan_files(self, source_path: Path, recursive=False):
+    def scan_files(self, source_path: Path, recursive: bool = False):
         """Scans for files to process, respecting exclusions."""
         # Check if source_path itself is excluded (though unlikely to be passed if selected by user, good safety)
         if source_path.name in self.excluded_folders:
@@ -193,7 +195,7 @@ class FileOrganizer:
                         continue
                     yield item
 
-    def get_category(self, file_path, use_ml=False):
+    def get_category(self, file_path: Path, use_ml: bool = False) -> tuple[str, float, str]:
         """
         Determines the target category for a file.
         Returns: (category_path, confidence, method)
@@ -219,7 +221,7 @@ class FileOrganizer:
         return category, 1.0, "extension"
 
 
-    def organize_files(self, options: OrganizationOptions):
+    def organize_files(self, options: OrganizationOptions) -> dict:
         """
         Organizes files based on provided options.
         """
@@ -308,9 +310,13 @@ class FileOrganizer:
 
                 dest_path = target_dir / item.name
 
-                # Determine final unique path
-                final_dest_path = dest_path
-                if not dry_run:
+                # Determine final path
+                if dry_run:
+                    final_dest_path = dest_path
+                else:
+                    # Ensure target directory exists
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    # Calculate unique path once right before the move
                     final_dest_path = self.get_unique_path(dest_path)
 
                 # Show relative path for logging
@@ -331,7 +337,7 @@ class FileOrganizer:
                     "method": method,
                     "confidence": confidence,
                     "dry_run": dry_run,
-                    "renamed": False
+                    "renamed": final_dest_path.name != item.name
                 }
 
                 if dry_run:
@@ -340,26 +346,20 @@ class FileOrganizer:
                     if event_callback:
                         event_callback(event_data)
                 else:
-                    final_dest_path.parent.mkdir(parents=True, exist_ok=True)
-                    # Recalculate unique path right before move to be safe against race conditions
-                    final_dest_path_unique = self.get_unique_path(final_dest_path)
+                    shutil.move(str(item), final_dest_path)
+                    current_history.append((final_dest_path, item))
 
-                    shutil.move(str(item), final_dest_path_unique)
-                    current_history.append((final_dest_path_unique, item))
-
-                    event_data["destination"] = str(final_dest_path_unique) # Update dest
-                    if final_dest_path_unique != final_dest_path:
-                        event_data["renamed"] = True
-                        event_data["new_name"] = final_dest_path_unique.name
+                    if final_dest_path.name != item.name:
+                        event_data["new_name"] = final_dest_path.name
+                        renamed_count += 1
 
                     if log_callback:
                         msg = f"Moved: {item.name} -> {rel_dest}{log_suffix}"
-                        if final_dest_path_unique != final_dest_path:
+                        if final_dest_path.name != item.name:
                              msg = (
-                                 f"Renamed & Moved: {item.name} -> {final_dest_path_unique.name} "
+                                 f"Renamed & Moved: {item.name} -> {final_dest_path.name} "
                                  f"(in {rel_dest}){log_suffix}"
                              )
-                             renamed_count += 1
                         log_callback(msg)
 
                     if event_callback:
@@ -432,7 +432,7 @@ class FileOrganizer:
 
         return {"moved": moved_count, "errors": errors, "renamed": renamed_count}
 
-    def undo_changes(self, log_callback=None):
+    def undo_changes(self, log_callback: Optional[Callable] = None) -> int:
         """Reverses the last organization run."""
         if not self.undo_stack:
             if log_callback:
@@ -443,7 +443,7 @@ class FileOrganizer:
         last_op = self.undo_stack.pop()
         return self._undo_history(last_op["history"], last_op["source_path"], log_callback)
 
-    def _undo_history(self, history, source_path, log_callback=None):
+    def _undo_history(self, history: list, source_path: Path, log_callback: Optional[Callable] = None) -> int:
         """Internal helper to reverse a list of file operations."""
         if log_callback:
             log_callback("\n--- Undoing Changes ---")
@@ -478,8 +478,10 @@ class FileOrganizer:
                          curr = curr.parent
                      else:
                          break
-            except OSError:
-                pass
+            except Exception as e:
+                if log_callback:
+                    log_callback(f"Folder cleanup error for {folder}: {e}")
+                logger.error(f"Folder cleanup error for {folder}: {e}")
 
         if cleaned_folders > 0 and log_callback:
              log_callback(f"Cleaned up {cleaned_folders} empty folders during undo.")

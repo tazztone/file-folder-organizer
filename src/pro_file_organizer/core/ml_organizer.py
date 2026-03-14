@@ -2,37 +2,44 @@ from pathlib import Path
 
 from .logger import logger
 
-# These are placeholders that will be populated during lazy loading in load_models()
-docx = None
-np = None
-pypdf = None
-torch = None
-Image = None
-SentenceTransformer = None
-AutoModel = None
-AutoProcessor = None
-AutoTokenizer = None
-cosine_similarity = None
-
 
 class MultimodalFileOrganizer:
     def __init__(self, categories_config=None):
-        self.device = self._get_device()
+        self.device = self._get_device_early()
         self.categories_config = categories_config or {}
         self.text_model = None
         self.image_model = None
         self.image_processor = None
         self.text_category_embeddings = {}
 
+        # Lazy modules
+        self.docx = None
+        self.np = None
+        self.pypdf = None
+        self.torch = None
+        self.Image = None
+        self.SentenceTransformer = None
+        self.AutoModel = None
+        self.AutoProcessor = None
+        self.AutoTokenizer = None
+        self.cosine_similarity = None
+
         # Flags
         self.models_loaded = False
 
+    def _get_device_early(self):
+        """Minimal device detection before torch is fully loaded if possible."""
+        # We'll re-check this in _get_device after torch is loaded
+        return "cpu"
+
     def _get_device(self):
         """Detects the best available device (CUDA, MPS, or CPU)."""
+        if not self.torch:
+            return "cpu"
         try:
-            if torch.cuda.is_available():
+            if self.torch.cuda.is_available():
                 return "cuda"
-            elif torch.backends.mps.is_available():
+            elif self.torch.backends.mps.is_available():
                 return "mps"
         except (NameError, AttributeError):
             pass
@@ -57,15 +64,11 @@ class MultimodalFileOrganizer:
 
     def load_models(self, progress_callback=None):
         """Import heavy libraries and load models from disk/HuggingFace."""
-        global docx, np, pypdf, torch, Image, SentenceTransformer
-        global AutoModel, AutoProcessor, AutoTokenizer, cosine_similarity
         if self.models_loaded:
             if progress_callback:
                 progress_callback("Models already loaded.", 1.0)
-            return
+            return True
 
-        # Lazy imports of heavy dependencies
-        global docx, np, pypdf, torch, Image, SentenceTransformer, AutoModel, AutoProcessor, AutoTokenizer
         try:
             import docx as docx_mod
             import numpy as np_mod
@@ -73,35 +76,35 @@ class MultimodalFileOrganizer:
             import torch as torch_mod
             from PIL import Image as Image_mod
             from sentence_transformers import SentenceTransformer as SentenceTransformer_cls
+            from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
             from transformers import AutoModel as AutoModel_cls
             from transformers import AutoProcessor as AutoProcessor_cls
             from transformers import AutoTokenizer as AutoTokenizer_cls
 
-            docx = docx_mod
-            np = np_mod
-            pypdf = pypdf_mod
-            torch = torch_mod
-            Image = Image_mod
-            SentenceTransformer = SentenceTransformer_cls
-            AutoModel = AutoModel_cls
-            AutoProcessor = AutoProcessor_cls
-            AutoTokenizer = AutoTokenizer_cls
+            self.docx = docx_mod
+            self.np = np_mod
+            self.pypdf = pypdf_mod
+            self.torch = torch_mod
+            self.Image = Image_mod
+            self.SentenceTransformer = SentenceTransformer_cls
+            self.AutoModel = AutoModel_cls
+            self.AutoProcessor = AutoProcessor_cls
+            self.AutoTokenizer = AutoTokenizer_cls
+            self.cosine_similarity = cosine_similarity_func
 
-            from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
-            cosine_similarity = cosine_similarity_func
+            # Update device now that torch is loaded
+            self.device = self._get_device()
 
-            self.models_loaded = True
-
-        except ImportError as e:
+        except Exception as e:
             logger.error(f"Failed to import ML dependencies: {e}")
-            raise e
+            return False
 
         try:
             if progress_callback:
                 progress_callback("Loading Text Model (Qwen)...", 0.1)
 
             # Load Text Model
-            self.text_model = SentenceTransformer(
+            self.text_model = self.SentenceTransformer(
                 "Qwen/Qwen3-Embedding-0.6B",
                 device=self.device,
                 trust_remote_code=True
@@ -111,11 +114,11 @@ class MultimodalFileOrganizer:
                 progress_callback("Loading Image Model (SigLIP)...", 0.4)
 
             # Load Image Model
-            self.image_model = AutoModel.from_pretrained(
+            self.image_model = self.AutoModel.from_pretrained(
                 "google/siglip2-base-patch32-256",
             ).to(self.device).eval()
 
-            self.image_processor = AutoProcessor.from_pretrained(
+            self.image_processor = self.AutoProcessor.from_pretrained(
                 "google/siglip2-base-patch32-256"
             )
 
@@ -128,10 +131,11 @@ class MultimodalFileOrganizer:
                 progress_callback("Models loaded.", 1.0)
 
             self.models_loaded = True
+            return True
 
         except Exception as e:
             logger.error(f"Error loading ML models: {e}")
-            raise e
+            return False
 
     def _precompute_text_embeddings(self):
         """Precompute category embeddings for text"""
@@ -161,9 +165,9 @@ class MultimodalFileOrganizer:
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read(5000) # Limit to first 5KB
 
-            elif ext == '.pdf':
+            elif ext == '.pdf' and self.pypdf:
                 try:
-                    reader = pypdf.PdfReader(file_path)
+                    reader = self.pypdf.PdfReader(file_path)
                     # Extract text from first few pages
                     for i in range(min(3, len(reader.pages))):
                         page_text = reader.pages[i].extract_text()
@@ -172,9 +176,9 @@ class MultimodalFileOrganizer:
                 except Exception as e:
                     logger.error(f"PDF extraction error: {e}")
 
-            elif ext == '.docx':
+            elif ext == '.docx' and self.docx:
                 try:
-                    doc = docx.Document(file_path)
+                    doc = self.docx.Document(file_path)
                     # Limit paragraphs
                     paragraphs = [p.text for p in doc.paragraphs[:50]]
                     content = "\n".join(paragraphs)
@@ -188,11 +192,11 @@ class MultimodalFileOrganizer:
 
     def categorize_image(self, image_path):
         """Categorize image using SigLIP 2"""
-        if not self.models_loaded:
+        if not self.models_loaded or not self.Image:
             return None, 0.0
 
         try:
-            image = Image.open(image_path).convert("RGB")
+            image = self.Image.open(image_path).convert("RGB")
 
             # Collect all visual descriptions
             all_labels = []
@@ -220,9 +224,9 @@ class MultimodalFileOrganizer:
             ).to(self.device)
 
             # Get predictions
-            with torch.no_grad():
+            with self.torch.no_grad():
                 outputs = self.image_model(**inputs)
-                probs = torch.sigmoid(outputs.logits_per_image[0])
+                probs = self.torch.sigmoid(outputs.logits_per_image[0])
 
             # Find best match
             best_idx = probs.argmax().item()
@@ -238,7 +242,6 @@ class MultimodalFileOrganizer:
 
     def categorize_text_file(self, file_path, content, threshold=0.4):
         """Categorize text-based file using Qwen3"""
-        global cosine_similarity
         if not self.models_loaded or not content or len(content.strip()) < 10:
             return None, 0.0
 
@@ -251,16 +254,12 @@ class MultimodalFileOrganizer:
                 convert_to_numpy=True
             )
 
-            if cosine_similarity is None:
-                from sklearn.metrics.pairwise import cosine_similarity as cosine_similarity_func
-                cosine_similarity = cosine_similarity_func
-
             # Compute similarities
             similarities = {}
             for cat, cat_emb in self.text_category_embeddings.items():
                 # Cosine similarity
-                sim = np.dot(content_emb, cat_emb) / (
-                    np.linalg.norm(content_emb) * np.linalg.norm(cat_emb) + 1e-9
+                sim = self.np.dot(content_emb, cat_emb) / (
+                    self.np.linalg.norm(content_emb) * self.np.linalg.norm(cat_emb) + 1e-9
                 )
                 similarities[cat] = sim
 

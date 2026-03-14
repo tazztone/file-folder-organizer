@@ -113,6 +113,21 @@ class SettingsDialog:
 
         self.slider_ml.configure(command=lambda v: self.lbl_ml_val.configure(text=f"{v:.2f}"))
 
+        # Undo Stack Size
+        lbl_undo = ctk.CTkLabel(tab, text="Max Undo Stack Size:", anchor="w")
+        lbl_undo.pack(fill="x", padx=10, pady=(20, 5))
+
+        self.slider_undo = ctk.CTkSlider(tab, from_=1, to=50, number_of_steps=49)
+        self.slider_undo.pack(fill="x", padx=10, pady=5)
+
+        current_undo = getattr(self.organizer, "max_undo_stack", 5)
+        self.slider_undo.set(current_undo)
+
+        self.lbl_undo_val = ctk.CTkLabel(tab, text=str(int(current_undo)))
+        self.lbl_undo_val.pack()
+
+        self.slider_undo.configure(command=lambda v: self.lbl_undo_val.configure(text=str(int(v))))
+
     def _setup_profiles_tab(self):
         tab = self.tabview.tab("Profiles")
 
@@ -234,7 +249,21 @@ class SettingsDialog:
 
         # Save ML Threshold
         if hasattr(self, 'slider_ml'):
-             self.organizer.ml_confidence = self.slider_ml.get()
+             try:
+                 val = self.slider_ml.get()
+                 if val != "":
+                     self.organizer.ml_confidence = float(val)
+             except (ValueError, TypeError):
+                 pass
+
+        # Save Undo Stack Size
+        if hasattr(self, 'slider_undo'):
+             try:
+                 val = self.slider_undo.get()
+                 if val != "":
+                     self.organizer.max_undo_stack = int(float(val))
+             except (ValueError, TypeError):
+                 pass
 
     def save_config(self):
         self.save_pending_cat_changes()

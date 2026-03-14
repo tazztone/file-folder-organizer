@@ -85,14 +85,14 @@ class BatchDialog:
                         self.batch_folders = [{"path": p, "settings": None} for p in data]
                     else:
                         self.batch_folders = data
-            except:
+            except Exception:
                 self.batch_folders = []
 
     def _save_batch_config(self):
         try:
             with open(DEFAULT_BATCH_CONFIG_FILE, "w") as f:
                 json.dump(self.batch_folders, f)
-        except:
+        except Exception:
             pass
 
     def _refresh_list(self):

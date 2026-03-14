@@ -37,7 +37,10 @@ jobs:
       - name: Run Ruff
         run: uv run ruff check .
 
+      - name: Run mypy
+        run: uv run mypy src/ --ignore-missing-imports
+
       - name: Run tests with coverage
         run: |
           uv run coverage run -m unittest discover tests
-          uv run coverage report --fail-under=85
+          uv run coverage report --fail-under=90

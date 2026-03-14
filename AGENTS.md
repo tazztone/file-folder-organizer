@@ -22,8 +22,11 @@ Welcome! This guide helps AI agents understand the codebase, development workflo
     *   **`src/pro_file_organizer/ui/components/`**: Reusable UI widgets like `FileCard`.
     *   **`src/pro_file_organizer/ui/dialogs/`**: Configuration and Batch processing windows.
     *   **`src/pro_file_organizer/ui/themes/`**: Custom styles for non-standard widgets.
-*   **`config/`**: Contains application state and configuration files (`config.json`, `recent.json`, etc.).
-*   **`logs/`**: Directory for application logs.
+*   **Runtime State**: Application configuration (`config.json`, `recent.json`) and logs are stored in OS-specific user directories (via `platformdirs`).
+    *   **Linux**: `~/.config/pro-file-organizer/` and `~/.local/share/pro-file-organizer/logs/`
+    *   **Windows**: `%APPDATA%\Tazztone\pro-file-organizer\`
+    *   **macOS**: `~/Library/Application Support/pro-file-organizer/`
+*   **`config/` & `logs/`**: These directories in the repository root are for local development and debugging only. They are ignored by git and should not be used for production state.
 *   **`scripts/`**: Convenience scripts for environment setup.
 *   **`tests/`**: Unit test suite.
 *   **`run_app.py`**: Development entry point script.
