@@ -2,207 +2,192 @@ from unittest.mock import MagicMock
 
 
 class MockBase(object):
-    def __init__(self, master=None, *args, **kwargs):
-        self.master = master
-        self.tk = MagicMock()
-        self._w = "."
-        self._name = "."
-        self.children = {}
-        self._last_child_ids = None
+    def __init__(self, *args, **kwargs):
         self._config = {}
-        self.destroy = MagicMock()
-        self.pack = MagicMock()
-        self.pack_forget = MagicMock()
-        self.place = MagicMock()
-        self.place_forget = MagicMock()
-        self.grid = MagicMock()
-        self.grid_forget = MagicMock()
-        self.configure = MagicMock(side_effect=self._mock_configure)
-        self.cget = MagicMock(side_effect=self._mock_cget)
-        self.get = MagicMock(return_value="")
-        self.set = MagicMock()
-        self.insert = MagicMock()
-        self.delete = MagicMock()
-        self.after = MagicMock(side_effect=self._mock_after)
-        self.after_main = MagicMock(side_effect=self._mock_after)
-        self.winfo_children = MagicMock(return_value=[])
-        self.winfo_toplevel = MagicMock(return_value=self)
-        self.lift = MagicMock()
-        self.focus_force = MagicMock()
-        self.title = MagicMock()
-        self.geometry = MagicMock()
-        self.resizable = MagicMock()
-        self.grab_set = MagicMock()
-        self.transient = MagicMock()
-        self.withdraw = MagicMock()
-        self.deiconify = MagicMock()
-        self.mainloop = MagicMock()
-        self.quit = MagicMock()
-        self.iconname = MagicMock()
-        self._set_appearance_mode = MagicMock()
-        self.winfo_rootx = MagicMock(return_value=0)
-        self.winfo_rooty = MagicMock(return_value=0)
-        self.winfo_height = MagicMock(return_value=100)
-        self.winfo_width = MagicMock(return_value=100)
-        self.winfo_x = MagicMock(return_value=0)
-        self.winfo_y = MagicMock(return_value=0)
-        self.winfo_exists = MagicMock(return_value=1)
-        self.winfo_id = MagicMock(return_value=12345)
-        self.create_rectangle = MagicMock(return_value=1)
-        self.create_text = MagicMock(return_value=1)
-        self.itemconfig = MagicMock()
-        self.coords = MagicMock()
-        self.tag_bind = MagicMock()
-        self.tag_unbind = MagicMock()
-        # select/deselect should be mocked only if they don't exist
-        if not hasattr(self, "select"):
-            self.select = MagicMock()
-        if not hasattr(self, "deselect"):
-            self.deselect = MagicMock()
+        self.setObjectName = MagicMock()
+        self.setStyleSheet = MagicMock()
+        self.setFixedSize = MagicMock()
+        self.setFixedHeight = MagicMock()
+        self.setFixedWidth = MagicMock()
+        self.setAlignment = MagicMock()
+        self.setContentsMargins = MagicMock()
+        self.setSpacing = MagicMock()
+        self.addWidget = MagicMock()
+        self.addLayout = MagicMock()
+        self.addStretch = MagicMock()
+        self.insertWidget = MagicMock()
+        self.setText = MagicMock()
+        self.text = MagicMock(return_value="")
+        self.value = MagicMock(return_value=0)
+        self.setValue = MagicMock()
+        self.setRange = MagicMock()
+        self.show = MagicMock()
+        self.hide = MagicMock()
+        self.setEnabled = MagicMock()
+        self.clicked = MagicMock()
+        self.clicked.connect = MagicMock()
+        self.stateChanged = MagicMock()
+        self.stateChanged.connect = MagicMock()
+        self.currentTextChanged = MagicMock()
+        self.currentTextChanged.connect = MagicMock()
+        self.valueChanged = MagicMock()
+        self.valueChanged.connect = MagicMock()
+        self.dropped = MagicMock()
+        self.dropped.connect = MagicMock()
+        self.setAcceptDrops = MagicMock()
+        self.setCursor = MagicMock()
+        self.update = MagicMock()
+        self.rect = MagicMock(return_value=MagicMock())
+        self.rect().adjusted = MagicMock(return_value=MagicMock())
+        self.deleteLater = MagicMock()
+        self.count = MagicMock(return_value=0)
+        self.takeAt = MagicMock()
+        self.layout = MagicMock()
+        self.addItem = MagicMock()
+        self.addItems = MagicMock()
+        self.clear = MagicMock()
+        self.setCurrentText = MagicMock()
+        self.blockSignals = MagicMock()
+        self.setToolTip = MagicMock()
+        self.exec = MagicMock(return_value=1)
+        self.accept = MagicMock()
+        self.reject = MagicMock()
+        self.setReadOnly = MagicMock()
+        self.append = MagicMock()
+        self.setPlainText = MagicMock()
+        self.toPlainText = MagicMock(return_value="")
+        self.setChecked = MagicMock()
+        self.isChecked = MagicMock(return_value=False)
+        self.setWindowTitle = MagicMock()
+        self.resize = MagicMock()
+        self.setCentralWidget = MagicMock()
+        self.connect = MagicMock()
+        self.emit = MagicMock()
 
         for k, v in kwargs.items():
             setattr(self, k, v)
-            self._config[k] = v
 
-    def _mock_configure(self, **kwargs):
-        self._config.update(kwargs)
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+    def __getattr__(self, name):
+        # Fallback for signals like stateChanged, etc.
+        if name in [
+            "stateChanged", "clicked", "currentTextChanged", "valueChanged",
+            "dropped", "finished", "status_updated", "progress_updated", "log_emitted"
+        ]:
+            sig = MagicMock()
+            sig.connect = MagicMock()
+            sig.emit = MagicMock()
+            setattr(self, name, sig)
+            return sig
 
-    def _mock_cget(self, attr):
-        return self._config.get(attr, "")
+        # Auto-mock layout/widget helper methods
+        if name.startswith("add") or name.startswith("set") or name.startswith("insert"):
+            m = MagicMock()
+            setattr(self, name, m)
+            return m
 
-    def _mock_after(self, ms, func=None, *args):
-        if func and callable(func):
-            func()
-
-    def grid_columnconfigure(self, *args, **kwargs):
-        pass
-
-    def grid_rowconfigure(self, *args, **kwargs):
-        pass
-
-    def pack_propagate(self, *args):
-        pass
-
-    def grid_propagate(self, *args):
-        pass
-
-    def bind(self, *args, **kwargs):
-        pass
-
-    def unbind(self, *args, **kwargs):
-        pass
-
-    def update_idletasks(self):
-        pass
-
-    def update(self):
-        pass
-
-    def see(self, *args, **kwargs):
-        pass
-
-    def add(self, *args, **kwargs):
-        return self
-
-    def tab(self, *args, **kwargs):
-        return self
-
-
-class MockCTk(MockBase):
-    def title(self, *args):
-        pass
-
-    def geometry(self, *args):
-        pass
-
-    def withdraw(self):
-        pass
-
-    def deiconify(self):
-        pass
-
-    def mainloop(self):
-        pass
-
-    def quit(self):
-        pass
-
-    def resizable(self, *args):
-        pass
-
-
-class MockCTkToplevel(MockCTk):
-    def __init__(self, master=None, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-        self.master = master
-
-    def transient(self, *args):
-        pass
-
-    def grab_set(self):
-        pass
-
-    def lift(self):
-        pass
-
-    def focus_force(self):
-        pass
-
-
-class MockDnDWrapper(object):
-    def drop_target_register(self, *args):
-        pass
-
-    def dnd_bind(self, *args):
-        pass
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
 class MockModule(object):
     pass
 
 
-class MockVar(object):
-    def __init__(self, master=None, value=None, name=None):
-        self._value = value
+def get_pyside_mocks():
+    mock_qtwidgets = MockModule()
 
-    def get(self):
-        return self._value
+    class MockQApplication(MockBase):
+        @staticmethod
+        def instance():
+            return mock_app_instance
 
-    def set(self, value):
-        self._value = value
+        @staticmethod
+        def palette():
+            return mock_palette
 
+    mock_app_instance = MockBase()
+    mock_palette = MagicMock()
+    mock_color = MagicMock()
+    mock_color.lightness.return_value = 100  # Dark by default
+    mock_palette.color.return_value = mock_color
 
-def get_ui_mocks():
-    mock_ctk = MockModule()
-    mock_ctk.CTk = MockCTk
-    mock_ctk.CTkFrame = MockBase
-    mock_ctk.CTkScrollableFrame = MockBase
-    mock_ctk.CTkToplevel = MockCTkToplevel
-    mock_ctk.CTkLabel = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkButton = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkSwitch = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkEntry = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkImage = MagicMock()
-    mock_ctk.CTkOptionMenu = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkCheckBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkSlider = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkProgressBar = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkCanvas = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.CTkTextbox = MockBase
-    mock_ctk.CTkTabview = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
-    mock_ctk.BooleanVar = MockVar
-    mock_ctk.StringVar = MockVar
-    mock_ctk.set_appearance_mode = MagicMock()
-    mock_ctk.get_appearance_mode = MagicMock(return_value="Light")
-    mock_ctk.set_default_color_theme = MagicMock()
-    mock_ctk.CTkFont = MagicMock()
-    mock_ctk.CTkInputDialog = MagicMock()
+    mock_qtwidgets.QApplication = MockQApplication
+    mock_qtwidgets.QMainWindow = MockBase
+    mock_qtwidgets.QWidget = MockBase
+    mock_qtwidgets.QFrame = MockBase
+    mock_qtwidgets.QVBoxLayout = MockBase
+    mock_qtwidgets.QHBoxLayout = MockBase
+    mock_qtwidgets.QGridLayout = MockBase
+    mock_qtwidgets.QGridLayout.Policy = MockModule()
+    mock_qtwidgets.QGridLayout.Policy.Fixed = 1
 
-    mock_dnd = MockModule()
-    mock_dnd.TkinterDnD = MagicMock()
-    mock_dnd.DnDWrapper = MockDnDWrapper
-    mock_dnd.DND_FILES = "DND_FILES"
+    def mock_qlabel(text="", parent=None):
+        m = MockBase(parent)
+        m.text.return_value = text
+        return m
 
-    return mock_ctk, mock_dnd
+    mock_qtwidgets.QLabel = MagicMock(side_effect=mock_qlabel)
+    mock_qtwidgets.QPushButton = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QCheckBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QComboBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QSlider = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QProgressBar = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QScrollArea = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_qtwidgets.QFileDialog = MagicMock()
+    mock_qtwidgets.QFileDialog.getExistingDirectory = MagicMock(return_value="/mock/path")
+    mock_qtwidgets.QFileDialog.getSaveFileName = MagicMock(return_value=("/mock/file.json", "filter"))
+    mock_qtwidgets.QFileDialog.getOpenFileName = MagicMock(return_value=("/mock/file.json", "filter"))
+    mock_qtwidgets.QMessageBox = MagicMock()
+    mock_qtwidgets.QMessageBox.Yes = 1
+    mock_qtwidgets.QMessageBox.No = 0
+    mock_qtwidgets.QMessageBox.question = MagicMock(return_value=1)
+    mock_qtwidgets.QMessageBox.information = MagicMock()
+    mock_qtwidgets.QMessageBox.critical = MagicMock()
+    mock_qtwidgets.QMessageBox.warning = MagicMock()
+    mock_qtwidgets.QDialog = MockBase
+    mock_qtwidgets.QTabWidget = MockBase
+    mock_qtwidgets.QTextEdit = MockBase
+    mock_qtwidgets.QLineEdit = MockBase
+    mock_qtwidgets.QAbstractButton = MockBase
+    mock_qtwidgets.QInputDialog = MagicMock()
+    mock_qtwidgets.QInputDialog.getText = MagicMock(return_value=("mock_text", True))
+
+    mock_qtcore = MockModule()
+    mock_qtcore.Qt = MockModule()
+    mock_qtcore.Qt.AlignmentFlag = MockModule()
+    mock_qtcore.Qt.AlignmentFlag.AlignCenter = 1
+    mock_qtcore.Qt.CursorShape = MockModule()
+    mock_qtcore.Qt.CursorShape.PointingHandCursor = 1
+
+    mock_qtcore.Qt.AlignCenter = 1
+    mock_qtcore.Qt.Horizontal = 1
+    mock_qtcore.Qt.Checked = 2
+    mock_qtcore.Qt.Unchecked = 0
+    mock_qtcore.Qt.LeftButton = 1
+    mock_qtcore.Qt.PointingHandCursor = 1
+    mock_qtcore.Qt.DashLine = 1
+    mock_qtcore.QTimer = MagicMock()
+    mock_qtcore.QTimer.singleShot = MagicMock(side_effect=lambda ms, func: func())
+    mock_qtcore.Signal = MagicMock(side_effect=lambda *args: MagicMock())
+    mock_qtcore.QObject = MockBase
+    mock_qtcore.QSize = MagicMock()
+    mock_qtcore.QPoint = MagicMock()
+    mock_qtcore.QPropertyAnimation = lambda *args, **kwargs: MagicMock()
+    mock_qtcore.QEasingCurve = MockModule()
+    mock_qtcore.QEasingCurve.InOutExpo = 1
+    mock_qtcore.Property = MagicMock
+
+    mock_qtgui = MockModule()
+    mock_qtgui.QPainter = MagicMock()
+    mock_qtgui.QPen = MagicMock()
+    mock_qtgui.QColor = MagicMock()
+    mock_qtgui.QFont = MagicMock()
+    mock_qtgui.QIcon = MagicMock()
+    mock_qtgui.QDragEnterEvent = MagicMock()
+    mock_qtgui.QDropEvent = MagicMock()
+    mock_qtgui.QPalette = MockModule()
+    mock_qtgui.QPalette.ColorRole = MockModule()
+    mock_qtgui.QPalette.ColorRole.Window = 1
+    mock_qtgui.QPalette.Window = 1
+    mock_qtgui.QBrush = MagicMock
+
+    return mock_qtwidgets, mock_qtcore, mock_qtgui

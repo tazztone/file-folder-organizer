@@ -1,470 +1,537 @@
 import os
+import sys
+from typing import List, Optional
 
-try:
-    from tkinter import filedialog, messagebox
-except ImportError:
-    import tkinter.messagebox as messagebox
-
-    filedialog = None  # type: ignore
-
-import customtkinter as ctk
-
-try:
-    import tkinterdnd2
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-
-    if hasattr(tkinterdnd2, "DnDWrapper"):
-        DnDWrapper = tkinterdnd2.DnDWrapper  # type: ignore
-    else:
-        DnDWrapper = TkinterDnD.DnDWrapper  # type: ignore
-except (ImportError, AttributeError):
-
-    class DnDWrapper:  # type: ignore
-        def drop_target_register(self, *args):
-            pass
-
-        def dnd_bind(self, *args):
-            pass
-
-    DND_FILES = "DND_Files"
+from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QColor, QDragEnterEvent, QDropEvent, QPainter, QPalette, QPen
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ..core.ml_organizer import MultimodalFileOrganizer
 from ..core.organizer import FileOrganizer
-from .components.ui_components import CTkFolderPicker, FileCard, ModelDownloadModal
-from .dialogs.batch_dialog_ctk import BatchDialog
-from .dialogs.settings_dialog_ctk import SettingsDialog
+from .components.ui_components import FileCard, ModelDownloadModal
+from .dialogs.batch_dialog import BatchDialog
+from .dialogs.settings_dialog import SettingsDialog
 from .main_window_controller import MainWindowController
-from .themes.themes import COLORS, FONTS, RADII
-
-# Set default appearance
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
+from .themes.themes import COLORS, DARK_COLORS, LIGHT_COLORS, RADII, build_stylesheet, get_font_style
 
 
-class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
+class ToggleSwitch(QAbstractButton):
+    def __init__(self, parent=None, track_radius=10, thumb_radius=8):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setSizePolicy(QGridLayout.Policy.Fixed, QGridLayout.Policy.Fixed)
+
+        self._track_radius = track_radius
+        self._thumb_radius = thumb_radius
+
+        self._margin = 2
+        self._base_width = 40
+        self._base_height = 20
+
+        self._thumb_pos = self._margin
+        self._animation = QPropertyAnimation(self, b"thumb_pos", self)
+        self._animation.setDuration(200)
+        self._animation.setEasingCurve(QEasingCurve.InOutExpo)
+
+        self.setFixedSize(self._base_width, self._base_height)
+
+    def get_thumb_pos(self):
+        return self._thumb_pos
+
+    def set_thumb_pos(self, pos):
+        self._thumb_pos = pos
+        self.update()
+
+    thumb_pos = Property(float, get_thumb_pos, set_thumb_pos)
+
+    def sizeHint(self):
+        return QSize(self._base_width, self._base_height)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Draw track
+        track_color = QColor(COLORS["accent"]) if self.isChecked() else QColor(COLORS["border"])
+        painter.setBrush(QBrush(track_color))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), self._track_radius, self._track_radius)
+
+        # Draw thumb
+        painter.setBrush(QBrush(Qt.white))
+        painter.drawEllipse(
+            self._thumb_pos, self._margin, self.height() - 2 * self._margin, self.height() - 2 * self._margin
+        )
+
+    def nextCheckState(self):
+        super().nextCheckState()
+        self._animation.stop()
+        if self.isChecked():
+            self._animation.setEndValue(self.width() - self.height() + self._margin)
+        else:
+            self._animation.setEndValue(self._margin)
+        self._animation.start()
+
+    def setChecked(self, checked):
+        super().setChecked(checked)
+        self._thumb_pos = (self.width() - self.height() + self._margin) if checked else self._margin
+        self.update()
+
+
+class DropZoneWidget(QFrame):
+    dropped = Signal(str)
+
+    def __init__(self, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hovered = False
+        self.setObjectName("drop_zone")
+        self.setFixedHeight(160)
+        self.setStyleSheet(f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;")
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.lbl_icon = QLabel("📤")
+        self.lbl_icon.setStyleSheet("font-size: 48px; background: transparent;")
+        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_icon)
+
+        self.lbl_text = QLabel("Drag & Drop Folder Here")
+        self.lbl_text.setStyleSheet(f"{get_font_style('subtitle')} background: transparent;")
+        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_text)
+
+        self.actions_layout = QHBoxLayout()
+        self.actions_layout.setContentsMargins(0, 10, 0, 0)
+        layout.addLayout(self.actions_layout)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        color = COLORS["accent"] if self.hovered else COLORS["border"]
+        pen = QPen(QColor(color))
+        pen.setWidth(2)
+        pen.setStyle(Qt.DashLine)
+        pen.setDashPattern([10, 5])
+
+        painter.setPen(pen)
+        painter.drawRoundedRect(self.rect().adjusted(5, 5, -5, -5), RADII["standard"], RADII["standard"])
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self.hovered = True
+            self.update()
+
+    def dragLeaveEvent(self, event):
+        self.hovered = False
+        self.update()
+
+    def dropEvent(self, event: QDropEvent):
+        self.hovered = False
+        self.update()
+        urls = event.mimeData().urls()
+        if urls:
+            path = urls[0].toLocalFile()
+            if os.path.isdir(path):
+                self.dropped.emit(path)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dropped.emit("__BROWSE__")
+
+
+class OrganizerApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        # DnD Setup
-        if "tkinterdnd2" in globals():
-            try:
-                tkinterdnd2.TkinterDnD._require(self)  # type: ignore
-            except Exception:
-                pass
-
-        self.title("Pro File Organizer")
-        self.geometry("1100x750")  # Slightly larger default
-        self.configure(fg_color=COLORS["bg_main"])
+        self.setWindowTitle("Pro File Organizer")
+        self.resize(1100, 750)
 
         # Track results for state updates
-        self.result_cards = []
-
-        self._setup_ui()
+        self.result_cards: List[FileCard] = []
 
         self.organizer = FileOrganizer()
         self.ml_organizer = MultimodalFileOrganizer()
+
+        # Apply theme before UI setup
+        theme_mode = self.organizer.get_theme_mode() or "Dark"
+        self._apply_theme(theme_mode)
+
+        self._setup_ui()
+
         self.controller = MainWindowController(self, self.organizer, self.ml_organizer)
 
         # Load initial state into UI
         self.update_recent_menu(self.controller.recent_folders)
         self.update_stats_display(self.controller.stats)
 
-        theme = self.organizer.get_theme_mode()
-        if theme:
-            ctk.set_appearance_mode(theme)
-            if hasattr(self, "appearance_mode_menu"):
-                self.appearance_mode_menu.set(theme)
+        if theme_mode and hasattr(self, "appearance_mode_menu"):
+            self.appearance_mode_menu.setCurrentText(theme_mode)
+
+    def _apply_theme(self, mode: str):
+        if mode == "System":
+            is_dark = QApplication.palette().color(QPalette.ColorRole.Window).lightness() < 128
+            colors = DARK_COLORS if is_dark else LIGHT_COLORS
+        else:
+            colors = LIGHT_COLORS if mode == "Light" else DARK_COLORS
+
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            app.setStyleSheet(build_stylesheet(colors))
 
     def _setup_ui(self):
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
         # --- Sidebar ---
-        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=COLORS["bg_sidebar"])
-        self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(5, weight=1)  # Push footer down
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(240)
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(20, 20, 20, 20)
+        sidebar_layout.setSpacing(15)
+        main_layout.addWidget(self.sidebar)
 
         # Logo Area
-        self.logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.logo_frame.grid(row=0, column=0, padx=20, pady=(20, 30), sticky="ew")
+        logo_layout = QHBoxLayout()
+        sidebar_layout.addLayout(logo_layout)
 
-        self.logo_icon = ctk.CTkLabel(self.logo_frame, text="📁", font=("Inter", 24))
-        self.logo_icon.pack(side="left", padx=(0, 10))
+        lbl_logo_icon = QLabel("📁")
+        lbl_logo_icon.setStyleSheet("font-size: 24px;")
+        logo_layout.addWidget(lbl_logo_icon)
 
-        self.logo_label = ctk.CTkLabel(self.logo_frame, text="PRO ORGANIZER", font=FONTS["title"])
-        self.logo_label.pack(side="left")
+        lbl_logo_text = QLabel("PRO ORGANIZER")
+        lbl_logo_text.setStyleSheet(get_font_style("title"))
+        logo_layout.addWidget(lbl_logo_text)
+        logo_layout.addStretch()
+
+        sidebar_layout.addSpacing(15)
 
         # AI Toggle
-        self.frame_ai_toggle = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.frame_ai_toggle.grid(row=1, column=0, padx=10, pady=(0, 20), sticky="ew")
+        ai_layout = QHBoxLayout()
+        sidebar_layout.addLayout(ai_layout)
 
-        self.lbl_ai = ctk.CTkLabel(self.frame_ai_toggle, text="✨ Smart AI", font=FONTS["label"])
-        self.lbl_ai.pack(side="left", padx=10)
+        self.lbl_ai = QLabel("✨ Smart AI")
+        self.lbl_ai.setStyleSheet(get_font_style("label"))
+        ai_layout.addWidget(self.lbl_ai)
 
-        self.switch_ai = ctk.CTkSwitch(
-            self.frame_ai_toggle,
-            text="",
-            command=lambda: self.controller.toggle_ai(self.switch_ai.get() == 1),
-            width=40,
-            progress_color=COLORS["accent"],
-        )
-        self.switch_ai.pack(side="right", padx=5)
+        ai_layout.addStretch()
+
+        self.switch_ai = ToggleSwitch()
+        self.switch_ai.clicked.connect(lambda: self.controller.toggle_ai(self.switch_ai.isChecked()))
+        ai_layout.addWidget(self.switch_ai)
 
         # Main Buttons
-        self.btn_batch = ctk.CTkButton(
-            self.sidebar,
-            text="Batch Mode",
-            command=lambda: self.open_batch(),
-            fg_color=COLORS["bg_card"],
-            text_color=COLORS["text_main"],
-            border_width=1,
-            border_color=COLORS["accent"],
-            hover_color=COLORS["bg_hover"],
-            corner_radius=RADII["standard"],
-            height=40,
-        )
-        self.btn_batch.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        self.btn_batch = QPushButton("Batch Mode")
+        self.btn_batch.setFixedHeight(40)
+        self.btn_batch.clicked.connect(self.open_batch)
+        sidebar_layout.addWidget(self.btn_batch)
 
-        self.btn_settings = ctk.CTkButton(
-            self.sidebar,
-            text="Settings",
-            command=lambda: self.open_settings(),
-            fg_color=COLORS["bg_card"],
-            text_color=COLORS["text_main"],
-            border_width=1,
-            border_color=COLORS["accent"],
-            hover_color=COLORS["bg_hover"],
-            corner_radius=RADII["standard"],
-            height=40,
-        )
-        self.btn_settings.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        self.btn_settings = QPushButton("Settings")
+        self.btn_settings.setFixedHeight(40)
+        self.btn_settings.clicked.connect(self.open_settings)
+        sidebar_layout.addWidget(self.btn_settings)
 
-        # Stats Bar (Mini)
-        self.stats_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.stats_frame.grid(row=4, column=0, padx=20, pady=10, sticky="ew")
+        sidebar_layout.addSpacing(10)
 
-        self.lbl_stats_total = ctk.CTkLabel(
-            self.stats_frame, text="Files: 0", font=FONTS["small"], text_color=COLORS["text_dimmed"]
-        )
-        self.lbl_stats_total.pack(anchor="w")
-        self.lbl_stats_last = ctk.CTkLabel(
-            self.stats_frame, text="Last: Never", font=FONTS["small"], text_color=COLORS["text_dimmed"]
-        )
-        self.lbl_stats_last.pack(anchor="w")
+        # Stats Bar
+        self.stats_container = QVBoxLayout()
+        sidebar_layout.addLayout(self.stats_container)
 
-        # Footer Separator
-        self.sidebar_sep = ctk.CTkFrame(self.sidebar, height=1, fg_color=COLORS["separator"])
-        self.sidebar_sep.grid(row=6, column=0, padx=20, pady=(10, 0), sticky="ew")
+        self.lbl_stats_total = QLabel("Files: 0")
+        self.lbl_stats_total.setObjectName("dimmed")
+        self.lbl_stats_total.setStyleSheet(get_font_style("small"))
+        self.stats_container.addWidget(self.lbl_stats_total)
 
-        self.appearance_mode_menu = ctk.CTkOptionMenu(
-            self.sidebar,
-            values=["Light", "Dark", "System"],
-            command=self.change_appearance_mode_event,
-            fg_color=COLORS["accent"],
-            button_color=COLORS["accent"],
-            dropdown_hover_color=COLORS["accent"],
-            corner_radius=RADII["card"],
-        )
-        self.appearance_mode_menu.grid(row=7, column=0, padx=20, pady=20, sticky="s")
+        self.lbl_stats_last = QLabel("Last: Never")
+        self.lbl_stats_last.setObjectName("dimmed")
+        self.lbl_stats_last.setStyleSheet(get_font_style("small"))
+        self.stats_container.addWidget(self.lbl_stats_last)
+
+        sidebar_layout.addStretch()
+
+        # Appearance Menu
+        sidebar_layout.addWidget(QLabel("Appearance"))
+        self.appearance_mode_menu = QComboBox()
+        self.appearance_mode_menu.addItems(["Light", "Dark", "System"])
+        self.appearance_mode_menu.currentTextChanged.connect(self.change_appearance_mode_event)
+        sidebar_layout.addWidget(self.appearance_mode_menu)
 
         # --- Main Dashboard ---
-        self.main_area = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_area.grid(row=0, column=1, sticky="nsew", padx=30, pady=30)
-        self.main_area.grid_rowconfigure(2, weight=1)
-        self.main_area.grid_columnconfigure(0, weight=1)
+        self.main_area = QWidget()
+        main_area_layout = QVBoxLayout(self.main_area)
+        main_area_layout.setContentsMargins(30, 30, 30, 30)
+        main_area_layout.setSpacing(20)
+        main_layout.addWidget(self.main_area, 1)
 
-        # Drop Zone Frame
-        self.frame_top = ctk.CTkFrame(
-            self.main_area, height=160, corner_radius=RADII["standard"], fg_color=COLORS["bg_card"]
-        )
-        self.frame_top.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        self.frame_top.grid_propagate(False)  # Correct from pack_propagate
-        self.frame_top.grid_columnconfigure(0, weight=1)
-        self.frame_top.grid_rowconfigure(0, weight=1)
+        # Drop Zone
+        self.drop_zone = DropZoneWidget()
+        self.drop_zone.dropped.connect(self._handle_drop)
+        main_area_layout.addWidget(self.drop_zone)
 
-        # Canvas for Dashed Border
-        self.drop_canvas = ctk.CTkCanvas(
-            self.frame_top, bg=self._get_canvas_bg(), highlightthickness=0, bd=0, cursor="hand2"
-        )
-        self.drop_canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+        # Drop Zone Actions (Browse & Recent)
+        self.btn_browse = QPushButton("Browse Folder")
+        self.btn_browse.setFixedWidth(140)
+        self.btn_browse.clicked.connect(self.browse_folder)
+        self.drop_zone.actions_layout.addStretch()
+        self.drop_zone.actions_layout.addWidget(self.btn_browse)
 
-        try:
-            self.drop_canvas.drop_target_register(DND_FILES)
-            self.drop_canvas.dnd_bind("<<Drop>>", self.on_drop)
-            self.drop_canvas.dnd_bind("<<DragEnter>>", self._on_drag_enter)
-            self.drop_canvas.dnd_bind("<<DragLeave>>", self._on_drag_leave)
-        except Exception:
-            pass
-
-        self.drop_canvas.bind("<Button-1>", lambda e: self.browse_folder())
-        self.bind("<<AppearanceModeChanged>>", self._on_appearance_mode_changed)
-
-        self.lbl_drop = ctk.CTkLabel(
-            self.frame_top,
-            text="Drag & Drop Folder Here",
-            font=FONTS["subtitle"],
-            text_color=COLORS["text_main"],
-            fg_color="transparent",
-        )
-        self.lbl_drop.place(relx=0.5, rely=0.6, anchor="center")
-
-        self.lbl_drop_icon = ctk.CTkLabel(self.frame_top, text="📤", font=("Inter", 48), fg_color="transparent")
-        self.lbl_drop_icon.place(relx=0.5, rely=0.35, anchor="center")
-
-        self.drop_actions_frame = ctk.CTkFrame(self.frame_top, fg_color="transparent")
-        self.drop_actions_frame.place(relx=0.5, rely=0.7, anchor="center")
-
-        self.btn_browse = ctk.CTkButton(
-            self.drop_actions_frame,
-            text="Browse Folder",
-            command=self.browse_folder,
-            height=36,
-            corner_radius=RADII["card"],
-            fg_color=COLORS["accent"],
-        )
-        self.btn_browse.pack(side="left", padx=10)
-
-        self.option_recent = ctk.CTkOptionMenu(
-            self.drop_actions_frame,
-            values=["Recent..."],
-            command=lambda v: self.controller.on_recent_select(v),
-            height=36,
-            corner_radius=RADII["card"],
-            fg_color=COLORS["border"],
-            text_color=COLORS["text_main"],
-            button_color=COLORS["border"],
-            button_hover_color=COLORS["accent"],
-        )
-        self.option_recent.pack(side="left", padx=10)
+        self.option_recent = QComboBox()
+        self.option_recent.setFixedWidth(160)
+        self.option_recent.addItem("Recent...")
+        self.option_recent.currentTextChanged.connect(self._on_recent_select)
+        self.drop_zone.actions_layout.addWidget(self.option_recent)
+        self.drop_zone.actions_layout.addStretch()
 
         # Controls
-        self.frame_controls = ctk.CTkFrame(self.main_area, fg_color="transparent")
-        self.frame_controls.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        controls_layout = QHBoxLayout()
+        main_area_layout.addLayout(controls_layout)
 
-        self.frame_options = ctk.CTkFrame(self.frame_controls, fg_color="transparent")
-        self.frame_options.pack(side="left", fill="y")
+        options_layout = QHBoxLayout()
+        controls_layout.addLayout(options_layout)
 
-        self.var_recursive = ctk.BooleanVar(value=False)
-        self.chk_rec = ctk.CTkCheckBox(
-            self.frame_options, text="Recursive", variable=self.var_recursive, corner_radius=6, border_width=2
+        self.chk_rec = QCheckBox("Recursive")
+        options_layout.addWidget(self.chk_rec)
+
+        self.chk_del = QCheckBox("Delete Empty")
+        options_layout.addWidget(self.chk_del)
+
+        self.chk_date = QCheckBox("Sort by Date")
+        options_layout.addWidget(self.chk_date)
+
+        self.chk_duplicates = QCheckBox("Duplicates")
+        options_layout.addWidget(self.chk_duplicates)
+
+        self.chk_watch = QCheckBox("Watch Folder")
+        self.chk_watch.stateChanged.connect(lambda s: self.controller.toggle_watch(s == Qt.Checked))
+        options_layout.addWidget(self.chk_watch)
+
+        controls_layout.addStretch()
+
+        # AI Confidence (Initially Hidden)
+        self.ai_conf_container = QWidget()
+        ai_conf_layout = QHBoxLayout(self.ai_conf_container)
+        ai_conf_layout.setContentsMargins(0, 0, 0, 0)
+        ai_conf_layout.addWidget(QLabel("AI Confidence:"))
+        self.slider_conf = QSlider(Qt.Horizontal)
+        self.slider_conf.setRange(1, 9)
+        self.slider_conf.setValue(3)
+        self.slider_conf.setFixedWidth(100)
+        ai_conf_layout.addWidget(self.slider_conf)
+        self.ai_conf_container.hide()
+        controls_layout.addWidget(self.ai_conf_container)
+
+        self.btn_preview = QPushButton("PREVIEW")
+        self.btn_preview.setObjectName("secondary")
+        self.btn_preview.setFixedSize(120, 40)
+        self.btn_preview.setEnabled(False)
+        self.btn_preview.clicked.connect(lambda: self.controller.run_organization(dry_run=True))
+        controls_layout.addWidget(self.btn_preview)
+
+        self.btn_run = QPushButton("ORGANIZE")
+        self.btn_run.setObjectName("success")
+        self.btn_run.setFixedSize(120, 40)
+        self.btn_run.setEnabled(False)
+        self.btn_run.clicked.connect(lambda: self.controller.run_organization())
+        controls_layout.addWidget(self.btn_run)
+
+        # Results Area
+        self.results_header = QLabel("Waiting for action...")
+        self.results_header.setStyleSheet(get_font_style("label"))
+        main_area_layout.addWidget(self.results_header)
+
+        self.results_scroll = QScrollArea()
+        self.results_scroll.setWidgetResizable(True)
+        self.results_scroll.setObjectName("card")
+        self.results_scroll.setStyleSheet(
+            f"background-color: {COLORS['bg_card']}; border-radius: {RADII['standard']}px;"
         )
-        self.chk_rec.pack(side="left", padx=(0, 15))
 
-        self.var_del_empty = ctk.BooleanVar(value=False)
-        self.chk_del = ctk.CTkCheckBox(
-            self.frame_options, text="Delete Empty", variable=self.var_del_empty, corner_radius=6, border_width=2
-        )
-        self.chk_del.pack(side="left", padx=15)
+        self.results_container = QWidget()
+        self.results_layout = QVBoxLayout(self.results_container)
+        self.results_layout.setContentsMargins(10, 10, 10, 10)
+        self.results_layout.setSpacing(5)
+        self.results_layout.addStretch()
 
-        self.var_date_sort = ctk.BooleanVar(value=False)
-        self.chk_date = ctk.CTkCheckBox(
-            self.frame_options, text="Sort by Date", variable=self.var_date_sort, corner_radius=6, border_width=2
-        )
-        self.chk_date.pack(side="left", padx=15)
+        self.results_scroll.setWidget(self.results_container)
+        main_area_layout.addWidget(self.results_scroll, 1)
 
-        self.var_detect_duplicates = ctk.BooleanVar(value=False)
-        self.chk_duplicates = ctk.CTkCheckBox(
-            self.frame_options, text="Duplicates", variable=self.var_detect_duplicates, corner_radius=6, border_width=2
-        )
-        self.chk_duplicates.pack(side="left", padx=15)
+        # Status Bar
+        status_layout = QHBoxLayout()
+        main_area_layout.addLayout(status_layout)
 
-        self.var_watch_folder = ctk.BooleanVar(value=False)
-        self.chk_watch = ctk.CTkCheckBox(
-            self.frame_options,
-            text="Watch Folder",
-            variable=self.var_watch_folder,
-            command=lambda: self.controller.toggle_watch(self.var_watch_folder.get()),
-            corner_radius=6,
-            border_width=2,
-        )
-        self.chk_watch.pack(side="left", padx=15)
+        self.lbl_status = QLabel("Ready")
+        self.lbl_status.setObjectName("dimmed")
+        self.lbl_status.setStyleSheet(get_font_style("small"))
+        status_layout.addWidget(self.lbl_status)
 
-        self.frame_ai_conf = ctk.CTkFrame(self.frame_controls, fg_color="transparent")
-        self.lbl_conf = ctk.CTkLabel(self.frame_ai_conf, text="AI Confidence:")
-        self.lbl_conf.pack(side="left", padx=5)
-        self.slider_conf = ctk.CTkSlider(self.frame_ai_conf, from_=0.1, to=0.9, number_of_steps=8)
-        self.slider_conf.set(0.3)
-        self.slider_conf.pack(side="left", padx=5)
-
-        self.btn_preview = ctk.CTkButton(
-            self.frame_controls,
-            text="PREVIEW",
-            width=120,
-            height=40,
-            command=lambda: self.controller.run_organization(dry_run=True),
-            state="disabled",
-            fg_color=COLORS["border"],
-            text_color=COLORS["text_main"],
-            hover_color=COLORS["accent"],
-            corner_radius=RADII["card"],
-        )
-        self.btn_preview.pack(side="right", padx=5)
-
-        self.btn_run = ctk.CTkButton(
-            self.frame_controls,
-            text="ORGANIZE",
-            width=120,
-            height=40,
-            fg_color=COLORS["success"],
-            hover_color="#27AE60",
-            command=lambda: self.controller.run_organization(),
-            state="disabled",
-            corner_radius=RADII["card"],
-        )
-        self.btn_run.pack(side="right", padx=5)
-
-        self.scroll_results = ctk.CTkScrollableFrame(
-            self.main_area,
-            label_text="Waiting for action...",
-            label_font=FONTS["label"],
-            label_text_color=COLORS["accent"],
-            corner_radius=RADII["standard"],
-            fg_color=COLORS["bg_card"],
-        )
-        self.scroll_results.grid(row=3, column=0, sticky="nsew")
-
-        self.frame_status = ctk.CTkFrame(self.main_area, height=30, fg_color="transparent")
-        self.frame_status.grid(row=4, column=0, sticky="ew", pady=(10, 0))
-
-        self.lbl_status = ctk.CTkLabel(
-            self.frame_status, text="Ready", font=FONTS["small"], text_color=COLORS["text_dimmed"]
-        )
-        self.lbl_status.pack(side="left")
-
-        self.progress_bar = ctk.CTkProgressBar(self.frame_status, progress_color=COLORS["accent"])
-        self.progress_bar.pack(side="right", fill="x", expand=True, padx=(10, 0))
-        self.progress_bar.set(0)
-
-        self.after(100, self._draw_dashed_border)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(8)
+        status_layout.addWidget(self.progress_bar)
 
     # --- View Interface for Controller ---
 
     def update_folder_display(self, path_str):
-        self.lbl_drop.configure(text=f"Selected: {os.path.basename(path_str)}")
-        self.btn_preview.configure(state="normal")
-        self.btn_run.configure(state="normal")
+        self.drop_zone.lbl_text.setText(f"Selected: {os.path.basename(path_str)}")
+        self.btn_preview.setEnabled(True)
+        self.btn_run.setEnabled(True)
 
     def clear_results(self):
-        for widget in self.scroll_results.winfo_children():
-            widget.destroy()
+        # Safely clear widgets from the layout without risking infinite loops
+        count = self.results_layout.count()
+        for _ in range(count - 1): # keep the last stretch
+            item = self.results_layout.takeAt(0)
+            if item:
+                w = item.widget()
+                if w:
+                    w.deleteLater()
+        self.result_cards.clear()
 
     def show_error(self, title, message):
-        messagebox.showerror(title, message)
+        QMessageBox.critical(self, title, message)
 
     def show_info(self, title, message):
-        messagebox.showinfo(title, message)
+        QMessageBox.information(self, title, message)
 
     def confirm_action(self, title, message):
-        return messagebox.askyesno(title, message)
+        res = QMessageBox.question(self, title, message, QMessageBox.Yes | QMessageBox.No)
+        return res == QMessageBox.Yes
 
     def update_recent_menu(self, recent_folders):
-        values = ["Recent..."] + recent_folders
-        self.option_recent.configure(values=values)
-        self.option_recent.set("Recent...")
+        self.option_recent.blockSignals(True)
+        self.option_recent.clear()
+        self.option_recent.addItem("Recent...")
+        self.option_recent.addItems(recent_folders)
+        self.option_recent.blockSignals(False)
 
     def update_stats_display(self, stats):
         total = stats.get("total_files", 0)
         last = stats.get("last_run", "Never")
-        self.lbl_stats_total.configure(text=f"Files Organized: {total}")
-        self.lbl_stats_last.configure(text=f"Last Run: {last}")
+        self.lbl_stats_total.setText(f"Files Organized: {total}")
+        self.lbl_stats_last.setText(f"Last Run: {last}")
 
     def show_model_download(self, callback):
-        ModelDownloadModal(self, on_complete=callback)
+        modal = ModelDownloadModal(self, on_complete=callback)
+        modal.exec()
 
     def show_settings(self, organizer):
-        SettingsDialog(self, organizer)
+        dialog = SettingsDialog(self, organizer)
+        dialog.exec()
 
     def show_batch(self, organizer):
-        BatchDialog(self, organizer)
+        dialog = BatchDialog(self, organizer)
+        dialog.exec()
 
     def show_status(self, message):
-        self.lbl_status.configure(text=message)
+        self.lbl_status.setText(message)
 
     def update_progress(self, current, total, filename):
         if total > 0:
             if isinstance(total, float):  # ML loading percentage
-                self.progress_bar.set(current)
-                self.lbl_status.configure(text=f"{filename}")
+                self.progress_bar.setValue(int(current * 100))
+                self.lbl_status.setText(f"{filename}")
             else:
-                self.progress_bar.set(current / total)
-                self.lbl_status.configure(text=f"Processing: {filename}")
+                self.progress_bar.setValue(int((current / total) * 100))
+                self.lbl_status.setText(f"Processing: {filename}")
 
     def after_main(self, ms, func):
-        self.after(ms, func)
+        QTimer.singleShot(ms, func)
 
     def enable_ai_ui(self):
-        self.frame_ai_conf.pack(side="left", padx=20)
-        self.lbl_ai.configure(text_color="#9C27B0")
+        self.ai_conf_container.show()
+        self.lbl_ai.setStyleSheet(f"{get_font_style('label')} color: #9C27B0;")
 
     def disable_ai_ui(self):
-        self.frame_ai_conf.pack_forget()
-        self.lbl_ai.configure(text_color=COLORS["text_main"])
+        self.ai_conf_container.hide()
+        self.lbl_ai.setStyleSheet(f"{get_font_style('label')} color: {COLORS['text_main']};")
 
     def set_ai_switch_state(self, state):
-        if state:
-            self.switch_ai.select()
-        else:
-            self.switch_ai.deselect()
+        self.switch_ai.setChecked(state)
 
     def set_watch_switch_state(self, state):
-        if state:
-            self.chk_watch.select()
-        else:
-            self.chk_watch.deselect()
+        self.chk_watch.blockSignals(True)
+        self.chk_watch.setChecked(state)
+        self.chk_watch.blockSignals(False)
 
     def set_running_state(self, is_running):
-        state = "disabled" if is_running else "normal"
-        self.btn_run.configure(state=state)
-        self.btn_preview.configure(state=state)
-        if is_running:
-            self.scroll_results.configure(label_text="Processing...")
-        else:
-            # When finished, make cards opaque
+        self.btn_run.setEnabled(not is_running)
+        self.btn_preview.setEnabled(not is_running)
+        if not is_running:
             for card in self.result_cards:
                 card.set_executed()
 
     def get_ai_confidence(self):
-        return self.slider_conf.get()
+        return self.slider_conf.value() / 10.0
 
     def get_recursive_val(self):
-        return self.var_recursive.get()
+        return self.chk_rec.isChecked()
 
     def get_date_sort_val(self):
-        return self.var_date_sort.get()
+        return self.chk_date.isChecked()
 
     def get_del_empty_val(self):
-        return self.var_del_empty.get()
+        return self.chk_del.isChecked()
 
     def get_detect_duplicates_val(self):
-        return self.var_detect_duplicates.get()
+        return self.chk_duplicates.isChecked()
 
     def add_result_card(self, data):
-        card = FileCard(self.scroll_results, data)
-        card.pack(fill="x", pady=2, padx=5)
+        card = FileCard(data)
+        self.results_layout.insertWidget(self.results_layout.count() - 1, card)
         self.result_cards.append(card)
 
     def update_results_header(self, message):
-        self.scroll_results.configure(label_text=message)
+        self.results_header.setText(message)
 
-    # --- Event Handlers (Delegate to Controller) ---
+    # --- Event Handlers ---
 
-    def browse_folder(self):
-        CTkFolderPicker(
-            self,
-            initial_dir=self.controller.selected_path if self.controller.selected_path else None,
-            on_select=self.controller.set_folder,
-        )
-
-    def on_drop(self, event):
-        self.frame_top.configure(border_width=0)
-        if event.data:
-            path = event.data
-            if path.startswith("{") and path.endswith("}"):
-                path = path[1:-1]
+    def _handle_drop(self, path):
+        if path == "__BROWSE__":
+            self.browse_folder()
+        else:
             self.controller.set_folder(path)
 
-    def change_appearance_mode_event(self, new_appearance_mode: str):
-        ctk.set_appearance_mode(new_appearance_mode)
-        self.organizer.save_theme_mode(new_appearance_mode)
+    def browse_folder(self):
+        initial = self.controller.selected_path if self.controller.selected_path else None
+        path = QFileDialog.getExistingDirectory(self, "Select Folder", initial or "")
+        if path:
+            self.controller.set_folder(path)
+
+    def _on_recent_select(self, val):
+        if val != "Recent...":
+            self.controller.on_recent_select(val)
+
+    def change_appearance_mode_event(self, new_mode: str):
+        self._apply_theme(new_mode)
+        self.organizer.save_theme_mode(new_mode)
 
     def open_settings(self):
         self.controller.open_settings()
@@ -472,49 +539,12 @@ class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
     def open_batch(self):
         self.controller.open_batch()
 
-    # --- Private Helpers ---
-
-    def _get_canvas_bg(self):
-        mode = ctk.get_appearance_mode()
-        return COLORS["bg_card"][0] if mode == "Light" else COLORS["bg_card"][1]
-
-    def _on_appearance_mode_changed(self, new_mode):
-        self.after(100, self._draw_dashed_border)
-        # Update specific non-automated components
-        self.lbl_ai.configure(text_color=COLORS["text_main"])
-
-    def _on_drag_enter(self, event):
-        self.drop_canvas.configure(bg=self._get_color_str(COLORS["bg_hover"]))
-        self._draw_dashed_border(color=self._get_color_str(COLORS["accent"]))
-
-    def _on_drag_leave(self, event):
-        self.drop_canvas.configure(bg=self._get_canvas_bg())
-        self._draw_dashed_border()
-
-    def _get_color_str(self, color_tuple):
-        mode = ctk.get_appearance_mode()
-        return color_tuple[0] if mode == "Light" else color_tuple[1]
-
-    def _draw_dashed_border(self, color=None):
-        if not hasattr(self, "drop_canvas"):
-            return
-        self.drop_canvas.delete("border")
-        w = self.drop_canvas.winfo_width()
-        h = self.drop_canvas.winfo_height()
-        if w < 10 or h < 10:
-            self.after(100, self._draw_dashed_border)
-            return
-
-        if color is None:
-            color = self._get_color_str(COLORS["border"])
-
-        # Draw rect with dash
-        self.drop_canvas.create_rectangle(5, 5, w - 5, h - 5, outline=color, width=2, dash=(10, 5), tags="border")
-
 
 def main():
-    app = OrganizerApp()
-    app.mainloop()
+    app = QApplication(sys.argv)
+    window = OrganizerApp()
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
