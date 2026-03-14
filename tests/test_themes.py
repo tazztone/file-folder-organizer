@@ -27,6 +27,13 @@ class TestThemes(unittest.TestCase):
         self.assertIn("standard", themes.RADII)
         self.assertIn("card", themes.RADII)
 
+    def test_get_font(self):
+        font = themes.get_font("title")
+        self.assertEqual(font, themes.FONTS["title"])
+        # Fallback
+        fallback = themes.get_font("nonexistent")
+        self.assertEqual(fallback[0], "sans-serif")
+
 
 if __name__ == "__main__":
     unittest.main()

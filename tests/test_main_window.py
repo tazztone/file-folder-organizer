@@ -148,6 +148,33 @@ class TestMainWindow(unittest.TestCase):
         self.app.slider_conf.get.return_value = 0.5
         self.assertEqual(self.app.get_ai_confidence(), 0.5)
 
+    def test_browse_folder(self):
+        with patch("pro_file_organizer.ui.main_window.CTkFolderPicker") as mock_picker:
+            self.app.controller.selected_path = "/tmp"
+            self.app.browse_folder()
+            mock_picker.assert_called_with(self.app, initial_dir="/tmp", on_select=self.app.controller.set_folder)
+
+    def test_drag_drop_visuals(self):
+        event = MagicMock()
+        with patch.object(self.app, "_draw_dashed_border") as mock_draw:
+            self.app._on_drag_enter(event)
+            mock_draw.assert_called()
+            self.app._on_drag_leave(event)
+            self.assertEqual(mock_draw.call_count, 2)
+
+    def test_appearance_mode_changed(self):
+        with patch.object(self.app, "_draw_dashed_border") as mock_draw:
+            self.app._on_appearance_mode_changed("Dark")
+            # Uses app.after, which our MockBase executes immediately
+            mock_draw.assert_called()
+
+    def test_draw_dashed_border(self):
+        # Verify it doesn't crash and calls canvas methods
+        self.app.drop_canvas.winfo_width.return_value = 100
+        self.app.drop_canvas.winfo_height.return_value = 100
+        self.app._draw_dashed_border()
+        self.app.drop_canvas.create_rectangle.assert_called()
+
         self.app.var_recursive.set(True)
         self.assertEqual(self.app.get_recursive_val(), True)
 

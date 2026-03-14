@@ -4,6 +4,11 @@ from unittest.mock import MagicMock
 class MockBase(object):
     def __init__(self, master=None, *args, **kwargs):
         self.master = master
+        self.tk = MagicMock()
+        self._w = "."
+        self._name = "."
+        self.children = {}
+        self._last_child_ids = None
         self._config = {}
         self.destroy = MagicMock()
         self.pack = MagicMock()
@@ -24,6 +29,17 @@ class MockBase(object):
         self.winfo_toplevel = MagicMock(return_value=self)
         self.lift = MagicMock()
         self.focus_force = MagicMock()
+        self.title = MagicMock()
+        self.geometry = MagicMock()
+        self.resizable = MagicMock()
+        self.grab_set = MagicMock()
+        self.transient = MagicMock()
+        self.withdraw = MagicMock()
+        self.deiconify = MagicMock()
+        self.mainloop = MagicMock()
+        self.quit = MagicMock()
+        self.iconname = MagicMock()
+        self._set_appearance_mode = MagicMock()
         # select/deselect should be mocked only if they don't exist
         if not hasattr(self, "select"):
             self.select = MagicMock()
@@ -186,6 +202,8 @@ def get_ui_mocks():
     mock_ctk.CTkLabel = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkButton = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkSwitch = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkEntry = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
+    mock_ctk.CTkImage = MagicMock()
     mock_ctk.CTkOptionMenu = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkCheckBox = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))
     mock_ctk.CTkSlider = MagicMock(side_effect=lambda *args, **kwargs: MockBase(*args, **kwargs))

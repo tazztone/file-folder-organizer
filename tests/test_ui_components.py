@@ -14,6 +14,7 @@ import pro_file_organizer.ui.components.ui_components  # noqa: E402
 
 importlib.reload(pro_file_organizer.ui.components.ui_components)
 from pro_file_organizer.ui.components.ui_components import (  # noqa: E402
+    CTkFolderPicker,
     FileCard,
     ModelDownloadModal,
     RedirectedStderr,
@@ -129,6 +130,44 @@ class TestUIComponents(unittest.TestCase):
                 mock_org_instance.ensure_models.side_effect = Exception("Down error")
                 modal._download_task()
                 modal.after.assert_called()
+
+    def test_folder_picker_logic(self):
+        master = MagicMock()
+        # Mock pathlib to avoid real FS access
+        with patch("pro_file_organizer.ui.components.ui_components.Path") as mock_path_class:
+            mock_path = mock_path_class.return_value
+            mock_path.__str__.return_value = "/tmp"
+            mock_path.name = "tmp"
+
+            on_select = MagicMock()
+            picker = CTkFolderPicker(master, initial_dir="/tmp", on_select=on_select)
+            self.assertEqual(str(picker.current_path), "/tmp")
+
+            # Test navigation
+            mock_parent = MagicMock()
+            mock_path.parent = mock_parent
+            picker._go_up()
+            self.assertEqual(picker.current_path, mock_parent)
+
+            # Test selection
+            picker._select_current()
+            on_select.assert_called()
+            picker.destroy.assert_called()
+
+    def test_folder_picker_refresh(self):
+        master = MagicMock()
+        with patch("pro_file_organizer.ui.components.ui_components.Path") as mock_path_class:
+            mock_path = mock_path_class.return_value
+            mock_item = MagicMock()
+            mock_item.is_dir.return_value = True
+            mock_item.name = "SubFolder"
+            mock_path.iterdir.return_value = [mock_item]
+
+            picker = CTkFolderPicker(master, initial_dir="/tmp", on_select=MagicMock())
+            picker._refresh_list()
+            # Verify scroll_area children or ctk.CTkButton calls
+            # Since ctk is mocked via sys.modules elsewhere, it should work.
+            self.assertTrue(mock_ctk.CTkButton.called)
 
 
 if __name__ == "__main__":

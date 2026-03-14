@@ -21,12 +21,12 @@ COLORS = {
 
 # Typography
 FONTS = {
-    "title": ("Inter Segoe UI Helvetica Neue Arial sans-serif", 20, "bold"),
-    "subtitle": ("Inter Segoe UI Helvetica Neue Arial sans-serif", 16, "bold"),
-    "label": ("Inter Segoe UI Helvetica Neue Arial sans-serif", 13, "bold"),
-    "main": ("Inter Segoe UI Helvetica Neue Arial sans-serif", 13),
-    "small": ("Inter Segoe UI Helvetica Neue Arial sans-serif", 11),
-    "mono": ("JetBrains Mono Consolas Monaco monospace", 11),
+    "title": ("Inter", 20, "bold"),
+    "subtitle": ("Inter", 16, "bold"),
+    "label": ("Inter", 13, "bold"),
+    "main": ("Inter", 13),
+    "small": ("Inter", 11),
+    "mono": ("Consolas", 11),
 }
 
 # Radii
