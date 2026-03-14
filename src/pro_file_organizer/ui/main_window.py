@@ -295,6 +295,7 @@ class OrganizerApp(QMainWindow):
         # --- Main Dashboard ---
         self.main_area = QWidget()
         self.main_area.setObjectName("main_dashboard")
+        self.main_area.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         main_area_layout = QVBoxLayout(self.main_area)
         main_area_layout.setContentsMargins(30, 30, 30, 30)
         main_area_layout.setSpacing(20)
@@ -395,6 +396,8 @@ class OrganizerApp(QMainWindow):
         self.results_scroll.setObjectName("card")
 
         self.results_container = QWidget()
+        self.results_container.setObjectName("results_content")
+        self.results_container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(10, 10, 10, 10)
         self.results_layout.setSpacing(5)

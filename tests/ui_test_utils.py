@@ -178,6 +178,8 @@ def get_pyside_mocks():
     mock_qtcore.Qt.Orientation.Horizontal = 1
     mock_qtcore.Qt.CheckState = MockModule()
     mock_qtcore.Qt.CheckState.Checked = 2
+    mock_qtcore.Qt.WidgetAttribute = MockModule()
+    mock_qtcore.Qt.WidgetAttribute.WA_StyledBackground = 1
     mock_qtcore.Qt.MouseButton = MockModule()
     mock_qtcore.Qt.MouseButton.LeftButton = 1
     mock_qtcore.Qt.GlobalColor = MockModule()

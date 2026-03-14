@@ -170,6 +170,15 @@ def build_stylesheet(colors: Dict[str, str]) -> str:
         border-radius: {RADII["standard"]}px;
     }}
 
+    /* Ensure scroll viewport is transparent to show card background */
+    QScrollArea#card > QWidget > QWidget {{
+        background-color: transparent;
+    }}
+
+    QWidget#results_content {{
+        background-color: {colors["bg_card"]};
+    }}
+
     QScrollBar:vertical {{
         border: none;
         background: {colors["bg_main"]};
