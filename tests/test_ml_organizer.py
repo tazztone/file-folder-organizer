@@ -179,8 +179,8 @@ class TestMultimodalFileOrganizer(unittest.TestCase):
     def test_load_models_full(self):
         self.organizer.models_loaded = False
         with patch('pro_file_organizer.core.ml_organizer.SentenceTransformer', return_value=self.mock_text_model):
-            with patch('pro_file_organizer.core.ml_organizer.AutoModel') as mock_model:
-                with patch('pro_file_organizer.core.ml_organizer.AutoProcessor') as mock_proc:
+            with patch('pro_file_organizer.core.ml_organizer.AutoModel'):
+                with patch('pro_file_organizer.core.ml_organizer.AutoProcessor'):
                     self.organizer.load_models(progress_callback=MagicMock())
                     self.assertTrue(self.organizer.models_loaded)
 
