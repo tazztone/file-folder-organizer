@@ -55,9 +55,9 @@ python -m unittest discover tests
 
 ## 📝 Guidelines
 
-*   **Verify Everything**: After editing code, run the tests (`python -m unittest discover tests`).
+*   **Verify Everything**: After editing code, run the tests (`python -m unittest discover tests`). **Aim to maintain 90%+ total coverage.**
 *   **No Artifacts**: Do not edit files in `__pycache__` or `.git`.
-*   **Clean Code**: Keep the UI logic separate from the business logic (`organizer.py`) as much as possible.
+*   **Clean Code**: Keep the UI logic separate from the business logic (`organizer.py`) as much as possible. Use the `Controller` for orchestration.
 *   **Dependencies**: If adding a new dependency, update `requirements.txt`.
 
 ## 🐛 Troubleshooting
