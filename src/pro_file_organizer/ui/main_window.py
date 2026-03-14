@@ -362,7 +362,7 @@ class OrganizerApp(QMainWindow):
         self.slider_conf.setRange(1, 9)
         self.slider_conf.setValue(3)
         self.slider_conf.setFixedWidth(100)
-        self.slider_conf.valueChanged.connect(lambda v: self.lbl_ai_conf.setText(f"AI Confidence: {v * 10}%"))
+        self.slider_conf.valueChanged.connect(self._on_confidence_slider_changed)
         ai_conf_layout.addWidget(self.slider_conf)
         self.ai_conf_container.hide()
         controls_layout.addWidget(self.ai_conf_container)
@@ -392,6 +392,13 @@ class OrganizerApp(QMainWindow):
         self.results_header = QLabel("Waiting for action...")
         self.results_header.setStyleSheet(get_font_style("label"))
         main_area_layout.addWidget(self.results_header)
+
+        # Category Breakdown Bar
+        self.lbl_breakdown = QLabel("")
+        self.lbl_breakdown.setStyleSheet(f"{get_font_style('small')} color: {COLORS['text_dimmed']};")
+        self.lbl_breakdown.setWordWrap(True)
+        self.lbl_breakdown.hide()
+        main_area_layout.addWidget(self.lbl_breakdown)
 
         # Results & Log area with Tabs
         self.results_tabs = QTabWidget()
@@ -454,6 +461,8 @@ class OrganizerApp(QMainWindow):
                 if w:
                     w.deleteLater()
         self.result_cards.clear()
+        self.lbl_breakdown.setText("")
+        self.lbl_breakdown.hide()
 
     def show_error(self, title, message):
         QMessageBox.critical(self, title, message)
@@ -572,6 +581,21 @@ class OrganizerApp(QMainWindow):
 
     def clear_log(self):
         self.log_view.clear()
+
+    def update_ai_confidence_label(self, value):
+        self.lbl_ai_conf.setText(f"AI Confidence: {value * 10}%")
+
+    def update_category_breakdown(self, counts):
+        if not counts:
+            self.lbl_breakdown.hide()
+            return
+
+        parts = [f"{cat}: {count}" for cat, count in sorted(counts.items())]
+        self.lbl_breakdown.setText(" | ".join(parts))
+        self.lbl_breakdown.show()
+
+    def _on_confidence_slider_changed(self, value):
+        self.controller.on_confidence_changed(value)
 
     # --- Event Handlers ---
 

@@ -261,31 +261,34 @@ class FileOrganizer:
                         continue
                     yield item
 
-    def get_category(self, file_path: Path, use_ml: bool = False) -> tuple[str, float, str]:
+    def get_category(self, file_path: Path, use_ml: bool = False) -> tuple[str, float, str, Optional[str], float, str]:
         """
         Determines the target category for a file.
-        Returns: (category_path, confidence, method)
+        Returns: (effective_category, confidence, method, ai_category, ai_confidence, extension_category)
         """
-        # 1. Try ML if enabled
+        # 1. Get Extension Category (always needed as fallback)
+        ext = file_path.suffix.lower()
+        ext_category = self.extension_map.get(ext, DEFAULT_CATEGORY)
+
+        ai_category = None
+        ai_confidence = 0.0
+        ai_method = "extension"
+
+        # 2. Try ML if enabled
         if use_ml:
             if not self.ml_categorizer:
-                # Initialize if not already done (lazy loading mechanism in organize loop if needed,
-                # but ideally done before)
                 from .ml_organizer import MultimodalFileOrganizer
-
                 self.ml_categorizer = MultimodalFileOrganizer(self.ml_categories)
-                # Note: models might not be loaded yet, which smart_categorize handles by returning status
 
-            category, confidence, method = self.ml_categorizer.smart_categorize(file_path, threshold=self.ml_confidence)
+            ai_category, ai_confidence, ai_method = self.ml_categorizer.smart_categorize(file_path, threshold=0.0)
 
-            # If ML returned a valid result (not 'extension' fallback or error)
-            if category is not None and method not in ["extension", "ml-not-loaded"]:
-                return category, confidence, method
+            # If ML returned a valid result and meets current threshold
+            if ai_category and ai_method != "extension" and ai_method != "ml-not-loaded":
+                if ai_confidence >= self.ml_confidence:
+                    return ai_category, ai_confidence, ai_method, ai_category, ai_confidence, ext_category
 
-        # 2. Fallback to Extension
-        ext = file_path.suffix.lower()
-        category = self.extension_map.get(ext, DEFAULT_CATEGORY)
-        return category, 1.0, "extension"
+        # 3. Fallback to Extension
+        return ext_category, 1.0, "extension", ai_category, ai_confidence, ext_category
 
     def organize_files(self, options: OrganizationOptions) -> OrganizationResult:
         """
@@ -382,7 +385,7 @@ class FileOrganizer:
 
             try:
                 # Get Category Logic
-                category, confidence, method = self.get_category(item, use_ml)
+                category, confidence, method, ai_cat, ai_conf, ext_cat = self.get_category(item, use_ml)
 
                 # DUPLICATE DETECTION
                 if detect_duplicates:
@@ -476,6 +479,10 @@ class FileOrganizer:
                     "confidence": confidence,
                     "dry_run": dry_run,
                     "renamed": final_dest_path.name != item.name,
+                    "ai_category": ai_cat,
+                    "ai_confidence": ai_conf,
+                    "ai_method": method if method != "extension" else "ml",
+                    "ext_category": ext_cat,
                 }
 
                 if dry_run:
@@ -493,6 +500,9 @@ class FileOrganizer:
                             "category": category,
                             "method": method,
                             "confidence": confidence,
+                            "ai_category": ai_cat,
+                            "ai_confidence": ai_conf,
+                            "ext_category": ext_cat,
                         }
                     )
                 else:

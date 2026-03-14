@@ -315,7 +315,7 @@ class TestFileOrganizer(unittest.TestCase):
         # For example, pointing to /tmp or the parent directory
         outside_path = Path("/tmp/danger_zone")
 
-        with patch.object(self.organizer, "get_category", return_value=(str(outside_path), 1.0, "malicious")):
+        with patch.object(self.organizer, "get_category", return_value=(str(outside_path), 1.0, "malicious", None, 0.0, "Others")):
             stats = self.organizer.organize_files(OrganizationOptions(Path(self.test_dir)))
 
             # Should have encountered a safety error

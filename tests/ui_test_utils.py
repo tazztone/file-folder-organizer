@@ -197,7 +197,14 @@ def get_pyside_mocks():
     mock_qtcore.Qt.PointingHandCursor = 1
     mock_qtcore.Qt.DashLine = 1
     mock_qtcore.QTimer = MagicMock()
-    mock_qtcore.QTimer.singleShot = MagicMock(side_effect=lambda ms, func: func())
+    def mock_single_shot(*args):
+        # QTimer.singleShot(ms, slot) or QTimer.singleShot(ms, receiver, slot)
+        if len(args) == 2:
+            args[1]()
+        elif len(args) == 3:
+            args[2]()
+
+    mock_qtcore.QTimer.singleShot = MagicMock(side_effect=mock_single_shot)
     mock_qtcore.Signal = MagicMock(side_effect=lambda *args: MagicMock())
     mock_qtcore.QObject = MockBase
     mock_qtcore.QSize = MagicMock()

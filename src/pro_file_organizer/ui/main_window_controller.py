@@ -26,6 +26,8 @@ class MainWindowController:
         self.watcher: Optional[FolderWatcher] = None
         self.recent_folders: List[str] = []
         self.stats = {"total_files": 0, "last_run": "Never"}
+        self._cached_preview: List[dict] = []
+        self._source_path_for_preview: Optional[Path] = None
 
         self.load_stats()
         self.load_recent()
@@ -208,8 +210,13 @@ class MainWindowController:
         if not self.selected_path:
             return
 
+        self._cached_preview = []
+        self._source_path_for_preview = self.selected_path
+
         try:
             def on_event(data):
+                if dry_run:
+                    self._cached_preview.append(data)
                 self.view.after_main(0, lambda: self.view.add_result_card(data))
 
             def on_progress(current, total, filename):
@@ -263,3 +270,50 @@ class MainWindowController:
             self.stats["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             self.save_stats()
             self.view.update_stats_display(self.stats)
+
+    def on_confidence_changed(self, value):
+        """Called when the AI confidence slider moves."""
+        self.organizer.ml_confidence = value / 10.0
+        self.view.update_ai_confidence_label(value)
+        if self._cached_preview:
+            # Re-run preview categories without re-scanning files
+            self._refresh_preview()
+
+    def _refresh_preview(self):
+        """Update existing preview results based on new threshold."""
+        threshold = self.organizer.ml_confidence
+        self.view.clear_results()
+        category_counts = {}
+
+        for entry in self._cached_preview:
+            # Re-decide which category to use based on new threshold
+            ai_cat = entry.get("ai_category")
+            ai_conf = entry.get("ai_confidence", 0.0)
+            ext_cat = entry.get("ext_category", "Others")
+
+            if ai_cat and ai_conf >= threshold:
+                entry["category"] = ai_cat
+                entry["method"] = entry.get("ai_method", "ml")
+                entry["confidence"] = ai_conf
+            else:
+                entry["category"] = ext_cat
+                entry["method"] = "extension"
+                entry["confidence"] = 1.0
+
+            # Rebuild destination path (needed for FileCard display)
+            if self._source_path_for_preview:
+                dest = self._source_path_for_preview / entry["category"] / entry["file"]
+                entry["destination"] = str(dest)
+
+            self.view.add_result_card(entry)
+
+            # Update counts for breakdown
+            cat_name = entry["category"].split("/")[0]
+            category_counts[cat_name] = category_counts.get(cat_name, 0) + 1
+
+        # Update UI headers and breakdown
+        ai_count = sum(1 for e in self._cached_preview
+                       if e.get("ai_category") and e.get("ai_confidence", 0.0) >= threshold)
+        msg = f"Done! Would move {len(self._cached_preview)} files ({ai_count} AI-categorized)."
+        self.view.update_results_header(msg)
+        self.view.update_category_breakdown(category_counts)
