@@ -239,7 +239,7 @@ class TestFileOrganizer(unittest.TestCase):
 
         self.assertEqual(stats["moved"], 2)
         self.assertEqual(stats["duplicates"], 1)
-        
+
         # Check report
         report = stats.get("report", [])
         self.assertEqual(len(report), 3)
@@ -270,6 +270,24 @@ class TestFileOrganizer(unittest.TestCase):
             # hashing is called inside organize_files if detect_duplicates=True
             h = self.organizer._get_file_hash(Path(self.test_dir) / "file.txt")
             self.assertEqual(h, "")
+
+    def test_duplicate_detection_pre_hash(self):
+        # Create a "previously organized" file in the destination
+        dest_dir = Path(self.test_dir) / "Images"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_file = dest_dir / "old_image.jpg"
+        with open(dest_file, "w") as f:
+            f.write("same content")
+
+        # Create a new file with same content in source
+        self.create_file("new_image.jpg", content="same content")
+
+        options = OrganizationOptions(Path(self.test_dir), detect_duplicates=True)
+        stats = self.organizer.organize_files(options)
+
+        # It should be detected as duplicate of the file in the destination
+        self.assertEqual(stats["duplicates"], 1)
+        self.assertEqual(stats["moved"], 0)
 
     def test_organize_permission_error(self):
         self.create_file("file.txt")

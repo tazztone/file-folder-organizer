@@ -201,5 +201,39 @@ class TestMainWindowController(unittest.TestCase):
         self.controller.on_recent_select("Recent...")
         self.assertIsNone(self.controller.selected_path)
 
+    def test_toggle_watch(self):
+        # Case 1: No path selected
+        self.controller.selected_path = None
+        self.controller.toggle_watch(True)
+        self.view.show_error.assert_called_with("No Folder", "Select a folder to watch first.")
+        self.view.set_watch_switch_state.assert_called_with(False)
+
+        # Case 2: Path selected, start watcher
+        self.controller.selected_path = Path("/tmp")
+        with patch('pro_file_organizer.ui.main_window_controller.FolderWatcher') as mock_watcher_class:
+            mock_watcher = mock_watcher_class.return_value
+            self.controller.toggle_watch(True)
+            mock_watcher.start.assert_called()
+            self.assertEqual(self.controller.watcher, mock_watcher)
+
+            # Case 3: Stop watcher
+            self.controller.toggle_watch(False)
+            mock_watcher.stop.assert_called()
+            self.assertIsNone(self.controller.watcher)
+
+    def test_on_watch_trigger(self):
+        self.controller.selected_path = Path("/tmp")
+        self.controller.is_running = False
+
+        with patch.object(self.controller, 'run_organization') as mock_run:
+            self.controller._on_watch_trigger()
+            mock_run.assert_called_with(dry_run=False, from_watcher=True)
+
+            # Case: already running
+            mock_run.reset_mock()
+            self.controller.is_running = True
+            self.controller._on_watch_trigger()
+            mock_run.assert_not_called()
+
 if __name__ == '__main__':
     unittest.main()

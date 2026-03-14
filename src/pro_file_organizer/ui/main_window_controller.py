@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from pro_file_organizer.core.organizer import OrganizationOptions
+from pro_file_organizer.core.watcher import FolderWatcher
 
 
 class MainWindowController:
@@ -20,6 +21,7 @@ class MainWindowController:
         self.selected_path = None
         self.is_running = False
         self.ai_enabled = False
+        self.watcher = None
         self.recent_folders = []
         self.stats = {"total_files": 0, "last_run": "Never"}
 
@@ -152,7 +154,27 @@ class MainWindowController:
             self.view.set_ai_switch_state(False)
             self.view.show_error("Download Failed", "Could not download AI models.")
 
-    def run_organization(self, dry_run=False):
+    def toggle_watch(self, enabled):
+        if enabled:
+            if not self.selected_path:
+                self.view.show_error("No Folder", "Select a folder to watch first.")
+                self.view.set_watch_switch_state(False)
+                return
+
+            self.watcher = FolderWatcher(self.selected_path, lambda: self.view.after_main(0, self._on_watch_trigger))
+            self.watcher.start()
+            self.view.show_status(f"Watching: {self.selected_path.name}")
+        else:
+            if self.watcher:
+                self.watcher.stop()
+                self.watcher = None
+            self.view.show_status("Watcher disabled")
+
+    def _on_watch_trigger(self):
+        if not self.is_running:
+            self.run_organization(dry_run=False, from_watcher=True)
+
+    def run_organization(self, dry_run=False, from_watcher=False):
         if not self.selected_path:
             self.view.show_error("No Folder", "Please select a folder first.")
             return
@@ -160,7 +182,7 @@ class MainWindowController:
         if self.is_running:
             return
 
-        if not dry_run and not self.view.confirm_action("Confirm",
+        if not dry_run and not from_watcher and not self.view.confirm_action("Confirm",
                                                       f"Organize files in {self.selected_path}?"):
             return
 

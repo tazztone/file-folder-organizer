@@ -153,8 +153,17 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
         self.chk_date.pack(side="left", padx=10, pady=10)
 
         self.var_detect_duplicates = ctk.BooleanVar(value=False)
-        self.chk_duplicates = ctk.CTkCheckBox(self.frame_options, text="Duplicates", variable=self.var_detect_duplicates)
+        self.chk_duplicates = ctk.CTkCheckBox(
+            self.frame_options, text="Duplicates", variable=self.var_detect_duplicates
+        )
         self.chk_duplicates.pack(side="left", padx=10, pady=10)
+
+        self.var_watch_folder = ctk.BooleanVar(value=False)
+        self.chk_watch = ctk.CTkCheckBox(
+            self.frame_options, text="Watch Folder", variable=self.var_watch_folder,
+            command=lambda: self.controller.toggle_watch(self.var_watch_folder.get())
+        )
+        self.chk_watch.pack(side="left", padx=10, pady=10)
 
         self.frame_ai_conf = ctk.CTkFrame(self.frame_controls, fg_color="transparent")
         self.lbl_conf = ctk.CTkLabel(self.frame_ai_conf, text="AI Confidence:")
@@ -259,6 +268,12 @@ class OrganizerApp(ctk.CTk, DnDWrapper): # type: ignore
             self.switch_ai.select()
         else:
             self.switch_ai.deselect()
+
+    def set_watch_switch_state(self, state):
+        if state:
+            self.chk_watch.select()
+        else:
+            self.chk_watch.deselect()
 
     def set_running_state(self, is_running):
         state = "disabled" if is_running else "normal"

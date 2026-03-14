@@ -1,7 +1,7 @@
+import hashlib
 import json
 import os
 import shutil
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -315,6 +315,27 @@ class FileOrganizer:
         # Known file hashes in the target tree to detect duplicates
         known_hashes: dict[str, Path] = {}
 
+        # Pre-hash destination tree if requested
+        if detect_duplicates:
+            if log_callback:
+                log_callback("Pre-scanning destination for duplicates...")
+
+            for category in self.directories.keys():
+                target_dir = source_path / category
+                if target_dir.is_dir():
+                    # Scan recursively for existing files
+                    for root, _, files in os.walk(target_dir):
+                        for file in files:
+                            if file in self.excluded_names:
+                                continue
+                            file_path = Path(root) / file
+                            if file_path.suffix.lower() in self.excluded_extensions:
+                                continue
+
+                            f_hash = self._get_file_hash(file_path)
+                            if f_hash:
+                                known_hashes[f_hash] = file_path
+
         # Ensure ML is ready if requested
         if use_ml and not self.ml_categorizer:
              # Lazy init
@@ -349,10 +370,6 @@ class FileOrganizer:
             return {"moved": 0, "errors": 1}
 
         total_files = len(all_files)
-        moved_count = 0
-        renamed_count = 0
-        errors = 0
-        duplicates_count = 0
 
         for i, item in enumerate(all_files, 1):
             if check_stop and check_stop():
@@ -425,6 +442,7 @@ class FileOrganizer:
                     final_dest_path = self.get_unique_path(dest_path)
 
                 # Show relative path for logging
+                rel_dest: Union[Path, str]
                 try:
                     rel_dest = final_dest_path.relative_to(source_path)
                 except ValueError:
@@ -450,7 +468,7 @@ class FileOrganizer:
                         log_callback(f"{log_prefix}would move: {item.name} -> {rel_dest}{log_suffix}")
                     if event_callback:
                         event_callback(event_data)
-                    
+
                     report.append({
                         "file": item.name,
                         "status": "dry_run",
@@ -479,7 +497,7 @@ class FileOrganizer:
 
                     if event_callback:
                         event_callback(event_data)
-                    
+
                     report.append({
                         "file": item.name,
                         "status": "moved",
@@ -499,7 +517,7 @@ class FileOrganizer:
                 if log_callback:
                     log_callback(msg)
                 logger.error(msg)
-                
+
                 report.append({
                     "file": item.name,
                     "status": "error",
@@ -508,7 +526,12 @@ class FileOrganizer:
                 })
 
                 if event_callback:
-                    event_callback({"type": "error", "file": item.name, "error": str(e), "error_type": "PermissionError"})
+                    event_callback({
+                        "type": "error",
+                        "file": item.name,
+                        "error": str(e),
+                        "error_type": "PermissionError"
+                    })
 
                 if rollback_on_error and not dry_run:
                      if log_callback:
