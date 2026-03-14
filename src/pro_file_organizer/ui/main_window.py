@@ -359,10 +359,13 @@ class OrganizerApp(QMainWindow):
         self.lbl_ai_conf = QLabel("AI Confidence: 30%")
         ai_conf_layout.addWidget(self.lbl_ai_conf)
         self.slider_conf = QSlider(Qt.Orientation.Horizontal)
-        self.slider_conf.setRange(1, 9)
+        self.slider_conf.setRange(1, 10)
         self.slider_conf.setValue(3)
         self.slider_conf.setFixedWidth(100)
         self.slider_conf.valueChanged.connect(self._on_confidence_slider_changed)
+        self._conf_debounce_timer = QTimer()
+        self._conf_debounce_timer.setSingleShot(True)
+        self._conf_debounce_timer.timeout.connect(self._apply_confidence_change)
         ai_conf_layout.addWidget(self.slider_conf)
         self.ai_conf_container.hide()
         controls_layout.addWidget(self.ai_conf_container)
@@ -388,17 +391,40 @@ class OrganizerApp(QMainWindow):
         self.btn_stop.clicked.connect(lambda: setattr(self.controller, "is_running", False))
         controls_layout.addWidget(self.btn_stop)
 
-        # Results Area
+        # Results Area Header + Sort Options
+        results_header_layout = QHBoxLayout()
+        main_area_layout.addLayout(results_header_layout)
+
         self.results_header = QLabel("Waiting for action...")
         self.results_header.setStyleSheet(get_font_style("label"))
-        main_area_layout.addWidget(self.results_header)
+        results_header_layout.addWidget(self.results_header)
+
+        results_header_layout.addStretch()
+
+        self.sort_container = QWidget()
+        sort_layout = QHBoxLayout(self.sort_container)
+        sort_layout.setContentsMargins(0, 0, 0, 0)
+        self.lbl_sort = QLabel("Sort:")
+        self.lbl_sort.setStyleSheet(get_font_style("small"))
+        sort_layout.addWidget(self.lbl_sort)
+        self.combo_sort = QComboBox()
+        self.combo_sort.addItems(["None", "Name \u2191", "Confidence \u2193", "Type A-Z"])
+        self.combo_sort.currentTextChanged.connect(self._on_sort_changed)
+        sort_layout.addWidget(self.combo_sort)
+        self.sort_container.hide()
+        results_header_layout.addWidget(self.sort_container)
 
         # Category Breakdown Bar
-        self.lbl_breakdown = QLabel("")
-        self.lbl_breakdown.setStyleSheet(f"{get_font_style('small')} color: {COLORS['text_dimmed']};")
-        self.lbl_breakdown.setWordWrap(True)
-        self.lbl_breakdown.hide()
-        main_area_layout.addWidget(self.lbl_breakdown)
+        self.breakdown_container = QWidget()
+        self.breakdown_layout = QHBoxLayout(self.breakdown_container)
+        self.breakdown_layout.setContentsMargins(0, 0, 0, 0)
+        try:
+            self.breakdown_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        except AttributeError:
+            # Fallback for mocked Qt in tests
+            pass
+        self.breakdown_container.hide()
+        main_area_layout.addWidget(self.breakdown_container)
 
         # Results & Log area with Tabs
         self.results_tabs = QTabWidget()
@@ -451,7 +477,8 @@ class OrganizerApp(QMainWindow):
         self.btn_preview.setEnabled(True)
         self.btn_run.setEnabled(True)
 
-    def clear_results(self):
+    def clear_cards(self):
+        """Clears only the result cards without resetting other UI state."""
         # Safely clear widgets from the layout without risking infinite loops
         count = self.results_layout.count()
         for _ in range(count - 1):  # keep the last stretch
@@ -461,8 +488,15 @@ class OrganizerApp(QMainWindow):
                 if w:
                     w.deleteLater()
         self.result_cards.clear()
-        self.lbl_breakdown.setText("")
-        self.lbl_breakdown.hide()
+
+    def clear_results(self):
+        """Perform a full reset of the results area including toggles and sorts."""
+        self.clear_cards()
+        self.sort_container.hide()
+        self.breakdown_container.hide()
+        self.combo_sort.blockSignals(True)
+        self.combo_sort.setCurrentIndex(0)
+        self.combo_sort.blockSignals(False)
 
     def show_error(self, title, message):
         QMessageBox.critical(self, title, message)
@@ -585,17 +619,89 @@ class OrganizerApp(QMainWindow):
     def update_ai_confidence_label(self, value):
         self.lbl_ai_conf.setText(f"AI Confidence: {value * 10}%")
 
-    def update_category_breakdown(self, counts):
+    def update_category_breakdown(self, counts, hidden_categories=None):
+        if hidden_categories is None:
+            hidden_categories = set()
+
         if not counts:
-            self.lbl_breakdown.hide()
+            self.breakdown_container.hide()
+            # Clear layout if hiding
+            while self.breakdown_layout.count():
+                item = self.breakdown_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
             return
 
-        parts = [f"{cat}: {count}" for cat, count in sorted(counts.items())]
-        self.lbl_breakdown.setText(" | ".join(parts))
-        self.lbl_breakdown.show()
+        # Find existing buttons to update them without losing focus
+        existing_buttons = {}
+        for i in range(self.breakdown_layout.count()):
+            widget = self.breakdown_layout.itemAt(i).widget()
+            if isinstance(widget, QPushButton):
+                # We stored the category name as object name
+                cat_name = widget.property("category_name")
+                if cat_name:
+                    existing_buttons[cat_name] = widget
+
+        # Remove buttons for categories that no longer exist
+        for cat_name, btn in list(existing_buttons.items()):
+            if cat_name not in counts:
+                btn.deleteLater()
+                existing_buttons.pop(cat_name)
+
+        # Update or create buttons
+        for cat, count in sorted(counts.items()):
+            text = f"{cat}: {count}"
+            should_be_checked = cat not in hidden_categories
+
+            if cat in existing_buttons:
+                btn = existing_buttons[cat]
+                btn.setText(text)
+                btn.blockSignals(True)
+                btn.setChecked(should_be_checked)
+                btn.blockSignals(False)
+            else:
+                btn = QPushButton(text)
+                btn.setProperty("category_name", cat)
+                btn.setCheckable(True)
+                btn.setChecked(should_be_checked)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: transparent;
+                        color: {COLORS['text_dimmed']};
+                        border: 1px solid {COLORS['border']};
+                        border-radius: {RADII['badge']}px;
+                        padding: 2px 8px;
+                        {get_font_style('small')}
+                    }}
+                    QPushButton:checked {{
+                        background-color: {COLORS['accent']}40;
+                        color: {COLORS['text_main']};
+                        border: 1px solid {COLORS['accent']};
+                    }}
+                """)
+                btn.toggled.connect(lambda checked, c=cat: self.controller.on_category_toggle(c, checked))
+                self.breakdown_layout.addWidget(btn)
+
+        self.breakdown_container.show()
+        self.sort_container.show()
 
     def _on_confidence_slider_changed(self, value):
+        # Update label immediately but debounce controller update
+        self.update_ai_confidence_label(value)
+        self._conf_debounce_timer.start(150)
+
+    def _apply_confidence_change(self):
+        value = self.slider_conf.value()
         self.controller.on_confidence_changed(value)
+
+    def _on_sort_changed(self, text):
+        mapping = {
+            "None": "none",
+            "Name \u2191": "name",
+            "Confidence \u2193": "confidence",
+            "Type A-Z": "type"
+        }
+        self.controller.on_sort_changed(mapping.get(text, "none"))
 
     # --- Event Handlers ---
 

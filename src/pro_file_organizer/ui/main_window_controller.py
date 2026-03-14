@@ -28,6 +28,8 @@ class MainWindowController:
         self.stats = {"total_files": 0, "last_run": "Never"}
         self._cached_preview: List[dict] = []
         self._source_path_for_preview: Optional[Path] = None
+        self._hidden_categories: set[str] = set()
+        self._sort_key: str = "none"
 
         self.load_stats()
         self.load_recent()
@@ -212,6 +214,8 @@ class MainWindowController:
 
         self._cached_preview = []
         self._source_path_for_preview = self.selected_path
+        self._hidden_categories = set()
+        self._sort_key = "none"
 
         try:
             def on_event(data):
@@ -279,14 +283,33 @@ class MainWindowController:
             # Re-run preview categories without re-scanning files
             self._refresh_preview()
 
+    def on_category_toggle(self, category: str, visible: bool):
+        """Called when a category visibility is toggled."""
+        if visible:
+            self._hidden_categories.discard(category)
+        else:
+            self._hidden_categories.add(category)
+        if self._cached_preview:
+            self._refresh_preview()
+
+    def on_sort_changed(self, key: str):
+        """Called when the sorting option is changed."""
+        self._sort_key = key
+        if self._cached_preview:
+            self._refresh_preview()
+
     def _refresh_preview(self):
         """Update existing preview results based on new threshold."""
         threshold = self.organizer.ml_confidence
-        self.view.clear_results()
+        self.view.clear_cards()
         category_counts = {}
 
-        for entry in self._cached_preview:
-            # Re-decide which category to use based on new threshold
+        # 1. First pass: Copy entries, update categories and counts based on threshold
+        # We need this to get accurate counts and to set the `category` and `confidence` fields
+        # which will be used for sorting later.
+        updated_preview = []
+        for raw_entry in self._cached_preview:
+            entry = {**raw_entry}
             ai_cat = entry.get("ai_category")
             ai_conf = entry.get("ai_confidence", 0.0)
             ext_cat = entry.get("ext_category", "Others")
@@ -300,20 +323,40 @@ class MainWindowController:
                 entry["method"] = "extension"
                 entry["confidence"] = 1.0
 
+            cat_name = entry["category"].split("/")[0]
+            category_counts[cat_name] = category_counts.get(cat_name, 0) + 1
+            updated_preview.append(entry)
+
+        # 2. Sort the entries
+        if self._sort_key == "name":
+            entries = sorted(updated_preview, key=lambda e: e.get("file", "").lower())
+        elif self._sort_key == "confidence":
+            entries = sorted(updated_preview, key=lambda e: e.get("confidence", 0.0), reverse=True)
+        elif self._sort_key == "type":
+            entries = sorted(updated_preview, key=lambda e: e.get("category", ""))
+        else:
+            entries = updated_preview
+
+        # 3. Second pass: Filter and Add to UI
+        for entry in entries:
+            cat_name = entry["category"].split("/")[0]
+
+            if cat_name in self._hidden_categories:
+                continue
+
             # Rebuild destination path (needed for FileCard display)
             if self._source_path_for_preview:
-                dest = self._source_path_for_preview / entry["category"] / entry["file"]
+                dest = self._source_path_for_preview / entry["category"]
+                if entry.get("relative_dir"):
+                    dest = dest / entry["relative_dir"]
+                dest = dest / entry["file"]
                 entry["destination"] = str(dest)
 
             self.view.add_result_card(entry)
 
-            # Update counts for breakdown
-            cat_name = entry["category"].split("/")[0]
-            category_counts[cat_name] = category_counts.get(cat_name, 0) + 1
-
         # Update UI headers and breakdown
-        ai_count = sum(1 for e in self._cached_preview
+        ai_count = sum(1 for e in updated_preview
                        if e.get("ai_category") and e.get("ai_confidence", 0.0) >= threshold)
         msg = f"Done! Would move {len(self._cached_preview)} files ({ai_count} AI-categorized)."
         self.view.update_results_header(msg)
-        self.view.update_category_breakdown(category_counts)
+        self.view.update_category_breakdown(category_counts, self._hidden_categories)

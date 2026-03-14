@@ -422,6 +422,8 @@ class FileOrganizer:
                 # If ML is used, category might be a nested path string "Images/Personal"
                 target_dir = source_path / category
 
+                # Calculate relative destination dir to allow UI to rebuild paths
+                relative_dir_parts = []
                 if date_sort:
                     try:
                         mtime = item.stat().st_mtime
@@ -429,9 +431,12 @@ class FileOrganizer:
                         year = dt.strftime("%Y")
                         month = dt.strftime("%B")
                         target_dir = target_dir / year / month
+                        relative_dir_parts = [year, month]
                     except Exception as e:
                         if log_callback:
                             log_callback(f"Date error for {item.name}: {e}")
+
+                relative_dir = "/".join(relative_dir_parts) if relative_dir_parts else ""
 
                 # SAFETY CHECK: Ensure the target directory is WITHIN the source_path
                 try:
@@ -474,6 +479,7 @@ class FileOrganizer:
                     "file": item.name,
                     "source": str(item),
                     "destination": str(final_dest_path),
+                    "relative_dir": relative_dir,
                     "category": category,
                     "method": method,
                     "confidence": confidence,

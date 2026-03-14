@@ -247,6 +247,30 @@ class TestMainWindowController(unittest.TestCase):
             self.controller._on_watch_trigger()
             mock_run.assert_not_called()
 
+    def test_on_category_toggle(self):
+        """Test toggling category visibility updates state and triggers refresh."""
+        self.controller._cached_preview = [{"category": "Images"}]
+        with patch.object(self.controller, "_refresh_preview") as mock_refresh:
+            # Hide category
+            self.controller.on_category_toggle("Images", False)
+            self.assertIn("Images", self.controller._hidden_categories)
+            mock_refresh.assert_called_once()
+
+            mock_refresh.reset_mock()
+
+            # Show category
+            self.controller.on_category_toggle("Images", True)
+            self.assertNotIn("Images", self.controller._hidden_categories)
+            mock_refresh.assert_called_once()
+
+    def test_on_sort_changed(self):
+        """Test changing sort key updates state and triggers refresh."""
+        self.controller._cached_preview = [{"category": "Images"}]
+        with patch.object(self.controller, "_refresh_preview") as mock_refresh:
+            self.controller.on_sort_changed("name")
+            self.assertEqual(self.controller._sort_key, "name")
+            mock_refresh.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
