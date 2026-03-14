@@ -507,7 +507,7 @@ class OrganizerApp(QMainWindow):
                 self.lbl_status.setText(f"Processing: {filename}")
 
     def after_main(self, ms, func):
-        QTimer.singleShot(ms, func)
+        QTimer.singleShot(ms, self, func)
 
     def enable_ai_ui(self):
         self.ai_conf_container.show()
@@ -530,10 +530,12 @@ class OrganizerApp(QMainWindow):
         self.btn_preview.setEnabled(not is_running)
         if is_running:
             self.btn_run.hide()
+            self.btn_preview.hide()
             self.btn_stop.show()
         else:
             self.btn_stop.hide()
             self.btn_run.show()
+            self.btn_preview.show()
             for card in self.result_cards:
                 card.set_executed()
 

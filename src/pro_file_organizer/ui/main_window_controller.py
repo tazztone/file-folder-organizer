@@ -208,31 +208,37 @@ class MainWindowController:
         if not self.selected_path:
             return
 
-        def on_event(data):
-            self.view.after_main(0, lambda: self.view.add_result_card(data))
+        try:
+            def on_event(data):
+                self.view.after_main(0, lambda: self.view.add_result_card(data))
 
-        def on_progress(current, total, filename):
-            self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
+            def on_progress(current, total, filename):
+                self.view.after_main(0, lambda: self.view.update_progress(current, total, filename))
 
-        def on_log(msg):
-            self.view.after_main(0, lambda: self.view.append_log(msg))
+            def on_log(msg):
+                self.view.after_main(0, lambda: self.view.append_log(msg))
 
-        options = OrganizationOptions(
-            source_path=self.selected_path,
-            recursive=self.view.get_recursive_val(),
-            date_sort=self.view.get_date_sort_val(),
-            del_empty=self.view.get_del_empty_val(),
-            detect_duplicates=self.view.get_detect_duplicates_val(),
-            dry_run=dry_run,
-            use_ml=self.ai_enabled,
-            progress_callback=on_progress,
-            log_callback=on_log,
-            event_callback=on_event,
-            check_stop=lambda: not self.is_running,
-        )
-        stats = self.organizer.organize_files(options)
-
-        self.view.after_main(0, lambda: self._on_complete(stats, dry_run))
+            options = OrganizationOptions(
+                source_path=self.selected_path,
+                recursive=self.view.get_recursive_val(),
+                date_sort=self.view.get_date_sort_val(),
+                del_empty=self.view.get_del_empty_val(),
+                detect_duplicates=self.view.get_detect_duplicates_val(),
+                dry_run=dry_run,
+                use_ml=self.ai_enabled,
+                progress_callback=on_progress,
+                log_callback=on_log,
+                event_callback=on_event,
+                check_stop=lambda: not self.is_running,
+            )
+            stats = self.organizer.organize_files(options)
+            self.view.after_main(0, lambda: self._on_complete(stats, dry_run))
+        except Exception as e:
+            err_msg = str(e)
+            import traceback
+            traceback.print_exc()
+            self.view.after_main(0, lambda: self.view.show_error("Operation Failed", f"An unexpected error occurred: {err_msg}"))
+            self.view.after_main(0, lambda: self._on_complete({"moved": 0, "errors": 1}, dry_run))
 
     def _on_complete(self, stats, dry_run):
         self.is_running = False
