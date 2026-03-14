@@ -1,82 +1,100 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
-import tkinter as tk
+import importlib
+import os
+from tests.ui_test_utils import get_ui_mocks
 
-# Robust Base Classes for UI Mocks - avoiding metaclass conflicts
-class MockDnD:
-    def drop_target_register(self, *args): pass
-    def dnd_bind(self, *args): pass
-
-class MockCTkFrame(tk.Frame):
-    def __init__(self, master=None, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-    def cget(self, *args): return MagicMock()
-    def configure(self, *args, **kwargs): pass
-    def update(self): pass
-    def update_idletasks(self): pass
-    def winfo_children(self): return []
-
-class MockCTk(tk.Tk):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    def withdraw(self): pass
-    def deiconify(self): pass
-    def title(self, *args): pass
-    def geometry(self, *args): pass
-    def grid_columnconfigure(self, *args, **kwargs): pass
-    def grid_rowconfigure(self, *args, **kwargs): pass
-
-mock_ctk = MagicMock()
-# Use the classes directly
-mock_ctk.CTk = MockCTk
-mock_ctk.CTkFrame = MockCTkFrame
-mock_ctk.CTkLabel = MagicMock
-mock_ctk.CTkButton = MagicMock
-mock_ctk.CTkSwitch = MagicMock
-mock_ctk.CTkOptionMenu = MagicMock
-mock_ctk.CTkCheckBox = MagicMock
-mock_ctk.CTkSlider = MagicMock
-mock_ctk.CTkProgressBar = MagicMock
-mock_ctk.CTkScrollableFrame = MockCTkFrame
-mock_ctk.BooleanVar = tk.BooleanVar
-mock_ctk.set_appearance_mode = MagicMock()
-mock_ctk.get_appearance_mode = MagicMock(return_value="Light")
-mock_ctk.set_default_color_theme = MagicMock()
-mock_ctk.CTkFont = MagicMock()
+# Apply standardized mocks
+mock_ctk, mock_dnd = get_ui_mocks()
 sys.modules['customtkinter'] = mock_ctk
-
-mock_dnd = MagicMock()
-mock_dnd.TkinterDnD = MagicMock()
-# IMPORTANT: DnDWrapper must be a CLASS to avoid metaclass conflict with MockCTk (which is a class)
-class DnDWrapperMock:
-    def drop_target_register(self, *args): pass
-    def dnd_bind(self, *args): pass
-mock_dnd.DnDWrapper = DnDWrapperMock
 sys.modules['tkinterdnd2'] = mock_dnd
 
-# Patch the module before import if it hasn't been imported yet
+# Reload main_window
+import pro_file_organizer.ui.main_window
+importlib.reload(pro_file_organizer.ui.main_window)
 from pro_file_organizer.ui.main_window import OrganizerApp
 
 class TestMainWindow(unittest.TestCase):
-    @patch('pro_file_organizer.ui.main_window.FileOrganizer')
-    @patch('pro_file_organizer.core.ml_organizer.MultimodalFileOrganizer')
-    @patch('pro_file_organizer.ui.main_window.os.path.exists', return_value=False)
-    def setUp(self, mock_exists, mock_ml, mock_organizer):
-        self.mock_organizer = mock_organizer.return_value
-        self.mock_ml = mock_ml.return_value
-        # Mock view methods that are called during init
-        with patch('pro_file_organizer.ui.main_window.OrganizerApp._setup_ui'):
-            self.app = OrganizerApp()
+    def setUp(self):
+        self.patchers = [
+            patch('pro_file_organizer.ui.main_window.FileOrganizer'),
+            patch('pro_file_organizer.ui.main_window.MultimodalFileOrganizer'),
+            patch('pro_file_organizer.ui.main_window.MainWindowController'),
+            patch('pro_file_organizer.ui.main_window.SettingsDialog'),
+            patch('pro_file_organizer.ui.main_window.BatchDialog'),
+            patch('pro_file_organizer.ui.main_window.messagebox'),
+            patch('pro_file_organizer.ui.main_window.filedialog')
+        ]
+        self.mocks = [p.start() for p in self.patchers]
+        self.app = OrganizerApp()
+
+    def tearDown(self):
+        for p in self.patchers:
+            p.stop()
 
     def test_init(self):
         self.assertIsNotNone(self.app.controller)
-        self.assertEqual(self.app.organizer, self.mock_organizer)
 
-    def test_view_interface_calls(self):
-        self.app.lbl_status = MagicMock()
-        self.app.show_status("Test Status")
-        self.app.lbl_status.configure.assert_called()
+    def test_update_folder_display(self):
+        self.app.update_folder_display("/tmp/test")
+        self.assertEqual(self.app.lbl_drop.cget("text"), "Selected: test")
+        self.assertEqual(self.app.btn_run.cget("state"), "normal")
+
+    def test_clear_results(self):
+        mock_child = MagicMock()
+        self.app.scroll_results.winfo_children.return_value = [mock_child]
+        self.app.clear_results()
+        mock_child.destroy.assert_called()
+
+    def test_show_status(self):
+        self.app.show_status("Busy...")
+        self.assertEqual(self.app.lbl_status.cget("text"), "Busy...")
+
+    def test_update_progress(self):
+        # Numeric progress
+        self.app.update_progress(5, 10, "file.txt")
+        self.app.progress_bar.set.assert_called_with(0.5)
+        
+        # Float progress (ML loading)
+        self.app.update_progress(0.7, 1.0, "Model Loading")
+        self.app.progress_bar.set.assert_called_with(0.7)
+
+    def test_ui_toggles(self):
+        self.app.enable_ai_ui()
+        self.app.frame_ai_conf.pack.assert_called()
+        
+        self.app.disable_ai_ui()
+        self.app.frame_ai_conf.pack_forget.assert_called()
+
+    def test_set_running_state(self):
+        self.app.set_running_state(True)
+        self.assertEqual(self.app.btn_run.cget("state"), "disabled")
+        self.assertEqual(self.app.scroll_results.cget("label_text"), "Processing...")
+
+    def test_open_dialogs(self):
+        self.app.open_settings()
+        self.app.controller.open_settings.assert_called()
+        
+        self.app.open_batch()
+        self.app.controller.open_batch.assert_called()
+
+    def test_change_appearance(self):
+        with patch('pro_file_organizer.ui.main_window.ctk.set_appearance_mode') as mock_set:
+            self.app.change_appearance_mode_event("Dark")
+            mock_set.assert_called_with("Dark")
+            self.app.organizer.save_theme_mode.assert_called_with("Dark")
+
+    def test_on_drop(self):
+        event = MagicMock()
+        event.data = "/tmp/drop"
+        self.app.on_drop(event)
+        self.app.controller.set_folder.assert_called_with("/tmp/drop")
+        
+        # Braced path
+        event.data = "{/tmp/spaced path}"
+        self.app.on_drop(event)
+        self.app.controller.set_folder.assert_called_with("/tmp/spaced path")
 
 if __name__ == '__main__':
     unittest.main()
