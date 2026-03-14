@@ -2,8 +2,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from pro_file_organizer.ui.main_window_controller import MainWindowController
 from pro_file_organizer.core.organizer import FileOrganizer
+from pro_file_organizer.ui.main_window_controller import MainWindowController
 
 
 class TestLogFeedbackFlow(unittest.TestCase):

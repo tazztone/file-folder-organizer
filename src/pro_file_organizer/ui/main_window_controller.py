@@ -248,7 +248,9 @@ class MainWindowController:
             err_msg = str(e)
             import traceback
             traceback.print_exc()
-            self.view.after_main(0, lambda: self.view.show_error("Operation Failed", f"An unexpected error occurred: {err_msg}"))
+            self.view.after_main(
+                0, lambda: self.view.show_error("Operation Failed", f"An unexpected error occurred: {err_msg}")
+            )
             self.view.after_main(0, lambda: self._on_complete({"moved": 0, "errors": 1}, dry_run))
 
     def _on_complete(self, stats, dry_run):
