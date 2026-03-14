@@ -45,6 +45,7 @@ jobs:
         run: uv run mypy src/ --ignore-missing-imports
 
       - name: Run tests with coverage
+        shell: bash
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
             xvfb-run --auto-servernum uv run coverage run -m pytest tests/
