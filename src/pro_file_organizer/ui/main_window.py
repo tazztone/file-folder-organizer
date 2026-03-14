@@ -30,15 +30,15 @@ except (ImportError, AttributeError):
 
 from ..core.ml_organizer import MultimodalFileOrganizer
 from ..core.organizer import FileOrganizer
-from .components.ui_components import FileCard, ModelDownloadModal
+from .components.ui_components import CTkFolderPicker, FileCard, ModelDownloadModal
 from .dialogs.batch_dialog_ctk import BatchDialog
 from .dialogs.settings_dialog_ctk import SettingsDialog
 from .main_window_controller import MainWindowController
 from .themes.themes import COLORS, FONTS, RADII
 
 # Set default appearance
-ctk.set_appearance_mode("System")
-ctk.set_default_color_theme("blue")  # Keep blue as base for standard components
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
 
 class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
@@ -114,11 +114,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
             self.sidebar,
             text="Batch Mode",
             command=lambda: self.open_batch(),
-            fg_color="transparent",
-            border_width=2,
+            fg_color=COLORS["bg_card"],
+            text_color=COLORS["text_main"],
+            border_width=1,
             border_color=COLORS["accent"],
             hover_color=COLORS["bg_hover"],
             corner_radius=RADII["standard"],
+            height=40,
         )
         self.btn_batch.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
 
@@ -126,11 +128,13 @@ class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
             self.sidebar,
             text="Settings",
             command=lambda: self.open_settings(),
-            fg_color="transparent",
-            border_width=2,
+            fg_color=COLORS["bg_card"],
+            text_color=COLORS["text_main"],
+            border_width=1,
             border_color=COLORS["accent"],
             hover_color=COLORS["bg_hover"],
             corner_radius=RADII["standard"],
+            height=40,
         )
         self.btn_settings.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
@@ -201,10 +205,10 @@ class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
             text_color=COLORS["text_main"],
             fg_color="transparent",
         )
-        self.lbl_drop.place(relx=0.5, rely=0.4, anchor="center")
+        self.lbl_drop.place(relx=0.5, rely=0.6, anchor="center")
 
-        self.lbl_drop_icon = ctk.CTkLabel(self.frame_top, text="⬆", font=("Inter", 32), fg_color="transparent")
-        self.lbl_drop_icon.place(relx=0.5, rely=0.2, anchor="center")
+        self.lbl_drop_icon = ctk.CTkLabel(self.frame_top, text="📤", font=("Inter", 48), fg_color="transparent")
+        self.lbl_drop_icon.place(relx=0.5, rely=0.35, anchor="center")
 
         self.drop_actions_frame = ctk.CTkFrame(self.frame_top, fg_color="transparent")
         self.drop_actions_frame.place(relx=0.5, rely=0.7, anchor="center")
@@ -444,7 +448,11 @@ class OrganizerApp(ctk.CTk, DnDWrapper):  # type: ignore
     # --- Event Handlers (Delegate to Controller) ---
 
     def browse_folder(self):
-        self.controller.select_folder()
+        CTkFolderPicker(
+            self,
+            initial_dir=self.controller.selected_path if self.controller.selected_path else None,
+            on_select=self.controller.set_folder,
+        )
 
     def on_drop(self, event):
         self.frame_top.configure(border_width=0)

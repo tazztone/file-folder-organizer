@@ -357,3 +357,132 @@ class ModelDownloadModal(ctk.CTkToplevel):
             self.on_complete(False)
 
         # We DON'T destroy here, let user see error
+
+
+class CTkFolderPicker(ctk.CTkToplevel):
+    """
+    A themed alternative to the native tkinter directory picker.
+    """
+
+    def __init__(self, master, initial_dir=None, on_select=None):
+        super().__init__(master)
+        self.title("Select Directory")
+        self.geometry("600x500")
+        self.on_select = on_select
+        self.current_path = Path(initial_dir if initial_dir else os.path.expanduser("~"))
+
+        self.configure(fg_color=COLORS["bg_main"])
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        # Header with Path Entry and Up button
+        self.header = ctk.CTkFrame(self, fg_color="transparent")
+        self.header.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        self.header.grid_columnconfigure(0, weight=1)
+
+        self.entry_path = ctk.CTkEntry(
+            self.header, border_width=1, border_color=COLORS["border"], fg_color=COLORS["bg_card"]
+        )
+        self.entry_path.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        self.entry_path.insert(0, str(self.current_path))
+        self.entry_path.configure(state="readonly")
+
+        self.btn_up = ctk.CTkButton(
+            self.header, text="↑ Up", width=60, command=self._go_up, corner_radius=RADII["badge"]
+        )
+        self.btn_up.grid(row=0, column=1)
+
+        # Folder List Area
+        self.scroll_area = ctk.CTkScrollableFrame(
+            self,
+            corner_radius=RADII["standard"],
+            fg_color=COLORS["bg_card"],
+            border_width=1,
+            border_color=COLORS["border"],
+        )
+        self.scroll_area.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+
+        # Footer with Select and Cancel
+        self.footer = ctk.CTkFrame(self, fg_color="transparent")
+        self.footer.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
+
+        self.btn_cancel = ctk.CTkButton(
+            self.footer,
+            text="Cancel",
+            fg_color="transparent",
+            border_width=1,
+            border_color=COLORS["danger"],
+            text_color=COLORS["danger"],
+            command=self.destroy,
+            corner_radius=RADII["card"],
+        )
+        self.btn_cancel.pack(side="left", padx=(0, 10), expand=True, fill="x")
+
+        self.btn_select = ctk.CTkButton(
+            self.footer,
+            text="Select Folder",
+            fg_color=COLORS["accent"],
+            command=self._select_current,
+            corner_radius=RADII["card"],
+        )
+        self.btn_select.pack(side="right", expand=True, fill="x")
+
+        self._refresh_list()
+
+        # Modal Setup
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
+    def _refresh_list(self):
+        # Clear current list
+        for widget in self.scroll_area.winfo_children():
+            widget.destroy()
+
+        # Update path entry
+        self.entry_path.configure(state="normal")
+        self.entry_path.delete(0, "end")
+        self.entry_path.insert(0, str(self.current_path))
+        self.entry_path.configure(state="readonly")
+
+        try:
+            # List only directories, sorted, including hidden ones usually but maybe filter them for cleaner look
+            dirs = sorted([d for d in self.current_path.iterdir() if d.is_dir()])
+
+            for d in dirs:
+                # Skip very sensitive or broken dirs if any exception
+                try:
+                    name = d.name
+                    btn = ctk.CTkButton(
+                        self.scroll_area,
+                        text=f"📁 {name}",
+                        font=FONTS["main"],
+                        anchor="w",
+                        fg_color="transparent",
+                        text_color=COLORS["text_main"],
+                        hover_color=COLORS["bg_hover"],
+                        height=32,
+                        command=lambda p=d: self._navigate_to(p),
+                    )
+                    btn.pack(fill="x", pady=1)
+                except Exception:
+                    continue
+
+        except Exception as e:
+            err_lbl = ctk.CTkLabel(self.scroll_area, text=f"Error reading directory: {e}", text_color=COLORS["danger"])
+            err_lbl.pack(pady=20)
+
+    def _navigate_to(self, path):
+        self.current_path = path
+        self._refresh_list()
+
+    def _go_up(self):
+        parent = self.current_path.parent
+        if parent != self.current_path:
+            self.current_path = parent
+            self._refresh_list()
+
+    def _select_current(self):
+        if self.on_select:
+            self.on_select(str(self.current_path))
+        self.destroy()

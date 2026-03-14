@@ -25,8 +25,10 @@ class MockBase(object):
         self.lift = MagicMock()
         self.focus_force = MagicMock()
         # select/deselect should be mocked only if they don't exist
-        if not hasattr(self, 'select'): self.select = MagicMock()
-        if not hasattr(self, 'deselect'): self.deselect = MagicMock()
+        if not hasattr(self, "select"):
+            self.select = MagicMock()
+        if not hasattr(self, "deselect"):
+            self.deselect = MagicMock()
 
         for k, v in kwargs.items():
             setattr(self, k, v)

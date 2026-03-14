@@ -17,6 +17,12 @@ class TestThemes(unittest.TestCase):
         self.assertIn("title", themes.FONTS)
         self.assertIn("main", themes.FONTS)
 
+        # CustomTkinter requirement: tuples of len 2 to 6
+        for name, font in themes.FONTS.items():
+            self.assertIsInstance(font, tuple, f"Font '{name}' must be a tuple")
+            self.assertGreaterEqual(len(font), 2, f"Font '{name}' tuple too short")
+            self.assertLessEqual(len(font), 6, f"Font '{name}' tuple too long (max 6)")
+
     def test_radii_exist(self):
         self.assertIn("standard", themes.RADII)
         self.assertIn("card", themes.RADII)
