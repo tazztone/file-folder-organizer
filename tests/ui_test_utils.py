@@ -40,6 +40,20 @@ class MockBase(object):
         self.quit = MagicMock()
         self.iconname = MagicMock()
         self._set_appearance_mode = MagicMock()
+        self.winfo_rootx = MagicMock(return_value=0)
+        self.winfo_rooty = MagicMock(return_value=0)
+        self.winfo_height = MagicMock(return_value=100)
+        self.winfo_width = MagicMock(return_value=100)
+        self.winfo_x = MagicMock(return_value=0)
+        self.winfo_y = MagicMock(return_value=0)
+        self.winfo_exists = MagicMock(return_value=1)
+        self.winfo_id = MagicMock(return_value=12345)
+        self.create_rectangle = MagicMock(return_value=1)
+        self.create_text = MagicMock(return_value=1)
+        self.itemconfig = MagicMock()
+        self.coords = MagicMock()
+        self.tag_bind = MagicMock()
+        self.tag_unbind = MagicMock()
         # select/deselect should be mocked only if they don't exist
         if not hasattr(self, "select"):
             self.select = MagicMock()
@@ -80,24 +94,6 @@ class MockBase(object):
     def unbind(self, *args, **kwargs):
         pass
 
-    def winfo_rootx(self):
-        return 0
-
-    def winfo_rooty(self):
-        return 0
-
-    def winfo_height(self):
-        return 100
-
-    def winfo_width(self):
-        return 100
-
-    def winfo_x(self):
-        return 0
-
-    def winfo_y(self):
-        return 0
-
     def update_idletasks(self):
         pass
 
@@ -112,21 +108,6 @@ class MockBase(object):
 
     def tab(self, *args, **kwargs):
         return self
-
-    def create_rectangle(self, *args, **kwargs):
-        return 1
-
-    def create_text(self, *args, **kwargs):
-        return 1
-
-    def itemconfig(self, *args, **kwargs):
-        pass
-
-    def coords(self, *args, **kwargs):
-        pass
-
-    def delete(self, *args, **kwargs):
-        pass
 
 
 class MockCTk(MockBase):
