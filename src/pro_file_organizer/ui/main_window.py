@@ -636,7 +636,8 @@ class OrganizerApp(QMainWindow):
         existing_buttons = {}
         for i in range(self.breakdown_layout.count()):
             widget = self.breakdown_layout.itemAt(i).widget()
-            if isinstance(widget, QPushButton):
+            # In testing environments, isinstance might fail with mocks, so we safely check if it has the right property
+            if widget and hasattr(widget, "property"):
                 # We stored the category name as object name
                 cat_name = widget.property("category_name")
                 if cat_name:

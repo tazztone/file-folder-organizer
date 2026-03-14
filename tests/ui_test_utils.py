@@ -80,6 +80,7 @@ class MockBase(object):
             "clicked",
             "currentTextChanged",
             "valueChanged",
+            "toggled",
             "dropped",
             "finished",
             "status_updated",

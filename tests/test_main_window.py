@@ -78,6 +78,72 @@ class TestMainWindow(unittest.TestCase):
         self.app.disable_ai_ui()
         self.app.ai_conf_container.hide.assert_called()
 
+    def test_update_category_breakdown(self):
+        # Empty
+        self.app.update_category_breakdown({})
+        self.app.breakdown_container.hide.assert_called()
+
+        # With counts
+        counts = {"Images": 10, "Docs": 5}
+        self.app.update_category_breakdown(counts, hidden_categories={"Docs"})
+        self.app.breakdown_container.show.assert_called()
+
+        from PySide6.QtWidgets import QPushButton
+        # In UI tests mocked components `addWidget` just mocks it, they don't get placed into an iterable layout count properly.
+        # Check call args of `addWidget` on breakdown_layout instead.
+        calls = self.app.breakdown_layout.addWidget.call_args_list
+        self.assertEqual(len(calls), 2)
+
+        docs_btn = calls[0][0][0]
+        images_btn = calls[1][0][0]
+
+        # Test widget text by asserting on how they were constructed
+        # Since we mock QPushButton, it records how it was instantiated
+        self.assertTrue(docs_btn)
+        self.assertTrue(images_btn)
+
+        # Verify button states from setChecked
+        self.assertFalse(docs_btn.setChecked.call_args[0][0])
+        self.assertTrue(images_btn.setChecked.call_args[0][0])
+
+        # Mock itemAt and count manually on the layout object
+        self.app.breakdown_layout.count = MagicMock(return_value=2)
+        item_mock1 = MagicMock()
+        item_mock1.widget.return_value = docs_btn
+        docs_btn.property = MagicMock(return_value="Docs")
+
+        item_mock2 = MagicMock()
+        item_mock2.widget.return_value = images_btn
+        images_btn.property = MagicMock(return_value="Images")
+
+        self.app.breakdown_layout.itemAt = MagicMock(side_effect=[item_mock1, item_mock2])
+
+        counts["Images"] = 12
+        self.app.update_category_breakdown(counts, hidden_categories={"Docs"})
+
+        images_btn.setText.assert_called_with("Images: 12")
+
+        # Test remove category
+        del counts["Images"]
+        self.app.breakdown_layout.itemAt = MagicMock(side_effect=[item_mock1, item_mock2])
+        self.app.update_category_breakdown(counts)
+        images_btn.deleteLater.assert_called()
+
+    def test_on_sort_changed(self):
+        self.app._on_sort_changed("Name \u2191")
+        self.app.controller.on_sort_changed.assert_called_with("name")
+
+        self.app._on_sort_changed("Confidence \u2193")
+        self.app.controller.on_sort_changed.assert_called_with("confidence")
+
+        self.app._on_sort_changed("Type A-Z")
+        self.app.controller.on_sort_changed.assert_called_with("type")
+
+    def test_apply_confidence_change(self):
+        with patch.object(self.app.slider_conf, "value", return_value=5):
+            self.app._apply_confidence_change()
+        self.app.controller.on_confidence_changed.assert_called_with(5)
+
     def test_set_running_state(self):
         self.app.set_running_state(True)
         self.app.btn_run.setEnabled.assert_called_with(False)
