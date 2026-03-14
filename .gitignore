@@ -173,6 +173,4 @@ __marimo__/
 # --- App runtime state files (user-specific, should not be committed) ---
 config/config.json
 config/recent.json
-config/stats.json
-config/batch_config.json
 logs/

@@ -40,9 +40,10 @@ python -m unittest discover tests
 ```
 
 ### Writing Tests for GUI
-*   **Mocking**: Since this is a GUI app, you **must** mock `tkinter`, `customtkinter`, and `tkinterdnd2` in many cases to avoid "display not found" errors or creating actual windows during tests.
-*   **`sys.modules` Hack**: You may see patterns where `sys.modules` is modified in `setUp` to mock entire modules before import. Respect this pattern.
-*   **Thread Safety**: UI updates from background threads must be scheduled using `window.after`. Tests should verify this behavior where applicable.
+*   **Mocking**: We use a stateful `MockBase` (in `tests/ui_test_utils.py`) to mock `customtkinter` widgets. It captures `configure()` calls and provides `cget()` access to verify UI state.
+*   **Controller Pattern**: Test the `MainWindowController` directly for logic, mocking the `view` (interface). This allows testing 90%+ of app logic without a physical display.
+*   **`sys.modules` Hack**: Used in `setUp` to mock heavy ML libraries (`torch`, `transformers`) and `tkinterdnd2`, enabling fast, headless CI.
+*   **Thread Execution**: When testing threaded controller logic (e.g., `run_organization`), mock `threading.Thread` to execute its `target` immediately to avoid race conditions in unit tests.
 
 ## 🏗️ Architecture & Behaviors
 

@@ -127,9 +127,9 @@ You can exclude specific files, extensions, or folders from being processed.
 
 ### Running Tests
 
-To run the full test suite:
+To run the full test suite (currently achieving **91% coverage**):
 ```bash
-python -m unittest discover tests
+$env:PYTHONPATH="src"; uv run coverage run -m unittest discover tests; uv run coverage report --include="src/*"
 ```
 
 ### Agents 🤖
