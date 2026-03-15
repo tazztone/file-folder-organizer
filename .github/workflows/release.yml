@@ -27,7 +27,8 @@ jobs:
         run: uv build
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        # softprops/action-gh-release v2.5.3
+        uses: softprops/action-gh-release@1853d73993c8ca1b2c9c1a7fede39682d0ab5c2a
         with:
           files: dist/*
           generate_release_notes: true
@@ -35,4 +36,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        # pypa/gh-action-pypi-publish v1.13.0
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e
