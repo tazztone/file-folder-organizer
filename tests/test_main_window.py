@@ -88,7 +88,6 @@ class TestMainWindow(unittest.TestCase):
         self.app.update_category_breakdown(counts, hidden_categories={"Docs"})
         self.app.breakdown_container.show.assert_called()
 
-        from PySide6.QtWidgets import QPushButton
         # In UI tests mocked components `addWidget` just mocks it, they don't get placed into an iterable layout count properly.
         # Check call args of `addWidget` on breakdown_layout instead.
         calls = self.app.breakdown_layout.addWidget.call_args_list
