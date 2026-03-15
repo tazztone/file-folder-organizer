@@ -247,6 +247,98 @@ class TestMainWindowController(unittest.TestCase):
             self.controller._on_watch_trigger()
             mock_run.assert_not_called()
 
+    def test_on_category_toggle(self):
+        """Test toggling category visibility updates state and triggers refresh."""
+        self.controller._cached_preview = [{"category": "Images"}]
+        with patch.object(self.controller, "_refresh_preview") as mock_refresh:
+            # Hide category
+            self.controller.on_category_toggle("Images", False)
+            self.assertIn("Images", self.controller._hidden_categories)
+            mock_refresh.assert_called_once()
+
+            mock_refresh.reset_mock()
+
+            # Show category
+            self.controller.on_category_toggle("Images", True)
+            self.assertNotIn("Images", self.controller._hidden_categories)
+            mock_refresh.assert_called_once()
+
+    def test_on_sort_changed(self):
+        """Test changing sort key updates state and triggers refresh."""
+        self.controller._cached_preview = [{"category": "Images"}]
+        with patch.object(self.controller, "_refresh_preview") as mock_refresh:
+            self.controller.on_sort_changed("name")
+            self.assertEqual(self.controller._sort_key, "name")
+            mock_refresh.assert_called_once()
+
+    def test_refresh_preview(self):
+        """Test _refresh_preview categorizes, counts, and filters correctly."""
+        # Setup specific mock data for sorting and filtering
+        self.controller._source_path_for_preview = Path("/tmp")
+        self.controller._cached_preview = [
+            {"file": "b.txt", "ext_category": "Documents", "ai_category": "Images", "ai_confidence": 0.4},
+            {"file": "a.txt", "ext_category": "Documents", "ai_category": "Images", "ai_confidence": 0.9, "relative_dir": "2023"},
+            {"file": "c.txt", "ext_category": "Others", "ai_category": None}
+        ]
+
+        # Test logic branch: confidence > threshold (threshold is 0.5)
+        self.organizer.ml_confidence = 0.5
+
+        self.controller._refresh_preview()
+
+        # b.txt -> 0.4 < 0.5 -> ext_category: Documents
+        # a.txt -> 0.9 > 0.5 -> ai_category: Images
+        # c.txt -> None -> ext_category: Others
+
+        # Check call counts for view updates
+        self.assertEqual(self.view.add_result_card.call_count, 3)
+        self.view.update_category_breakdown.assert_called_once()
+        self.view.update_results_header.assert_called_once()
+
+        # Verify added cards
+        calls = self.view.add_result_card.call_args_list
+        categories = sorted([c[0][0]["category"] for c in calls])
+        self.assertEqual(categories, ["Documents", "Images", "Others"])
+
+        # Check path rebuild with relative_dir
+        a_txt_call = next(c[0][0] for c in calls if c[0][0]["file"] == "a.txt")
+        self.assertEqual(a_txt_call["destination"], str(Path("/tmp/Images/2023/a.txt")))
+
+        # Test Filtering
+        self.view.add_result_card.reset_mock()
+        self.controller._hidden_categories.add("Images")
+        self.controller._refresh_preview()
+
+        self.assertEqual(self.view.add_result_card.call_count, 2) # Images skipped
+        calls = self.view.add_result_card.call_args_list
+        categories = sorted([c[0][0]["category"] for c in calls])
+        self.assertEqual(categories, ["Documents", "Others"])
+        self.controller._hidden_categories.remove("Images")
+
+        # Test Sorting Branches
+        # Name
+        self.view.add_result_card.reset_mock()
+        self.controller._sort_key = "name"
+        self.controller._refresh_preview()
+        calls = self.view.add_result_card.call_args_list
+        files = [c[0][0]["file"] for c in calls]
+        self.assertEqual(files, ["a.txt", "b.txt", "c.txt"])
+
+        # Confidence
+        self.view.add_result_card.reset_mock()
+        self.controller._sort_key = "confidence"
+        self.controller._refresh_preview()
+        calls = self.view.add_result_card.call_args_list
+        confs = [c[0][0]["confidence"] for c in calls]
+        self.assertEqual(confs, [1.0, 1.0, 0.9])
+
+        # Type (Category)
+        self.view.add_result_card.reset_mock()
+        self.controller._sort_key = "type"
+        self.controller._refresh_preview()
+        calls = self.view.add_result_card.call_args_list
+        cats = [c[0][0]["category"] for c in calls]
+        self.assertEqual(cats, ["Documents", "Images", "Others"])
 
 if __name__ == "__main__":
     unittest.main()
